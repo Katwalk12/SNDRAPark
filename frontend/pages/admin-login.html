@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SNDRA Park | Admin Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/admin-login.css">
+</head>
+<body>
+  <main class="staff-auth-shell">
+    <section class="staff-auth-media admin-media" aria-label="Admin control visual">
+      <a class="brand-mark" href="./index.html" aria-label="Back to SNDRA Park main page">
+        <span class="brand-monogram">SP</span>
+      </a>
+    </section>
+
+    <section class="staff-auth-panel">
+      <div class="panel-content">
+        <a class="back-home" href="./index.html">
+          <span aria-hidden="true">&larr;</span>
+          <span>Back to Main Page</span>
+        </a>
+
+        <div class="auth-copy">
+          <p class="section-kicker">Administrator</p>
+          <h1>Admin Control Login</h1>
+          <p class="auth-subtitle">Sign in with your administrator credentials to manage operations, payments, and staff activity across SNDRA Park.</p>
+        </div>
+
+        <div class="demo-card">
+          <span>Default Admin Account</span>
+          <strong>admin@sndrapark.com</strong>
+          <p>Password: <code>Admin123!</code></p>
+        </div>
+
+        <form id="admin-login-form" class="staff-auth-form" novalidate>
+          <div class="field-group">
+            <label for="admin-email">Admin Email</label>
+            <input id="admin-email" name="email" class="auth-input" type="email" autocomplete="username" placeholder="Enter admin email">
+          </div>
+
+          <div class="field-group">
+            <label for="admin-password">Password</label>
+            <input id="admin-password" name="password" class="auth-input" type="password" autocomplete="current-password" placeholder="Enter password">
+          </div>
+
+          <button class="primary-btn" type="submit">Log In to Admin Dashboard</button>
+          <p class="form-status" id="admin-login-status" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script src="../../assets/js/system-settings.js"></script>
+  <script src="../js/admin-login.js"></script>
+</body>
+</html>
+

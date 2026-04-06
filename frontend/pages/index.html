@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SNDRA Park | Home</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  <link rel="stylesheet" href="../../assets/css/tailwind.css">
+  <link rel="stylesheet" href="../css/index.css">
+</head>
+<body>
+  <div class="app-shell">
+    <div class="absolute inset-x-0 top-0 -z-10 h-[28rem] bg-[radial-gradient(circle_at_top,rgba(244,201,93,0.16),transparent_60%)]"></div>
+
+    <header class="sticky top-0 z-40 border-b border-white/10 bg-black/55 backdrop-blur-xl">
+      <div class="page-shell flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <a class="flex items-center gap-3" href="#home" aria-label="SNDRA Park home">
+          <span class="icon-badge rounded-full bg-ember text-obsidian">SP</span>
+          <div>
+            <span class="section-kicker">Smart Parking</span>
+            <p class="text-lg font-semibold text-white" data-system-setting="system_name">SNDRA Park</p>
+          </div>
+        </a>
+
+        <nav class="flex flex-wrap items-center gap-2" aria-label="Primary navigation">
+          <a class="nav-link nav-link-icon" href="#home"><i class="fa-solid fa-house" aria-hidden="true"></i><span>Home</span></a>
+          <a class="nav-link nav-link-icon" href="#about"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span>About</span></a>
+          <a class="nav-link nav-link-icon" href="#contact"><i class="fa-solid fa-headset" aria-hidden="true"></i><span>Contact</span></a>
+          <a class="nav-link-outline nav-link-icon rounded-full px-5 py-3 text-sm font-semibold" href="./login.html"><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i><span>Log In</span></a>
+          <a class="nav-link-solid nav-link-icon rounded-full px-5 py-3 text-sm font-semibold" href="./signup.html"><i class="fa-solid fa-car-side" aria-hidden="true"></i><span>Sign Up</span></a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page-shell space-y-10 pb-12">
+      <section class="pt-4" id="home">
+        <div class="carousel reveal is-visible" id="homepage-hero-carousel" data-carousel>
+          <div class="carousel-slides">
+            <article class="carousel-slide active is-active" data-slide style="--slide-image: url('../assets/images/carousel1.jpg'); --slide-focus: center center;">
+              <img class="carousel-image" src="../assets/images/carousel1.jpg" alt="Premium parking entrance" loading="eager">
+              <div class="slide-overlay"></div>
+              <div class="slide-content">
+                <p class="slide-kicker">Premium Smart Parking</p>
+                <h1>Reserve a parking slot before the city starts moving.</h1>
+                <p>SNDRA Park gives drivers a faster, cleaner reservation flow with a dark premium dashboard, real-time slot visibility, and a booking experience designed for confidence.</p>
+                <div class="hero-actions">
+                  <a class="hero-button hero-button-solid" href="./signup.html"><i class="fa-solid fa-car-side" aria-hidden="true"></i><span>Create Account</span></a>
+                  <a class="hero-button hero-button-outline" href="#contact"><i class="fa-solid fa-headset" aria-hidden="true"></i><span>Contact Us</span></a>
+                </div>
+              </div>
+            </article>
+
+            <article class="carousel-slide" data-slide style="--slide-image: url('../assets/images/carousel2.jpg'); --slide-focus: center center;">
+              <img class="carousel-image" src="../assets/images/carousel2.jpg" alt="Luxury parking area with reserved spaces" loading="lazy">
+              <div class="slide-overlay"></div>
+              <div class="slide-content">
+                <p class="slide-kicker">Reservation Visibility</p>
+                <h2>Track available spaces and secure them before arrival.</h2>
+                <p>The interface is built to reduce parking friction with clear floor browsing, polished actions, and reservation summaries that stay easy to reopen.</p>
+                <div class="hero-actions">
+                  <a class="hero-button hero-button-solid" href="./login.html"><i class="fa-solid fa-table-columns" aria-hidden="true"></i><span>Open Dashboard</span></a>
+                  <a class="hero-button hero-button-outline" href="#about"><i class="fa-solid fa-layer-group" aria-hidden="true"></i><span>Explore Features</span></a>
+                </div>
+              </div>
+            </article>
+
+            <article class="carousel-slide" data-slide style="--slide-image: url('../assets/images/carousel3.jpg'); --slide-focus: center center;">
+              <img class="carousel-image" src="../assets/images/carousel3.jpg" alt="Parking booth and monitoring flow" loading="lazy">
+              <div class="slide-overlay"></div>
+              <div class="slide-content">
+                <p class="slide-kicker">Booth Ready</p>
+                <h2>Connected from user booking to booth-side monitoring and payment.</h2>
+                <p>SNDRA Park keeps the customer and teller views aligned with real-time reservation feeds, payment status tracking, and a consistent professional visual system.</p>
+                <div class="hero-actions">
+                  <a class="hero-button hero-button-solid" href="./booth-login.html"><i class="fa-solid fa-barcode" aria-hidden="true"></i><span>Booth Access</span></a>
+                  <a class="hero-button hero-button-outline" href="#contact"><i class="fa-solid fa-users" aria-hidden="true"></i><span>Reach the Team</span></a>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <div class="carousel-ui">
+            <button class="carousel-control" type="button" data-direction="prev" aria-label="Previous slide">
+              <span>&larr;</span>
+            </button>
+            <div class="carousel-dots" data-dots></div>
+            <button class="carousel-control" type="button" data-direction="next" aria-label="Next slide">
+              <span>&rarr;</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="landing-stat-strip reveal is-visible">
+          <article class="landing-stat-card">
+            <span class="landing-stat-icon"><i class="fa-solid fa-layer-group" aria-hidden="true"></i></span>
+            <strong>Multi-floor visibility</strong>
+            <p>Check live floor availability before choosing a slot.</p>
+          </article>
+          <article class="landing-stat-card">
+            <span class="landing-stat-icon"><i class="fa-solid fa-square-parking" aria-hidden="true"></i></span>
+            <strong>Fast reservation flow</strong>
+            <p>Reserve a slot in a cleaner, easier booking experience.</p>
+          </article>
+          <article class="landing-stat-card">
+            <span class="landing-stat-icon"><i class="fa-solid fa-receipt" aria-hidden="true"></i></span>
+            <strong>Booth-ready records</strong>
+            <p>Keep the barcode and parking pass ready for entry and payment.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="reveal about-section" id="about">
+        <div class="about-main-card">
+          <p class="section-kicker">About SNDRA Park</p>
+          <h2 class="about-title">A web-based smart parking reservation system built for faster arrivals and smoother parking operations.</h2>
+          <p class="section-copy">SNDRA Park is a modern smart parking reservation platform designed to help drivers reserve parking slots before they arrive while giving parking staff clearer realtime visibility across the facility. The system combines online booking, live slot monitoring, and booth-side transaction support into one practical workflow that is easier to manage for both users and parking operations.</p>
+          <p class="section-copy">With SNDRA Park, users can check available parking slots, choose a preferred floor, and secure a slot ahead of time through a simple web-based interface. Realtime status updates make it easier to see which spaces are available, reserved, or occupied, helping reduce unnecessary circling and long searches for parking during busy hours.</p>
+
+          <div class="about-flow-panel">
+            <div class="about-flow-heading">
+              <p class="section-kicker">How Parking Reservation Works</p>
+              <h3>From slot search to booth entry in a clearer, more organized process.</h3>
+            </div>
+
+            <div class="about-flow-grid">
+              <article class="about-flow-step">
+                <span class="about-flow-badge">01</span>
+                <h4>Check available parking slots</h4>
+                <p>Drivers can review floor availability and view live slot status before leaving for the parking area.</p>
+              </article>
+
+              <article class="about-flow-step">
+                <span class="about-flow-badge">02</span>
+                <h4>Reserve before arriving</h4>
+                <p>A selected slot can be reserved in advance, giving users better confidence before entering the facility.</p>
+              </article>
+
+              <article class="about-flow-step">
+                <span class="about-flow-badge">03</span>
+                <h4>Track realtime slot visibility</h4>
+                <p>Live updates help users and booth staff stay aligned on current slot conditions and reservation activity.</p>
+              </article>
+
+              <article class="about-flow-step">
+                <span class="about-flow-badge">04</span>
+                <h4>Support faster booth management</h4>
+                <p>The parking booth can manage entry, exit, and payment more efficiently with a clearer reservation and slot record.</p>
+              </article>
+            </div>
+          </div>
+
+          <p class="about-conclusion">By connecting drivers, reservation data, realtime slot monitoring, and booth-side operations in one system, SNDRA Park supports a smarter, more efficient, and more convenient parking experience for both motorists and parking management.</p>
+        </div>
+
+        <div class="about-side-column">
+          <article class="about-side-card">
+            <p class="section-kicker">Why Use SNDRA Park</p>
+            <h3>Advantages of smart parking reservation</h3>
+
+            <div class="about-advantage-list">
+              <article class="about-advantage-item">
+                <span class="about-advantage-icon"><i class="fas fa-clock" aria-hidden="true"></i></span>
+                <div>
+                  <h4>Convenience and time-saving</h4>
+                  <p>Drivers spend less time searching for a space and can prepare for parking before arriving on site.</p>
+                </div>
+              </article>
+
+              <article class="about-advantage-item">
+                <span class="about-advantage-icon"><i class="fas fa-tower-broadcast" aria-hidden="true"></i></span>
+                <div>
+                  <h4>Realtime slot visibility</h4>
+                  <p>Live parking status improves decision-making and gives users a clearer picture of slot availability.</p>
+                </div>
+              </article>
+
+              <article class="about-advantage-item">
+                <span class="about-advantage-icon"><i class="fas fa-road" aria-hidden="true"></i></span>
+                <div>
+                  <h4>Reduced congestion and fuel use</h4>
+                  <p>Less circling means reduced traffic pressure inside the parking area and less wasted fuel for drivers.</p>
+                </div>
+              </article>
+
+              <article class="about-advantage-item">
+                <span class="about-advantage-icon"><i class="fas fa-receipt" aria-hidden="true"></i></span>
+                <div>
+                  <h4>Faster entry and transaction flow</h4>
+                  <p>Booth staff can verify reservations, process movement, and handle payment in a more organized way.</p>
+                </div>
+              </article>
+            </div>
+          </article>
+
+          <article class="about-side-card about-side-card-accent">
+            <p class="section-kicker">Operational Value</p>
+            <h3>Smarter management for busy parking environments</h3>
+            <p>Beyond convenience for drivers, SNDRA Park also helps parking administrators maintain better slot allocation, cleaner reservation records, and a more consistent user experience across peak hours.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="reveal space-y-6" id="contact">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div class="max-w-3xl">
+            <p class="section-kicker">Contact Us</p>
+            <h2 class="section-title mt-4">A cleaner contact section for users, staff, and project inquiries.</h2>
+            <p class="section-copy mt-4">This updated layout highlights the real essentials first: email, phone, and location, then adds social shortcuts for quick communication.</p>
+          </div>
+          <a class="nav-link-solid rounded-full px-5 py-3 text-sm font-semibold" href="./signup.html">Start With SNDRA Park</a>
+        </div>
+
+        <div class="contact-grid">
+          <article class="contact-info-card">
+            <span class="icon-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <use href="../assets/icons/sprite.svg#icon-email"></use>
+              </svg>
+            </span>
+            <p class="section-kicker mt-5">Email</p>
+            <h3 class="mt-3 text-xl font-semibold text-white" data-system-setting="gmail_address">sndrapark.emulator@gmail.com</h3>
+            <p class="mt-3 text-sm leading-7 text-pearl/75">Reach out for account concerns, project questions, reservation issues, or collaboration inquiries.</p>
+          </article>
+
+          <article class="contact-info-card">
+            <span class="icon-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <use href="../assets/icons/sprite.svg#icon-phone"></use>
+              </svg>
+            </span>
+            <p class="section-kicker mt-5">Phone</p>
+            <h3 class="mt-3 text-xl font-semibold text-white" data-system-setting="contact_number">+63 917 555 0142</h3>
+            <p class="mt-3 text-sm leading-7 text-pearl/75">Available for parking operations follow-ups, customer support handoff, and direct booth coordination.</p>
+          </article>
+
+          <article class="contact-info-card location-contact-card">
+            <span class="icon-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <use href="../assets/icons/sprite.svg#icon-location"></use>
+              </svg>
+            </span>
+            <p class="section-kicker mt-5">Location</p>
+            <h3 class="mt-3 text-xl font-semibold text-white">SM City Grand Central, Caloocan</h3>
+            <p class="mt-3 text-sm leading-7 text-pearl/75">Located near Monumento, SNDRA Park provides smart parking solutions in one of Caloocan&apos;s busiest areas.</p>
+            <div class="location-mini-map-shell">
+              <iframe
+                class="location-mini-map"
+                src="https://www.google.com/maps?q=SM+City+Grand+Central+Caloocan&output=embed"
+                title="SNDRA Park location map"
+                width="100%"
+                height="280"
+                style="border:0;"
+                allowfullscreen=""
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"></iframe>
+            </div>
+            <div class="location-mini-details">
+              <div class="location-mini-item">
+                <i class="fas fa-location-dot" aria-hidden="true"></i>
+                <span>SM City Grand Central, Rizal Ave Ext, Caloocan City</span>
+              </div>
+              <a
+                class="location-direction-button location-direction-button-inline"
+                href="https://www.google.com/maps/search/?api=1&query=SM+City+Grand+Central+Rizal+Avenue+Extension+Caloocan+Metro+Manila"
+                target="_blank"
+                rel="noreferrer">
+                <i class="fas fa-route" aria-hidden="true"></i>
+                <span>Get Directions</span>
+              </a>
+            </div>
+          </article>
+        </div>
+
+        <footer class="corporate-footer">
+          <div class="footer-social-strip">
+            <div class="footer-social-copy">
+              <p class="section-kicker">Social Links</p>
+              <h3>Stay connected with the SNDRA Park team.</h3>
+            </div>
+            <div class="footer-social-actions">
+              <a class="footer-social-button" href="#" aria-label="Facebook">
+                <i class="fa-brands fa-facebook-f" aria-hidden="true"></i>
+                <span>Facebook</span>
+              </a>
+              <a class="footer-social-button" href="#" aria-label="Instagram">
+                <i class="fa-brands fa-instagram" aria-hidden="true"></i>
+                <span>Instagram</span>
+              </a>
+              <a class="footer-social-button" href="#" aria-label="Viber">
+                <i class="fa-brands fa-viber" aria-hidden="true"></i>
+                <span>Viber</span>
+              </a>
+              <a class="footer-social-button" href="#" aria-label="Telegram">
+                <i class="fa-brands fa-telegram" aria-hidden="true"></i>
+                <span>Telegram</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="footer-grid">
+            <section class="footer-column footer-brand-column">
+              <div class="footer-brand-mark">SP</div>
+              <div class="footer-brand-copy">
+                <h3 data-system-setting="system_name">SNDRA Park</h3>
+                <p>SNDRA Park is a smart parking reservation platform designed to provide real-time slot monitoring, seamless booking, and a modern parking experience for urban drivers.</p>
+                <span class="footer-brand-tagline">Smart Parking. Smarter City.</span>
+              </div>
+            </section>
+
+            <section class="footer-column">
+              <p class="footer-column-label">Quick Links</p>
+              <ul class="footer-link-list">
+                <li><a href="#home">Home</a></li>
+                <li><a href="./signup.html">Reserve Parking</a></li>
+                <li><a href="./login.html">Dashboard</a></li>
+                <li><a href="#contact">Contact Us</a></li>
+                <li><a href="./login.html">Login / Register</a></li>
+              </ul>
+            </section>
+
+            <section class="footer-column">
+              <p class="footer-column-label">Services</p>
+              <ul class="footer-link-list">
+                <li><a href="#about">Real-Time Parking Monitor</a></li>
+                <li><a href="./signup.html">Slot Reservation System</a></li>
+                <li><a href="./booth-login.html">Smart Payment System</a></li>
+                <li><a href="./booth-login.html">Parking Booth Management</a></li>
+                <li><a href="#contact">Customer Support</a></li>
+              </ul>
+            </section>
+
+            <section class="footer-column">
+              <p class="footer-column-label">Contact Info</p>
+              <ul class="footer-contact-list">
+                <li class="footer-contact-item">
+                  <i class="fas fa-envelope" aria-hidden="true"></i>
+                  <span data-system-setting="gmail_address">support@sndrapark.com</span>
+                </li>
+                <li class="footer-contact-item">
+                  <i class="fas fa-phone" aria-hidden="true"></i>
+                  <span data-system-setting="contact_number">+63 917 555 0142</span>
+                </li>
+                <li class="footer-contact-item">
+                  <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+                  <span>Philippines</span>
+                </li>
+              </ul>
+            </section>
+          </div>
+
+          <div class="footer-bottom-bar">
+            <p>&copy; 2026 <span data-system-setting="system_name">SNDRA Park</span>. All rights reserved.</p>
+            <div class="footer-bottom-links">
+              <a href="./terms.html">Privacy Policy</a>
+              <a href="./terms.html">Terms &amp; Conditions</a>
+            </div>
+          </div>
+        </footer>
+      </section>
+    </main>
+  </div>
+
+  <script src="../../assets/js/system-settings.js"></script>
+  <script src="../js/index.js"></script>
+</body>
+</html>

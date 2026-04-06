@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SNDRA Park | Sign Up</title>
+  <link rel="icon" type="image/jpeg" href="../assets/icons/logo.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="../css/signup.css">
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-media" aria-label="Luxury car showroom background image">
+      <a class="brand-mark" href="./login.html" aria-label="SNDRA Park login page">
+        <img class="brand-logo-image" src="../assets/icons/logo.jpg" alt="SNDRA Park logo">
+      </a>
+    </section>
+
+    <section class="auth-panel">
+      <div class="panel-content panel-content-signup">
+        <a class="back-home" href="./index.html">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i>
+          <span>Back Home</span>
+        </a>
+
+        <div class="auth-copy">
+          <h1>Create an Account</h1>
+          <p class="auth-helper">Already have an account? <a class="text-link" href="./login.html">Log In</a></p>
+        </div>
+
+        <form id="signup-form" class="auth-form" data-auth-form data-redirect="./user-dashboard.html" novalidate>
+          <div class="name-grid">
+            <div class="field-group floating-field">
+              <label class="floating-label" for="first-name">First Name</label>
+              <input class="auth-input" id="first-name" name="firstName" type="text" placeholder=" " autocomplete="given-name" data-validate="required">
+              <p class="field-error" data-error-for="firstName"></p>
+            </div>
+
+            <div class="field-group floating-field">
+              <label class="floating-label" for="last-name">Last Name</label>
+              <input class="auth-input" id="last-name" name="lastName" type="text" placeholder=" " autocomplete="family-name" data-validate="required">
+              <p class="field-error" data-error-for="lastName"></p>
+            </div>
+          </div>
+
+          <div class="field-group floating-field always-float has-icon birth-date-field">
+            <label class="floating-label" for="birth-date">Birth Date</label>
+            <input class="auth-input auth-input-date" id="birth-date" name="birthDate" type="date" autocomplete="bday" aria-describedby="birth-date-note" data-validate="required|adult-age">
+            <button class="field-icon date-toggle" type="button" aria-label="Open birth date calendar" data-date-toggle data-target="birth-date">
+              <svg viewBox="0 0 24 24" role="presentation">
+                <rect x="3.5" y="5" width="17" height="15" rx="2.2"></rect>
+                <path d="M7 3.5V7"></path>
+                <path d="M17 3.5V7"></path>
+                <path d="M3.5 9.5H20.5"></path>
+              </svg>
+            </button>
+            <p class="field-note" id="birth-date-note">Registration is available for users 18 years old and above.</p>
+            <p class="field-error" data-error-for="birthDate"></p>
+          </div>
+
+          <div class="field-group floating-field">
+            <label class="floating-label" for="signup-email">Email</label>
+            <input class="auth-input" id="signup-email" name="email" type="email" placeholder=" " autocomplete="email" data-validate="required|email">
+            <p class="field-error" data-error-for="email"></p>
+          </div>
+
+          <div class="field-group floating-field password-field">
+            <label class="floating-label" for="signup-password">Password</label>
+            <input class="auth-input" id="signup-password" name="password" type="password" placeholder=" " autocomplete="new-password" data-validate="required|password">
+            <button class="password-toggle" type="button" aria-label="Show password" aria-pressed="false" data-password-toggle data-target="signup-password">
+              <svg class="eye-icon eye-open" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12Z"></path>
+                <circle cx="12" cy="12" r="3.2"></circle>
+              </svg>
+              <svg class="eye-icon eye-closed" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 3l18 18"></path>
+                <path d="M10.7 5.2A9.5 9.5 0 0 1 12 5c6.5 0 10.5 7 10.5 7a18 18 0 0 1-3.2 3.8"></path>
+                <path d="M6.3 6.3A18 18 0 0 0 1.5 12S5.5 19 12 19c1.5 0 2.8-.3 4-.8"></path>
+                <path d="M9.9 9.9A3.2 3.2 0 0 0 14.1 14.1"></path>
+              </svg>
+            </button>
+            <p class="field-error" data-error-for="password"></p>
+            <div class="password-meter" data-password-meter data-target="signup-password" aria-hidden="true">
+              <div class="password-meter-track">
+                <span class="meter-segment"></span>
+                <span class="meter-node"></span>
+                <span class="meter-segment"></span>
+                <span class="meter-node"></span>
+                <span class="meter-segment"></span>
+                <span class="meter-node"></span>
+                <span class="meter-segment"></span>
+              </div>
+              <p class="password-meter-copy">Password must contain: uppercase, lowercase, numbers, and special characters.</p>
+            </div>
+          </div>
+
+          <div class="field-group floating-field password-field">
+            <label class="floating-label" for="confirm-password">Confirm Password</label>
+            <input class="auth-input" id="confirm-password" name="confirmPassword" type="password" placeholder=" " autocomplete="new-password" data-validate="required|confirm-password">
+            <button class="password-toggle" type="button" aria-label="Show password" aria-pressed="false" data-password-toggle data-target="confirm-password">
+              <svg class="eye-icon eye-open" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12Z"></path>
+                <circle cx="12" cy="12" r="3.2"></circle>
+              </svg>
+              <svg class="eye-icon eye-closed" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 3l18 18"></path>
+                <path d="M10.7 5.2A9.5 9.5 0 0 1 12 5c6.5 0 10.5 7 10.5 7a18 18 0 0 1-3.2 3.8"></path>
+                <path d="M6.3 6.3A18 18 0 0 0 1.5 12S5.5 19 12 19c1.5 0 2.8-.3 4-.8"></path>
+                <path d="M9.9 9.9A3.2 3.2 0 0 0 14.1 14.1"></path>
+              </svg>
+            </button>
+            <p class="field-error" data-error-for="confirmPassword"></p>
+          </div>
+
+          <div class="checkbox-row">
+            <input id="terms" name="terms" type="checkbox" data-validate="required">
+            <label for="terms">Have you read the <a class="text-link" href="./terms.html">Terms &amp; Conditions</a>?</label>
+          </div>
+          <p class="field-error checkbox-error" data-error-for="terms"></p>
+
+          <button class="action-btn primary-btn" type="submit">Sign Up</button>
+
+          <p class="form-status" data-form-status aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+
+    <div class="flow-lines" aria-hidden="true">
+      <svg viewBox="0 0 420 960" preserveAspectRatio="none" role="presentation">
+        <defs>
+          <path id="flow-curve-signup" d="M368 -48C216 112 190 302 250 480C321 662 309 812 178 1008"></path>
+        </defs>
+        <use href="#flow-curve-signup" x="0"></use>
+        <use href="#flow-curve-signup" x="-14"></use>
+        <use href="#flow-curve-signup" x="-28"></use>
+        <use href="#flow-curve-signup" x="-42"></use>
+        <use href="#flow-curve-signup" x="-56"></use>
+        <use href="#flow-curve-signup" x="-70"></use>
+        <use href="#flow-curve-signup" x="-84"></use>
+        <use href="#flow-curve-signup" x="-98"></use>
+        <use href="#flow-curve-signup" x="-112"></use>
+        <use href="#flow-curve-signup" x="-126"></use>
+        <use href="#flow-curve-signup" x="-140"></use>
+        <use href="#flow-curve-signup" x="-154"></use>
+        <use href="#flow-curve-signup" x="-168"></use>
+        <use href="#flow-curve-signup" x="-182"></use>
+      </svg>
+    </div>
+  </main>
+
+  <script src="../../assets/js/system-settings.js"></script>
+  <script src="../js/auth.js"></script>
+</body>
+</html>
+

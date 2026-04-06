@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SNDRA Park | Booth Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="../css/booth-login.css">
+</head>
+<body>
+  <main class="staff-auth-shell">
+    <section class="staff-auth-media booth-media" aria-label="Parking booth visual">
+      <a class="brand-mark" href="./index.html" aria-label="Back to SNDRA Park main page">
+        <span class="brand-monogram">SP</span>
+      </a>
+    </section>
+
+    <section class="staff-auth-panel">
+      <div class="panel-content">
+        <a class="back-home" href="./index.html">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i>
+          <span>Back Home</span>
+        </a>
+
+        <div class="auth-copy">
+          <p class="section-kicker">Parking Booth</p>
+          <h1>Booth Teller Login</h1>
+          <p class="auth-subtitle">Use your dedicated teller account to access the barcode scanner and payment processing dashboard.</p>
+        </div>
+
+        <div class="demo-card">
+          <span>Demo Booth Account</span>
+          <strong>booth@sndrapark.com</strong>
+          <p>Password: <code>Booth123!</code></p>
+        </div>
+
+        <form id="booth-login-form" class="staff-auth-form" novalidate>
+          <div class="field-group">
+            <label for="booth-email">Booth Email</label>
+            <input id="booth-email" name="email" class="auth-input" type="email" autocomplete="username" placeholder="Enter booth email">
+          </div>
+
+          <div class="field-group">
+            <label for="booth-password">Password</label>
+            <input id="booth-password" name="password" class="auth-input" type="password" autocomplete="current-password" placeholder="Enter password">
+          </div>
+
+          <button class="primary-btn" type="submit">Log In to Parking Booth</button>
+          <p class="form-status" id="booth-login-status" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script src="../../assets/js/system-settings.js?v=20260331-1"></script>
+  <script src="../js/booth-login.js?v=20260331-2"></script>
+</body>
+</html>
+

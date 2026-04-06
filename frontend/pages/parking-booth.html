@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SNDRA Park | Parking Booth Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  <link rel="stylesheet" href="../../assets/css/notifications.css">
+  <link rel="stylesheet" href="../css/parking-booth.css?v=20260401-1">
+</head>
+<body data-page-title-suffix="Parking Booth Dashboard">
+  <div class="booth-shell">
+    <aside class="booth-sidebar" aria-label="Parking booth sidebar">
+      <div class="booth-sidebar-top">
+        <section class="booth-sidebar-session">
+          <span class="meta-label">Signed In</span>
+          <strong id="booth-session-name">Booth Teller</strong>
+          <span class="meta-helper">Realtime booth console</span>
+        </section>
+
+        <nav class="booth-nav" aria-label="Parking booth navigation">
+          <button class="booth-nav-button active" type="button" data-view-target="dashboard-view">Dashboard</button>
+          <button class="booth-nav-button" type="button" data-view-target="payment-view">Payment</button>
+          <button class="booth-nav-button" type="button" data-view-target="logs-view">Log File</button>
+        </nav>
+      </div>
+
+      <div class="booth-sidebar-bottom">
+        <button class="booth-nav-button booth-nav-button-danger" id="booth-logout-btn" type="button">Logout</button>
+      </div>
+    </aside>
+
+    <main class="booth-workspace">
+      <div class="page-utility-bar">
+        <div
+          class="notification-center"
+          data-notification-root
+          data-user-type="booth"
+          data-notification-endpoint="../../backend/notifications/get-booth-notifications.php">
+          <button class="notification-bell-button" type="button" data-notification-toggle aria-expanded="false" aria-label="Open admin announcements">
+            <i class="fa-solid fa-bell" aria-hidden="true"></i>
+            <span class="notification-badge is-hidden" data-notification-count>0</span>
+          </button>
+          <div class="notification-dropdown" data-notification-panel hidden>
+            <div class="notification-dropdown-header">
+              <div>
+                <p class="notification-dropdown-kicker">Booth Alerts</p>
+                <h3>Admin Announcements</h3>
+              </div>
+              <span class="notification-dropdown-meta" data-notification-meta>Loading</span>
+            </div>
+            <div class="notification-list" data-notification-list>
+              <div class="notification-empty">Loading notifications...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <header class="booth-topbar booth-card">
+        <div class="topbar-copy">
+          <p class="section-kicker">Operations Console</p>
+          <h2>Parking Booth Dashboard</h2>
+          <p class="card-copy">Realtime reservation monitor with payment handling and a shared log feed that matches the admin side.</p>
+        </div>
+
+        <div class="topbar-meta">
+          <article class="topbar-meta-card">
+            <span class="meta-label">Live Date and Time</span>
+            <strong id="booth-live-datetime">Loading...</strong>
+          </article>
+          <article class="topbar-meta-card">
+            <span class="meta-label">Realtime Sync</span>
+            <strong>AJAX Polling</strong>
+            <span class="meta-helper">Refreshes monitor and logs every 3 seconds</span>
+          </article>
+        </div>
+      </header>
+
+      <section class="booth-view active" id="dashboard-view">
+        <div class="view-heading">
+          <div>
+            <p class="section-kicker">Dashboard</p>
+            <h2>Realtime reservation monitor</h2>
+          </div>
+          <div class="view-heading-meta">
+            <span class="live-indicator"><span class="live-indicator-dot"></span>Live</span>
+            <p class="view-copy">The booth sees newly reserved parking slots every few seconds.</p>
+          </div>
+        </div>
+
+        <div class="monitor-summary-grid">
+          <article class="summary-card booth-card">
+            <span class="meta-label">Total Reserved Today</span>
+            <strong id="monitor-total-reserved-today">0</strong>
+          </article>
+          <article class="summary-card booth-card">
+            <span class="meta-label">Total Active Parked</span>
+            <strong id="monitor-total-active-parked">0</strong>
+          </article>
+          <article class="summary-card booth-card">
+            <span class="meta-label">Total Unpaid</span>
+            <strong id="monitor-total-unpaid">0</strong>
+          </article>
+          <article class="summary-card booth-card">
+            <span class="meta-label">Total Paid Today</span>
+            <strong id="monitor-total-paid-today">0</strong>
+          </article>
+        </div>
+
+        <section class="table-card booth-card">
+          <div class="card-heading">
+            <p class="section-kicker">Live Reservation Feed</p>
+            <h3>Reserved parking records</h3>
+          </div>
+          <div class="table-shell">
+            <table class="booth-table">
+              <thead>
+                <tr>
+                  <th>Barcode</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Floor</th>
+                  <th>Slot</th>
+                  <th>Date</th>
+                  <th>Reserved Time</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="monitor-reservations-body">
+                <tr>
+                  <td colspan="8" class="empty-table">Loading reservation monitor...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="booth-view" id="payment-view">
+        <div class="view-heading">
+          <div>
+            <p class="section-kicker">Payment</p>
+            <h2>Barcode scan and payment processing</h2>
+          </div>
+          <p class="view-copy">First scan records Time In, second scan records Time Out, then payment can be marked as paid.</p>
+        </div>
+
+        <div class="payment-layout">
+          <aside class="payment-controls">
+            <section class="scan-card booth-card">
+              <div class="card-heading">
+                <p class="section-kicker">Scan Panel</p>
+                <h3>Barcode scanner input</h3>
+              </div>
+              <p class="card-copy">Scan a reservation barcode to process Time In or Time Out.</p>
+              <form id="scan-form" class="scan-form" novalidate>
+                <label for="barcode-input" class="field-label">Barcode Value</label>
+                <input id="barcode-input" name="barcode" class="scanner-input" type="text" inputmode="text" autocomplete="off" placeholder="Scan barcode here then press Enter">
+                <button class="primary-btn scan-btn" id="scan-button" type="submit">Scan Barcode</button>
+              </form>
+              <p class="scanner-hint" id="scanner-hint">Most barcode scanners work like a keyboard and submit with the Enter key automatically.</p>
+            </section>
+
+            <section class="status-card booth-card">
+              <div class="card-heading">
+                <p class="section-kicker">Realtime Status</p>
+                <h3>Latest teller activity</h3>
+              </div>
+              <div class="status-highlight">
+                <span class="status-chip ready" id="status-chip">Ready to Scan</span>
+                <p class="status-copy" id="status-copy">Waiting for a barcode scan from the teller booth.</p>
+              </div>
+              <div class="status-meta">
+                <article class="status-meta-item">
+                  <span>Latest Barcode</span>
+                  <strong id="latest-barcode">No barcode yet</strong>
+                </article>
+                <article class="status-meta-item">
+                  <span>Last Updated</span>
+                  <strong id="latest-updated">Not available</strong>
+                </article>
+              </div>
+            </section>
+
+            <section class="action-card booth-card">
+              <div class="card-heading">
+                <p class="section-kicker">Payment Action</p>
+                <h3>Transaction controls</h3>
+              </div>
+              <div class="action-stack">
+                <button class="primary-btn" id="mark-paid-btn" type="button" disabled>Mark as Paid</button>
+                <button class="secondary-btn" id="clear-transaction-btn" type="button">Clear</button>
+                <button class="ghost-btn" id="print-receipt-btn" type="button">Print Receipt</button>
+              </div>
+              <p class="action-note" id="action-note">Scan a valid reservation barcode to begin Time In or Time Out processing.</p>
+            </section>
+          </aside>
+
+          <section class="payment-main">
+            <section class="detail-card booth-card">
+              <div class="card-heading">
+                <p class="section-kicker">Reservation Details</p>
+                <h3>Scanned transaction information</h3>
+              </div>
+              <div class="detail-grid">
+                <article class="detail-item"><span>Barcode ID</span><strong id="detail-barcode">--</strong></article>
+                <article class="detail-item"><span>Full Name</span><strong id="detail-full-name">--</strong></article>
+                <article class="detail-item"><span>Email</span><strong id="detail-email">--</strong></article>
+                <article class="detail-item"><span>Parking Floor</span><strong id="detail-floor">--</strong></article>
+                <article class="detail-item"><span>Parking Slot</span><strong id="detail-slot">--</strong></article>
+                <article class="detail-item"><span>Reservation Date</span><strong id="detail-reservation-date">--</strong></article>
+                <article class="detail-item"><span>Reserved Time In</span><strong id="detail-reserved-time-in">--</strong></article>
+                <article class="detail-item"><span>Reserved Time Out</span><strong id="detail-reserved-time-out">--</strong></article>
+                <article class="detail-item"><span>Reserved Duration</span><strong id="detail-reserved-duration">--</strong></article>
+                <article class="detail-item"><span>Actual Time In</span><strong id="detail-actual-time-in">--</strong></article>
+                <article class="detail-item"><span>Actual Time Out</span><strong id="detail-actual-time-out">--</strong></article>
+                <article class="detail-item"><span>Actual Duration</span><strong id="detail-actual-duration">--</strong></article>
+                <article class="detail-item"><span>Total Hours Stayed</span><strong id="detail-total-hours">--</strong></article>
+                <article class="detail-item"><span>Reservation Fee</span><strong id="detail-reservation-fee">PHP 0.00</strong></article>
+                <article class="detail-item"><span>Overtime Fee</span><strong id="detail-overtime-fee">PHP 0.00</strong></article>
+                <article class="detail-item"><span>Total Payment</span><strong id="detail-total-payment">PHP 0.00</strong></article>
+                <article class="detail-item"><span>Payment Status</span><strong id="detail-payment-status">--</strong></article>
+                <article class="detail-item"><span>Booth Status</span><strong id="detail-booth-status">--</strong></article>
+              </div>
+            </section>
+
+            <section class="table-card booth-card">
+              <div class="card-heading">
+                <p class="section-kicker">Recent Activity</p>
+                <h3>Scanned transactions</h3>
+              </div>
+              <div class="table-shell">
+                <table class="booth-table">
+                  <thead>
+                    <tr>
+                      <th>Barcode</th>
+                      <th>Name</th>
+                      <th>Slot</th>
+                      <th>Time In</th>
+                      <th>Time Out</th>
+                      <th>Payment</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="recent-activity-body">
+                    <tr>
+                      <td colspan="7" class="empty-table">No scanned activity yet.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+        </div>
+      </section>
+
+      <section class="booth-view" id="logs-view">
+        <div class="view-heading">
+          <div>
+            <p class="section-kicker">Log File</p>
+            <h2>Shared parking transaction logs</h2>
+          </div>
+          <p class="view-copy">Logs are sorted by time, grouped by date, and refreshed every 3 seconds from the same database feed used by admin.</p>
+        </div>
+
+        <div class="log-summary-grid">
+          <article class="summary-card booth-card">
+            <span class="meta-label">Overall Total Payment</span>
+            <strong id="logs-overall-total">PHP 0.00</strong>
+          </article>
+          <article class="summary-card booth-card">
+            <span class="meta-label">Date Groups</span>
+            <strong id="logs-group-count">0</strong>
+          </article>
+        </div>
+
+        <div class="log-groups" id="log-groups">
+          <section class="booth-card log-empty-state">
+            <p>Loading booth logs...</p>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="../../assets/js/system-settings.js?v=20260331-2"></script>
+  <script src="../../assets/js/notifications.js?v=20260331-2"></script>
+  <script src="../js/parking-booth.js?v=20260331-4"></script>
+</body>
+</html>

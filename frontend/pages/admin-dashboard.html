@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SNDRA Park | Admin Dashboard</title>
+  <link rel="icon" type="image/jpeg" href="../assets/icons/logo.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/admin-dashboard.css?v=20260402-2">
+</head>
+<body>
+  <main class="admin-shell">
+    <aside class="admin-sidebar">
+      <nav class="sidebar-nav" aria-label="Admin sections">
+        <button class="sidebar-link is-active" type="button" data-section="dashboard">Dashboard</button>
+        <button class="sidebar-link" type="button" data-section="slots">Manage Floors &amp; Slots</button>
+        <button class="sidebar-link" type="button" data-section="reservations">Reservations</button>
+        <button class="sidebar-link" type="button" data-section="users">Users</button>
+        <button class="sidebar-link" type="button" data-section="staff">Booth Staff</button>
+        <button class="sidebar-link" type="button" data-section="payments">Payments</button>
+        <button class="sidebar-link" type="button" data-section="logs">Admin Audit Logs</button>
+        <button class="sidebar-link" type="button" data-section="feedback">Feedback / Concerns</button>
+        <button class="sidebar-link" type="button" data-section="notifications">Notifications</button>
+        <button class="sidebar-link" type="button" data-section="settings">Settings</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="logout-btn" id="admin-logout-btn" type="button">Logout</button>
+      </div>
+    </aside>
+
+    <section class="admin-workspace">
+      <a class="workspace-logo" href="./index.html" aria-label="SNDRA Park home">
+        <img src="../assets/icons/logo.jpg" alt="SNDRA Park logo">
+      </a>
+
+      <header class="workspace-header">
+        <div>
+          <p class="section-kicker" id="admin-section-kicker">Administrator View</p>
+          <h2 id="admin-section-title">Dashboard</h2>
+          <p class="header-copy" id="admin-section-description">Operational summary and live activity across the SNDRA Park system.</p>
+        </div>
+
+        <div class="header-actions">
+          <article class="header-badge">
+            <span>Signed In</span>
+            <strong id="admin-session-name">Administrator</strong>
+          </article>
+          <article class="header-badge">
+            <span>Live Date &amp; Time</span>
+            <strong id="admin-live-datetime">Loading...</strong>
+          </article>
+        </div>
+      </header>
+
+      <p class="admin-status" id="admin-global-status" aria-live="polite"></p>
+
+      <section class="admin-section is-active" id="section-dashboard">
+        <div class="stats-grid">
+          <article class="stat-card">
+            <span>Total Users</span>
+            <strong id="admin-total-users">0</strong>
+            <p>Registered accounts currently active in the system.</p>
+          </article>
+          <article class="stat-card">
+            <span>Total Reservations</span>
+            <strong id="admin-total-reservations">0</strong>
+            <p>All reservation records stored in MySQL.</p>
+          </article>
+          <article class="stat-card">
+            <span>Available Slots</span>
+            <strong id="admin-total-available-slots">0</strong>
+            <p>Parking spaces that are open for reservation or use.</p>
+          </article>
+          <article class="stat-card">
+            <span>Occupied Slots</span>
+            <strong id="admin-total-occupied-slots">0</strong>
+            <p>Vehicles already timed in and still inside the facility.</p>
+          </article>
+          <article class="stat-card">
+            <span>Reserved Slots</span>
+            <strong id="admin-total-reserved-slots">0</strong>
+            <p>Reserved spaces that are still waiting for Time In.</p>
+          </article>
+          <article class="stat-card">
+            <span>Paid Today</span>
+            <strong id="admin-total-paid-today">PHP 0.00</strong>
+            <p>Total payment collected for today’s completed transactions.</p>
+          </article>
+          <article class="stat-card">
+            <span>Total Unpaid</span>
+            <strong id="admin-total-unpaid">0</strong>
+            <p>Transactions that still need payment confirmation.</p>
+          </article>
+        </div>
+
+        <section class="panel-card">
+          <div class="panel-heading with-tools">
+            <div>
+              <p class="section-kicker">Live Reservations</p>
+              <h3>Active reservations monitor</h3>
+            </div>
+            <p class="header-copy" id="live-reservations-updated-at">Waiting for live updates...</p>
+          </div>
+
+          <div class="table-shell">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Full Name</th>
+                  <th>Email</th>
+                  <th>Barcode</th>
+                  <th>Floor</th>
+                  <th>Slot</th>
+                  <th>Reservation Date</th>
+                  <th>Reserved Time In</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="live-reservations-body">
+                <tr><td colspan="8" class="empty-table">No live reservations available yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel-card">
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">Recent Activity</p>
+              <h3>Latest system movement</h3>
+            </div>
+          </div>
+
+          <div class="table-shell">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Barcode</th>
+                  <th>Name</th>
+                  <th>Floor</th>
+                  <th>Slot</th>
+                  <th>Status</th>
+                  <th>Payment</th>
+                  <th>Updated</th>
+                </tr>
+              </thead>
+              <tbody id="dashboard-activity-body">
+                <tr><td colspan="7" class="empty-table">No recent activity available yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="admin-section" id="section-slots">
+        <section class="panel-card slots-overview-card">
+          <div class="slots-overview-header">
+            <div>
+              <p class="section-kicker">Slot Workspace</p>
+              <h3>Manage floors and parking slots</h3>
+              <p class="header-copy">Build the floor structure, review the selected floor, and keep slot controls aligned in one place.</p>
+            </div>
+            <div class="slots-overview-stats">
+              <article class="slots-overview-stat">
+                <span>Floors</span>
+                <strong id="slot-summary-floor-count">0</strong>
+              </article>
+              <article class="slots-overview-stat">
+                <span>Slots</span>
+                <strong id="slot-summary-slot-count">0</strong>
+              </article>
+              <article class="slots-overview-stat">
+                <span>Selected Floor</span>
+                <strong id="slot-summary-selected-floor">None</strong>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <div class="slots-control-grid">
+          <section class="panel-card form-panel-card">
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">New Floor</p>
+                <h3>Add parking floor</h3>
+              </div>
+            </div>
+            <form id="floor-form" class="admin-form">
+              <div class="field-group">
+                <label for="floor-name">Floor Name</label>
+                <input id="floor-name" name="floor_name" type="text" placeholder="Example: 6th Floor">
+              </div>
+              <div class="field-group">
+                <label for="floor-label">Display Label</label>
+                <input id="floor-label" name="floor_label" type="text" placeholder="Optional label">
+              </div>
+              <button class="primary-btn" type="submit">Add Floor</button>
+            </form>
+          </section>
+
+          <section class="panel-card form-panel-card">
+            <div class="panel-heading with-tools">
+              <div>
+                <p class="section-kicker">New Slot</p>
+                <h3>Add parking slot</h3>
+              </div>
+              <p class="header-copy" id="slot-form-floor-copy">Select a floor card below to target a floor quickly.</p>
+            </div>
+            <form id="slot-form" class="admin-form">
+              <div class="field-group">
+                <label for="slot-floor">Select Floor</label>
+                <select id="slot-floor" name="floor_id"></select>
+              </div>
+              <div class="field-group">
+                <label for="slot-code">Slot Code</label>
+                <input id="slot-code" name="slot_code" type="text" placeholder="Example: F1">
+              </div>
+              <button class="primary-btn" type="submit">Add Slot</button>
+            </form>
+          </section>
+        </div>
+
+        <section class="panel-card browser-panel-card">
+          <div class="panel-heading with-tools browser-panel-heading">
+            <div>
+              <p class="section-kicker">Parking Floors</p>
+              <h3>Created floor collection</h3>
+            </div>
+            <div class="panel-chip-row">
+              <span class="panel-chip" id="floor-collection-count">0 floors</span>
+              <p class="header-copy">Start with a floor card. Slots and editing appear progressively after selection.</p>
+            </div>
+          </div>
+          <div class="browser-panel-shell floor-browser-shell">
+            <div class="floor-browser-grid" id="floor-card-grid"></div>
+          </div>
+        </section>
+
+        <div class="slots-master-layout">
+          <section class="panel-card browser-panel-card slot-gallery-panel">
+            <div class="panel-heading with-tools browser-panel-heading">
+              <div>
+                <p class="section-kicker">Parking Slots</p>
+                <h3>Selected floor slot gallery</h3>
+              </div>
+              <div class="master-heading-copy">
+                <span class="panel-chip" id="slot-gallery-count">0 slots</span>
+                <strong id="selected-floor-title">No floor selected</strong>
+                <p id="selected-floor-caption">Choose a floor card to display its parking slots.</p>
+              </div>
+            </div>
+            <div class="browser-panel-shell slot-browser-shell">
+              <div class="slot-browser-grid" id="slot-card-grid"></div>
+            </div>
+          </section>
+
+          <section class="panel-card slot-editor-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">Slot Editor</p>
+                <h3>Selected slot details</h3>
+                <p class="header-copy slot-editor-subcopy" id="slot-editor-subcopy">Choose a floor and slot to edit its status and availability controls.</p>
+              </div>
+            </div>
+
+            <div class="slot-editor-empty" id="slot-editor-empty">
+              <strong id="slot-editor-empty-title">No slot selected</strong>
+              <p id="slot-editor-empty-copy">Select a slot card to edit its slot code, status controls, and activation state.</p>
+            </div>
+
+            <form id="slot-editor-form" class="admin-form" hidden>
+              <input id="slot-editor-id" name="slot_id" type="hidden">
+
+              <div class="field-group">
+                <label for="slot-editor-floor">Selected Floor</label>
+                <input id="slot-editor-floor" name="floor_name" type="text" readonly>
+              </div>
+
+              <div class="field-group">
+                <label for="slot-editor-code">Slot Number / Slot Code</label>
+                <input id="slot-editor-code" name="slot_code" type="text" placeholder="Example: A1">
+              </div>
+
+              <div class="field-group">
+                <label for="slot-editor-live-status">Live Status</label>
+                <input id="slot-editor-live-status" name="live_status" type="text" readonly>
+              </div>
+
+              <div class="field-group">
+                <label for="slot-editor-manual-status">Manual Status</label>
+                <select id="slot-editor-manual-status" name="manual_status" class="slot-editor-select slot-editor-select-danger">
+                  <option value="Auto">Auto</option>
+                  <option value="Available">Available</option>
+                  <option value="Reserved">Reserved</option>
+                  <option value="Occupied">Occupied</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+
+              <div class="field-group">
+                <label for="slot-editor-active">Active</label>
+                <select id="slot-editor-active" name="is_active" class="slot-editor-select slot-editor-select-danger">
+                  <option value="1">Active</option>
+                  <option value="0">Inactive</option>
+                </select>
+              </div>
+
+              <div class="editor-actions">
+                <button class="secondary-btn" id="slot-editor-clear-btn" type="button">Clear Selection</button>
+                <button class="primary-btn" type="submit">Save Slot</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      </section>
+
+      <section class="admin-section" id="section-reservations">
+        <section class="panel-card">
+          <div class="panel-heading with-tools">
+            <div>
+              <p class="section-kicker">Reservations</p>
+              <h3>All reservation records</h3>
+            </div>
+
+            <form class="toolbar-form" id="reservation-filter-form">
+              <input id="reservation-search" name="search" type="search" placeholder="Search barcode, name, email, floor, slot">
+              <select id="reservation-status-filter" name="status">
+                <option value="">All Statuses</option>
+                <option value="Reserved">Reserved</option>
+                <option value="Expired">Expired</option>
+                <option value="Parked">Parked</option>
+                <option value="Exited">Exited</option>
+                <option value="Unpaid">Unpaid</option>
+                <option value="Paid">Paid</option>
+                <option value="Completed">Completed</option>
+              </select>
+              <select id="reservation-payment-filter" name="payment_status">
+                <option value="">All Payments</option>
+                <option value="Reserved">Reserved</option>
+                <option value="Pending">Pending</option>
+                <option value="Unpaid">Unpaid</option>
+                <option value="Paid">Paid</option>
+              </select>
+              <button class="secondary-btn" type="submit">Apply</button>
+            </form>
+          </div>
+
+          <div class="table-shell">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Barcode</th>
+                  <th>User Name</th>
+                  <th>Email</th>
+                  <th>Floor</th>
+                  <th>Slot</th>
+                  <th>Date</th>
+                  <th>Reserved Time In</th>
+                  <th>Status</th>
+                  <th>Payment</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="reservation-table-body">
+                <tr><td colspan="10" class="empty-table">No reservation records found.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="admin-section" id="section-users">
+        <section class="panel-card">
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">Users</p>
+              <h3>Registered user accounts</h3>
+            </div>
+          </div>
+          <div class="table-shell">
+            <table class="admin-table users-admin-table">
+              <colgroup>
+                <col class="users-col-id">
+                <col class="users-col-name">
+                <col class="users-col-email">
+                <col class="users-col-birthday">
+                <col class="users-col-created">
+                <col class="users-col-status">
+                <col class="users-col-reservations">
+                <col class="users-col-actions">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Full Name</th>
+                  <th>Email</th>
+                  <th>Birthday</th>
+                  <th>Date Created</th>
+                  <th>Status</th>
+                  <th>Reservations</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="users-table-body">
+                <tr><td colspan="8" class="empty-table">No registered users yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="admin-section" id="section-staff">
+        <div class="form-grid two-up">
+          <section class="panel-card">
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">Booth Staff</p>
+                <h3>Create staff account</h3>
+              </div>
+            </div>
+            <form class="admin-form" id="staff-form">
+              <div class="field-group">
+                <label for="staff-full-name">Name</label>
+                <input id="staff-full-name" name="full_name" type="text" placeholder="Full name">
+              </div>
+              <div class="field-group">
+                <label for="staff-username">Username</label>
+                <input id="staff-username" name="username" type="text" placeholder="Username">
+              </div>
+              <div class="field-group">
+                <label for="staff-email">Email</label>
+                <input id="staff-email" name="email" type="email" placeholder="Email address">
+              </div>
+              <div class="field-group">
+                <label for="staff-password">Password</label>
+                <input id="staff-password" name="password" type="text" placeholder="Create password">
+              </div>
+              <div class="field-group">
+                <label for="staff-role">Role</label>
+                <select id="staff-role" name="role">
+                  <option value="booth">Booth</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <button class="primary-btn" type="submit">Create Staff Account</button>
+            </form>
+          </section>
+
+          <section class="panel-card">
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">Staff List</p>
+                <h3>Booth and admin accounts</h3>
+              </div>
+            </div>
+            <div class="table-shell">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="staff-table-body">
+                  <tr><td colspan="6" class="empty-table">No staff accounts found.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="admin-section" id="section-payments">
+        <div class="mini-card-grid payments-summary-grid">
+          <article class="mini-card">
+            <span>Total Income</span>
+            <strong id="payments-total-income">PHP 0.00</strong>
+          </article>
+          <article class="mini-card">
+            <span>Paid Records</span>
+            <strong id="payments-paid-count">0</strong>
+          </article>
+          <article class="mini-card">
+            <span>Unpaid Records</span>
+            <strong id="payments-unpaid-count">0</strong>
+          </article>
+        </div>
+
+        <section class="panel-card">
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">Payments</p>
+              <h3>Paid and unpaid records</h3>
+            </div>
+          </div>
+          <div class="table-shell">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Barcode</th>
+                  <th>Total Payment</th>
+                  <th>Payment Status</th>
+                  <th>Paid At</th>
+                  <th>Booth Status</th>
+                </tr>
+              </thead>
+              <tbody id="payments-table-body">
+                <tr><td colspan="6" class="empty-table">No payment records available.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="admin-section" id="section-logs">
+        <div class="mini-card-grid">
+          <article class="mini-card">
+            <span>Total Audit Entries</span>
+            <strong id="logs-overall-total">0</strong>
+          </article>
+        </div>
+        <div id="logs-groups-container" class="report-groups"></div>
+      </section>
+
+      <section class="admin-section" id="section-feedback">
+        <section class="panel-card">
+          <div class="panel-heading with-tools">
+            <div>
+              <p class="section-kicker">Feedback Inbox</p>
+              <h3>User feedback and concerns</h3>
+            </div>
+            <p class="header-copy">Review submitted concerns, open the full message safely, and reply without leaving the dashboard.</p>
+          </div>
+          <div class="table-shell">
+            <table class="admin-table feedback-admin-table">
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Concern Message</th>
+                  <th>Date Submitted</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="feedback-table-body">
+                <tr><td colspan="5" class="empty-table">No feedback messages submitted yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="admin-section" id="section-notifications">
+        <div class="form-grid two-up">
+          <section class="panel-card">
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">Create Notice</p>
+                <h3>Send a new announcement</h3>
+              </div>
+            </div>
+            <form class="admin-form" id="notification-form">
+              <div class="field-group">
+                <label for="notification-title">Title</label>
+                <input id="notification-title" name="title" type="text" placeholder="Announcement title">
+              </div>
+              <div class="field-group">
+                <label for="notification-message">Message</label>
+                <textarea id="notification-message" name="message" rows="5" placeholder="Type the notification message"></textarea>
+              </div>
+              <div class="field-group">
+                <label for="notification-date">Date</label>
+                <input id="notification-date" name="notification_date" type="date">
+              </div>
+              <div class="field-group">
+                <label for="notification-audience">Audience</label>
+                <select id="notification-audience" name="audience">
+                  <option value="Users">Users</option>
+                  <option value="Booth Staff">Booth Staff</option>
+                  <option value="All">All</option>
+                </select>
+              </div>
+              <button class="primary-btn" type="submit">Send Notification</button>
+            </form>
+          </section>
+
+          <section class="panel-card">
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">Sent Notifications</p>
+                <h3>Recent notices</h3>
+              </div>
+            </div>
+            <div class="stack-list" id="notification-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="admin-section" id="section-settings">
+        <section class="panel-card">
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">System Settings</p>
+              <h3>Update contact and pricing details</h3>
+            </div>
+          </div>
+          <form class="admin-form settings-form" id="settings-form">
+            <div class="field-group">
+              <label for="setting-system-name">System Name</label>
+              <input id="setting-system-name" name="system_name" type="text">
+            </div>
+            <div class="field-group">
+              <label for="setting-contact-number">Contact Number</label>
+              <input id="setting-contact-number" name="contact_number" type="text">
+            </div>
+            <div class="field-group">
+              <label for="setting-gmail-address">Gmail Address</label>
+              <input id="setting-gmail-address" name="gmail_address" type="email">
+            </div>
+            <div class="field-group">
+              <label for="setting-base-rate">Parking Base Rate</label>
+              <input id="setting-base-rate" name="parking_base_rate" type="number" step="0.01" min="0">
+            </div>
+            <div class="field-group">
+              <label for="setting-extra-rate">Extra Hourly Rate</label>
+              <input id="setting-extra-rate" name="extra_hourly_rate" type="number" step="0.01" min="0">
+            </div>
+            <button class="primary-btn" type="submit">Save Settings</button>
+          </form>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <div class="modal-shell" id="reservation-detail-modal" hidden>
+    <div class="modal-card">
+      <div class="modal-heading">
+        <div>
+          <p class="section-kicker">Reservation Details</p>
+          <h3>Reservation record</h3>
+        </div>
+        <button class="icon-btn" id="reservation-detail-close" type="button" aria-label="Close reservation details">&times;</button>
+      </div>
+      <div class="modal-content" id="reservation-detail-content"></div>
+    </div>
+  </div>
+
+  <div class="modal-shell" id="entity-editor-modal" hidden>
+    <div class="modal-card">
+      <div class="modal-heading">
+        <div>
+          <p class="section-kicker" id="entity-editor-kicker">Edit Record</p>
+          <h3 id="entity-editor-title">Manage entry</h3>
+        </div>
+        <button class="icon-btn" id="entity-editor-close" type="button" aria-label="Close editor">&times;</button>
+      </div>
+      <form class="admin-form" id="entity-editor-form"></form>
+    </div>
+  </div>
+
+  <div class="modal-shell" id="violations-history-modal" hidden>
+    <div class="modal-card violations-modal-card">
+      <div class="modal-heading">
+        <div>
+          <p class="section-kicker">User Violations History</p>
+          <h3 id="violations-history-title">Audit trail</h3>
+        </div>
+        <button class="icon-btn" id="violations-history-close" type="button" aria-label="Close violations history">&times;</button>
+      </div>
+      <div class="modal-content violations-history-content" id="violations-history-content"></div>
+    </div>
+  </div>
+
+  <div class="modal-shell" id="feedback-detail-modal" hidden>
+    <div class="modal-card feedback-modal-card">
+      <div class="modal-heading">
+        <div>
+          <p class="section-kicker">Feedback Inbox</p>
+          <h3>Read and reply to concern</h3>
+        </div>
+        <button class="icon-btn" id="feedback-detail-close" type="button" aria-label="Close feedback details">&times;</button>
+      </div>
+
+      <p class="admin-status feedback-modal-status" id="feedback-modal-status" aria-live="polite" hidden></p>
+
+      <div class="modal-content feedback-modal-content">
+        <section class="feedback-modal-section">
+          <div class="feedback-meta-grid">
+            <article class="detail-card">
+              <span>Email</span>
+              <strong id="feedback-modal-email">--</strong>
+            </article>
+            <article class="detail-card">
+              <span>Date Submitted</span>
+              <strong id="feedback-modal-date">--</strong>
+            </article>
+            <article class="detail-card">
+              <span>Status</span>
+              <strong id="feedback-modal-status-pill">--</strong>
+            </article>
+            <article class="detail-card">
+              <span>Reply Sent</span>
+              <strong id="feedback-modal-replied-at">Not yet replied</strong>
+            </article>
+          </div>
+
+          <article class="feedback-message-card">
+            <span>Full Concern Message</span>
+            <p class="feedback-message-full" id="feedback-modal-message">No message selected.</p>
+          </article>
+
+          <article class="feedback-message-card" id="feedback-existing-reply-card" hidden>
+            <span>Previous Admin Reply</span>
+            <p class="feedback-message-full feedback-message-full-reply" id="feedback-modal-existing-reply">No reply yet.</p>
+          </article>
+        </section>
+
+        <section class="feedback-modal-section">
+          <form class="admin-form feedback-reply-form" id="feedback-reply-form">
+            <input id="feedback-reply-id" name="feedback_id" type="hidden">
+
+            <div class="field-group">
+              <label for="feedback-reply-status">Reply Status</label>
+              <select id="feedback-reply-status" name="status">
+                <option value="Replied">Replied</option>
+                <option value="Resolved">Resolved</option>
+                <option value="Pending">Pending</option>
+              </select>
+            </div>
+
+            <div class="field-group">
+              <label for="feedback-reply-message">Reply Message</label>
+              <textarea id="feedback-reply-message" name="admin_reply" rows="8" placeholder="Write the admin reply to this concern"></textarea>
+            </div>
+
+            <div class="feedback-modal-actions">
+              <button class="secondary-btn" id="feedback-modal-resolve-btn" type="button">Mark Resolved</button>
+              <button class="primary-btn" type="submit">Send Reply</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/system-settings.js?v=20260331-1"></script>
+  <script src="../js/admin-dashboard.js?v=20260402-1"></script>
+</body>
+</html>
+

@@ -1,0 +1,255 @@
+:root {
+  --text-color: #f7f4ef;
+  --muted-text: rgba(247, 244, 239, 0.72);
+  --border-color: rgba(255, 255, 255, 0.18);
+  --shadow-color: rgba(0, 0, 0, 0.42);
+  --media-bg: url("../assets/images/carousel4.jpg");
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  font-family: "Montserrat", "Segoe UI", sans-serif;
+  color: var(--text-color);
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.08), transparent 28%),
+    linear-gradient(135deg, #050505 0%, #020202 100%);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.staff-auth-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(420px, 0.95fr);
+  overflow: hidden;
+}
+
+.staff-auth-media {
+  position: relative;
+  min-height: 100vh;
+  background-image:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.16) 0%, rgba(0, 0, 0, 0.4) 65%, rgba(0, 0, 0, 0.9) 100%),
+    var(--media-bg);
+  background-position: center;
+  background-size: cover;
+}
+
+.staff-auth-panel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(2rem, 5vw, 4rem);
+}
+
+.staff-auth-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.05), transparent 25%),
+    linear-gradient(180deg, rgba(19, 19, 19, 0.52), rgba(7, 7, 7, 0.96));
+  backdrop-filter: blur(10px);
+}
+
+.panel-content {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 450px);
+}
+
+.brand-mark {
+  position: absolute;
+  left: clamp(1.4rem, 4vw, 2.35rem);
+  bottom: clamp(1.4rem, 4vw, 2.35rem);
+  z-index: 2;
+  width: clamp(3.7rem, 8vw, 4.8rem);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow: 0 18px 40px var(--shadow-color);
+}
+
+.brand-monogram {
+  font-family: "Montserrat", "Segoe UI", sans-serif;
+  font-size: clamp(2rem, 3vw, 2.45rem);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.back-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 1.35rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.88rem;
+}
+
+.section-kicker {
+  margin: 0 0 0.55rem;
+  color: var(--muted-text);
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.auth-copy h1 {
+  margin: 0;
+  font-family: "Montserrat", "Segoe UI", sans-serif;
+  font-size: clamp(2.4rem, 4.8vw, 3.3rem);
+  line-height: 1;
+}
+
+.auth-subtitle {
+  margin: 0.5rem 0 0;
+  color: var(--muted-text);
+  line-height: 1.75;
+}
+
+.demo-card {
+  margin: 1.25rem 0;
+  padding: 1rem 1.05rem;
+  border: 1px solid var(--border-color);
+  border-radius: 1.2rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.demo-card span {
+  display: block;
+  color: var(--muted-text);
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.demo-card strong {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 1rem;
+}
+
+.demo-card p {
+  margin: 0.45rem 0 0;
+  color: var(--muted-text);
+}
+
+code {
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.35rem;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.staff-auth-form {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.field-group label {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.auth-input {
+  width: 100%;
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.02);
+  color: #ffffff;
+  outline: none;
+}
+
+.auth-input:focus {
+  border-color: rgba(255, 255, 255, 0.42);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.06);
+}
+
+.primary-btn {
+  margin-top: 0.25rem;
+  padding: 0.95rem 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(72, 72, 72, 0.95), rgba(34, 34, 34, 0.98));
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.form-status {
+  min-height: 1rem;
+  margin: 0;
+  color: var(--muted-text);
+}
+
+.form-status.is-error {
+  color: #ffb8b8;
+}
+
+.form-status.is-success {
+  color: #bbffd7;
+}
+
+@media (max-width: 940px) {
+  .staff-auth-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .staff-auth-media {
+    min-height: 34vh;
+  }
+}
+
+@media (max-width: 640px) {
+  .staff-auth-panel {
+    padding: 1.2rem;
+  }
+
+  .panel-content {
+    width: 100%;
+  }
+}
+
+.back-home {
+  gap: 0.5rem;
+  border-radius: 1.05rem;
+}
+
+.back-home i {
+  font-size: 0.92rem;
+}
+
+.auth-input {
+  min-height: 56px;
+  border-radius: 1rem;
+}
+
+.auth-input:focus {
+  border-color: rgba(211, 176, 95, 0.46);
+  box-shadow: 0 0 0 4px rgba(211, 176, 95, 0.08);
+}
+
+.primary-btn {
+  min-height: 56px;
+  border-radius: 1rem;
+}
+
