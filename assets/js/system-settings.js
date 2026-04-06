@@ -16,6 +16,14 @@
     return projectIndex > 0 ? `/${pathSegments.slice(0, projectIndex).join("/")}` : "";
   }
 
+  function getBackendUrl(pathName) {
+    if (typeof window.getSndraBackendUrl === "function") {
+      return window.getSndraBackendUrl(pathName);
+    }
+
+    return `${window.location.origin}${getProjectRoot()}${pathName}`;
+  }
+
   function normalizeSettings(settings) {
     const source = settings && typeof settings === "object" ? settings : {};
 
@@ -207,7 +215,7 @@
   }
 
   async function loadSettings() {
-    const endpoint = `${window.location.origin}${getProjectRoot()}/backend/config/get-system-settings.php`;
+    const endpoint = getBackendUrl("/backend/config/get-system-settings.php");
 
     try {
       const response = await fetch(endpoint, {

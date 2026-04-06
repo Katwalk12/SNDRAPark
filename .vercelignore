@@ -1,0 +1,10 @@
+.env
+admin
+backend
+database
+storage
+tools
+*.php
+*.bat
+SECURITY_AUDIT_QUICK_REFERENCE.md
+SECURITY_AUDIT_REPORT.md

@@ -11,6 +11,14 @@
     return projectIndex > 0 ? `/${pathSegments.slice(0, projectIndex).join("/")}` : "";
   }
 
+  function getProjectBasePath() {
+    if (typeof window.getSndraProjectBasePath === "function") {
+      return window.getSndraProjectBasePath();
+    }
+
+    return getProjectRoot();
+  }
+
   function escapeHtml(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -258,7 +266,7 @@
   }
 
   function initNotificationCenter(root) {
-    const projectRoot = `${window.location.origin}${getProjectRoot()}`;
+    const projectRoot = `${window.location.origin}${getProjectBasePath()}`;
     const userType = root.dataset.userType || "user";
     const toggle = root.querySelector("[data-notification-toggle]");
     const panel = root.querySelector("[data-notification-panel]");

@@ -14,10 +14,19 @@ function getProjectBasePath() {
   return projectIndex > 0 ? `/${pathSegments.slice(0, projectIndex).join("/")}` : "";
 }
 
-const PROJECT_BASE_PATH = window.SNDRA_PROJECT_BASE_PATH || getProjectBasePath();
-const PHP_BOOTH_API_BASE = window.SNDRA_PARKING_BOOTH_API_BASE || `${window.location.origin}${PROJECT_BASE_PATH}/backend/parking-booth`;
-const SYSTEM_SETTINGS_API = `${window.location.origin}${PROJECT_BASE_PATH}/backend/config/get-system-settings.php`;
-const BOOTH_LOGIN_URL = `${window.location.origin}${PROJECT_BASE_PATH}/frontend/pages/booth-login.html`;
+const PROJECT_BASE_PATH = typeof window.getSndraProjectBasePath === "function"
+  ? window.getSndraProjectBasePath()
+  : (window.SNDRA_PROJECT_BASE_PATH || getProjectBasePath());
+const PHP_BOOTH_API_BASE = window.SNDRA_PARKING_BOOTH_API_BASE
+  || (typeof window.getSndraBackendUrl === "function"
+    ? window.getSndraBackendUrl("/backend/parking-booth")
+    : `${window.location.origin}${PROJECT_BASE_PATH}/backend/parking-booth`);
+const SYSTEM_SETTINGS_API = typeof window.getSndraBackendUrl === "function"
+  ? window.getSndraBackendUrl("/backend/config/get-system-settings.php")
+  : `${window.location.origin}${PROJECT_BASE_PATH}/backend/config/get-system-settings.php`;
+const BOOTH_LOGIN_URL = typeof window.getSndraRouteUrl === "function"
+  ? window.getSndraRouteUrl("boothLogin")
+  : `${window.location.origin}${PROJECT_BASE_PATH}/frontend/pages/booth-login.html`;
 const BOOTH_LOGOUT_URL = `${PHP_BOOTH_API_BASE}/logout.php`;
 const BOOTH_API_ENDPOINTS = {
   session: `${PHP_BOOTH_API_BASE}/session.php`,

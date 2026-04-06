@@ -4,6 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SNDRA Park | Home</title>
+  <script>
+    (function () {
+      const pathName = String(window.location.pathname || "");
+      const frontendIndex = pathName.indexOf("/frontend/");
+      const backendIndex = pathName.indexOf("/backend/");
+      const splitIndex = frontendIndex >= 0 ? frontendIndex : backendIndex;
+      const projectBasePath = splitIndex >= 0 ? pathName.slice(0, splitIndex).replace(/\/+$/, "") : "";
+      window.__SNDRA_PROJECT_BASE_PATH = projectBasePath;
+      const base = document.createElement("base");
+      base.href = `${projectBasePath}/frontend/pages/`;
+      document.head.appendChild(base);
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,7 +30,7 @@
 
     <header class="sticky top-0 z-40 border-b border-white/10 bg-black/55 backdrop-blur-xl">
       <div class="page-shell flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <a class="flex items-center gap-3" href="#home" aria-label="SNDRA Park home">
+        <a class="flex items-center gap-3" href="./index.html#home" aria-label="SNDRA Park home">
           <span class="icon-badge rounded-full bg-ember text-obsidian">SP</span>
           <div>
             <span class="section-kicker">Smart Parking</span>
@@ -26,9 +39,9 @@
         </a>
 
         <nav class="flex flex-wrap items-center gap-2" aria-label="Primary navigation">
-          <a class="nav-link nav-link-icon" href="#home"><i class="fa-solid fa-house" aria-hidden="true"></i><span>Home</span></a>
-          <a class="nav-link nav-link-icon" href="#about"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span>About</span></a>
-          <a class="nav-link nav-link-icon" href="#contact"><i class="fa-solid fa-headset" aria-hidden="true"></i><span>Contact</span></a>
+          <a class="nav-link nav-link-icon" href="./index.html#home"><i class="fa-solid fa-house" aria-hidden="true"></i><span>Home</span></a>
+          <a class="nav-link nav-link-icon" href="./index.html#about"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span>About</span></a>
+          <a class="nav-link nav-link-icon" href="./index.html#contact"><i class="fa-solid fa-headset" aria-hidden="true"></i><span>Contact</span></a>
           <a class="nav-link-outline nav-link-icon rounded-full px-5 py-3 text-sm font-semibold" href="./login.html"><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i><span>Log In</span></a>
           <a class="nav-link-solid nav-link-icon rounded-full px-5 py-3 text-sm font-semibold" href="./signup.html"><i class="fa-solid fa-car-side" aria-hidden="true"></i><span>Sign Up</span></a>
         </nav>
@@ -48,7 +61,7 @@
                 <p>SNDRA Park gives drivers a faster, cleaner reservation flow with a dark premium dashboard, real-time slot visibility, and a booking experience designed for confidence.</p>
                 <div class="hero-actions">
                   <a class="hero-button hero-button-solid" href="./signup.html"><i class="fa-solid fa-car-side" aria-hidden="true"></i><span>Create Account</span></a>
-                  <a class="hero-button hero-button-outline" href="#contact"><i class="fa-solid fa-headset" aria-hidden="true"></i><span>Contact Us</span></a>
+                  <a class="hero-button hero-button-outline" href="./index.html#contact"><i class="fa-solid fa-headset" aria-hidden="true"></i><span>Contact Us</span></a>
                 </div>
               </div>
             </article>
@@ -62,7 +75,7 @@
                 <p>The interface is built to reduce parking friction with clear floor browsing, polished actions, and reservation summaries that stay easy to reopen.</p>
                 <div class="hero-actions">
                   <a class="hero-button hero-button-solid" href="./login.html"><i class="fa-solid fa-table-columns" aria-hidden="true"></i><span>Open Dashboard</span></a>
-                  <a class="hero-button hero-button-outline" href="#about"><i class="fa-solid fa-layer-group" aria-hidden="true"></i><span>Explore Features</span></a>
+                  <a class="hero-button hero-button-outline" href="./index.html#about"><i class="fa-solid fa-layer-group" aria-hidden="true"></i><span>Explore Features</span></a>
                 </div>
               </div>
             </article>
@@ -76,7 +89,7 @@
                 <p>SNDRA Park keeps the customer and teller views aligned with real-time reservation feeds, payment status tracking, and a consistent professional visual system.</p>
                 <div class="hero-actions">
                   <a class="hero-button hero-button-solid" href="./booth-login.html"><i class="fa-solid fa-barcode" aria-hidden="true"></i><span>Booth Access</span></a>
-                  <a class="hero-button hero-button-outline" href="#contact"><i class="fa-solid fa-users" aria-hidden="true"></i><span>Reach the Team</span></a>
+                  <a class="hero-button hero-button-outline" href="./index.html#contact"><i class="fa-solid fa-users" aria-hidden="true"></i><span>Reach the Team</span></a>
                 </div>
               </div>
             </article>
@@ -281,19 +294,19 @@
               <h3>Stay connected with the SNDRA Park team.</h3>
             </div>
             <div class="footer-social-actions">
-              <a class="footer-social-button" href="#" aria-label="Facebook">
+              <a class="footer-social-button" href="./index.html#contact" aria-label="Facebook">
                 <i class="fa-brands fa-facebook-f" aria-hidden="true"></i>
                 <span>Facebook</span>
               </a>
-              <a class="footer-social-button" href="#" aria-label="Instagram">
+              <a class="footer-social-button" href="./index.html#contact" aria-label="Instagram">
                 <i class="fa-brands fa-instagram" aria-hidden="true"></i>
                 <span>Instagram</span>
               </a>
-              <a class="footer-social-button" href="#" aria-label="Viber">
+              <a class="footer-social-button" href="./index.html#contact" aria-label="Viber">
                 <i class="fa-brands fa-viber" aria-hidden="true"></i>
                 <span>Viber</span>
               </a>
-              <a class="footer-social-button" href="#" aria-label="Telegram">
+              <a class="footer-social-button" href="./index.html#contact" aria-label="Telegram">
                 <i class="fa-brands fa-telegram" aria-hidden="true"></i>
                 <span>Telegram</span>
               </a>
@@ -313,10 +326,10 @@
             <section class="footer-column">
               <p class="footer-column-label">Quick Links</p>
               <ul class="footer-link-list">
-                <li><a href="#home">Home</a></li>
+                <li><a href="./index.html#home">Home</a></li>
                 <li><a href="./signup.html">Reserve Parking</a></li>
                 <li><a href="./login.html">Dashboard</a></li>
-                <li><a href="#contact">Contact Us</a></li>
+                <li><a href="./index.html#contact">Contact Us</a></li>
                 <li><a href="./login.html">Login / Register</a></li>
               </ul>
             </section>
@@ -324,11 +337,11 @@
             <section class="footer-column">
               <p class="footer-column-label">Services</p>
               <ul class="footer-link-list">
-                <li><a href="#about">Real-Time Parking Monitor</a></li>
+                <li><a href="./index.html#about">Real-Time Parking Monitor</a></li>
                 <li><a href="./signup.html">Slot Reservation System</a></li>
                 <li><a href="./booth-login.html">Smart Payment System</a></li>
                 <li><a href="./booth-login.html">Parking Booth Management</a></li>
-                <li><a href="#contact">Customer Support</a></li>
+                <li><a href="./index.html#contact">Customer Support</a></li>
               </ul>
             </section>
 
@@ -363,6 +376,7 @@
     </main>
   </div>
 
+  <script src="../../assets/js/runtime-config.js"></script>
   <script src="../../assets/js/system-settings.js"></script>
   <script src="../js/index.js"></script>
 </body>

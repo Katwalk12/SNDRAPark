@@ -1,8 +1,10 @@
 const STAFF_SESSION_KEY = "sndraStaffSession";
-const PROJECT_ROOT = window.location.pathname.includes("/frontend/")
-  ? window.location.pathname.split("/frontend/")[0]
-  : "";
-const ADMIN_API_BASE = `${window.location.origin}${PROJECT_ROOT}/backend/admin`;
+const ADMIN_API_BASE = typeof window.getSndraBackendUrl === "function"
+  ? window.getSndraBackendUrl("/backend/admin")
+  : `${window.location.origin}/backend/admin`;
+const ADMIN_LOGIN_ROUTE = typeof window.getSndraRoutePath === "function"
+  ? window.getSndraRoutePath("adminLogin")
+  : "./admin-login.html";
 const ADMIN_ENDPOINTS = {
   dashboard: `${ADMIN_API_BASE}/get_dashboard_summary.php`,
   floors: `${ADMIN_API_BASE}/get_floors.php`,
@@ -1366,7 +1368,7 @@ async function handleLogout() {
   }
 
   localStorage.removeItem(STAFF_SESSION_KEY);
-  window.location.replace("./admin-login.html");
+  window.location.replace(ADMIN_LOGIN_ROUTE);
 }
 
 async function handleDocumentClick(event) {
@@ -1948,7 +1950,7 @@ async function fetchJson(url) {
 
   if ([401, 403, 419].includes(response.status)) {
     localStorage.removeItem(STAFF_SESSION_KEY);
-    window.location.replace("./admin-login.html");
+    window.location.replace(ADMIN_LOGIN_ROUTE);
     throw new Error(result?.message || "Your admin session expired.");
   }
 
@@ -1980,7 +1982,7 @@ async function postJson(url, payload) {
 
   if ([401, 403, 419].includes(response.status)) {
     localStorage.removeItem(STAFF_SESSION_KEY);
-    window.location.replace("./admin-login.html");
+    window.location.replace(ADMIN_LOGIN_ROUTE);
     throw new Error(result?.message || "Your admin session expired.");
   }
 
@@ -2001,7 +2003,7 @@ function requireAdminSession() {
   const session = loadStaffSession();
 
   if (!session || session.role !== "admin") {
-    window.location.replace("./admin-login.html");
+    window.location.replace(ADMIN_LOGIN_ROUTE);
     return null;
   }
 

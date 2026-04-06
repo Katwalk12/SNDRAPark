@@ -7,7 +7,39 @@ function getProjectRoot() {
   return projectIndex > 0 ? `/${pathSegments.slice(0, projectIndex).join("/")}` : "";
 }
 
-const authApiBase = `${window.location.origin}${getProjectRoot()}/backend/api/v1`;
+function getBackendUrl(pathName) {
+  if (typeof window.getSndraBackendUrl === "function") {
+    return window.getSndraBackendUrl(pathName);
+  }
+
+  return `${window.location.origin}${getProjectRoot()}${pathName}`;
+}
+
+function getRoutePath(pageName, fallbackPath) {
+  if (typeof window.getSndraRoutePath === "function") {
+    return window.getSndraRoutePath(pageName);
+  }
+
+  return fallbackPath;
+}
+
+function normalizeRouteTarget(target) {
+  const routeMap = {
+    "./index.html": getRoutePath("home", "./index.html"),
+    "index.html": getRoutePath("home", "./index.html"),
+    "./login.html": getRoutePath("login", "./login.html"),
+    "login.html": getRoutePath("login", "./login.html"),
+    "./signup.html": getRoutePath("signup", "./signup.html"),
+    "signup.html": getRoutePath("signup", "./signup.html"),
+    "./user-dashboard.html": getRoutePath("dashboard", "./user-dashboard.html"),
+    "user-dashboard.html": getRoutePath("dashboard", "./user-dashboard.html")
+  };
+
+  return routeMap[String(target || "").trim()] || target;
+}
+
+const authApiBase = getBackendUrl("/backend/api/v1");
+const userDashboardRoute = getRoutePath("dashboard", "./user-dashboard.html");
 const managedSelector = "form[data-auth-form], #login-form, #register-form, #signup-form";
 
 function getManagedForms() {
@@ -370,7 +402,7 @@ function updatePasswordMeter(input) {
 }
 
 async function redirectIfAuthenticated() {
-  const isAuthHtmlPage = /\/frontend\/pages\/(login|signup)\.html$/i.test(window.location.pathname);
+  const isAuthHtmlPage = /\/(?:frontend\/pages\/)?(login|signup)(?:\.html)?$/i.test(window.location.pathname);
 
   if (!isAuthHtmlPage) {
     return;
@@ -378,7 +410,7 @@ async function redirectIfAuthenticated() {
 
   try {
     await requestAuth("session", {}, "GET");
-    window.location.replace("./user-dashboard.html");
+    window.location.replace(userDashboardRoute);
   } catch (error) {
     // No active session, stay on the current page.
   }
@@ -473,7 +505,7 @@ document.addEventListener("submit", async (event) => {
 
     if (redirectTarget) {
       window.setTimeout(() => {
-        window.location.href = redirectTarget;
+        window.location.href = normalizeRouteTarget(redirectTarget);
       }, 500);
     }
   } catch (error) {

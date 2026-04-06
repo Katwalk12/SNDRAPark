@@ -4,6 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SNDRA Park | Parking Booth Dashboard</title>
+  <script>
+    (function () {
+      const pathName = String(window.location.pathname || "");
+      const frontendIndex = pathName.indexOf("/frontend/");
+      const backendIndex = pathName.indexOf("/backend/");
+      const splitIndex = frontendIndex >= 0 ? frontendIndex : backendIndex;
+      const projectBasePath = splitIndex >= 0 ? pathName.slice(0, splitIndex).replace(/\/+$/, "") : "";
+      window.__SNDRA_PROJECT_BASE_PATH = projectBasePath;
+      const base = document.createElement("base");
+      base.href = `${projectBasePath}/frontend/pages/`;
+      document.head.appendChild(base);
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -286,6 +299,7 @@
     </main>
   </div>
 
+  <script src="../../assets/js/runtime-config.js"></script>
   <script src="../../assets/js/system-settings.js?v=20260331-2"></script>
   <script src="../../assets/js/notifications.js?v=20260331-2"></script>
   <script src="../js/parking-booth.js?v=20260331-4"></script>

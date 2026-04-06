@@ -1,8 +1,10 @@
 const STAFF_SESSION_KEY = "sndraStaffSession";
-const PROJECT_ROOT = window.location.pathname.includes("/frontend/")
-  ? window.location.pathname.split("/frontend/")[0]
-  : "";
-const ADMIN_AUTH_API = `${window.location.origin}${PROJECT_ROOT}/backend/admin/login.php`;
+const ADMIN_AUTH_API = typeof window.getSndraBackendUrl === "function"
+  ? window.getSndraBackendUrl("/backend/admin/login.php")
+  : `${window.location.origin}/backend/admin/login.php`;
+const ADMIN_DASHBOARD_ROUTE = typeof window.getSndraRoutePath === "function"
+  ? window.getSndraRoutePath("adminDashboard")
+  : "./admin-dashboard.html";
 
 const adminLoginForm = document.getElementById("admin-login-form");
 const adminLoginStatus = document.getElementById("admin-login-status");
@@ -11,7 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const session = loadStaffSession();
 
   if (session?.role === "admin") {
-    window.location.replace("./admin-dashboard.html");
+    window.location.replace(ADMIN_DASHBOARD_ROUTE);
     return;
   }
 
@@ -35,8 +37,11 @@ async function handleAdminLogin(event) {
     const session = result.data || {};
     saveStaffSession(session);
     setStatus("Login successful. Redirecting to admin dashboard...", false);
-    const redirectTarget = String(result.redirect || "admin-dashboard.html").replace(/^\.\//, "");
-    window.setTimeout(() => window.location.replace(`./${redirectTarget}`), 400);
+    const redirectTarget = String(result.redirect || ADMIN_DASHBOARD_ROUTE);
+    const normalizedTarget = /admin-dashboard\.html$/i.test(redirectTarget)
+      ? ADMIN_DASHBOARD_ROUTE
+      : redirectTarget;
+    window.setTimeout(() => window.location.replace(normalizedTarget), 400);
   } catch (error) {
     setStatus(error.message || "Invalid admin account credentials.", true);
   }

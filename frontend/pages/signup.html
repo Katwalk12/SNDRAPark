@@ -4,6 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SNDRA Park | Sign Up</title>
+  <script>
+    (function () {
+      const pathName = String(window.location.pathname || "");
+      const frontendIndex = pathName.indexOf("/frontend/");
+      const backendIndex = pathName.indexOf("/backend/");
+      const splitIndex = frontendIndex >= 0 ? frontendIndex : backendIndex;
+      const projectBasePath = splitIndex >= 0 ? pathName.slice(0, splitIndex).replace(/\/+$/, "") : "";
+      window.__SNDRA_PROJECT_BASE_PATH = projectBasePath;
+      const base = document.createElement("base");
+      base.href = `${projectBasePath}/frontend/pages/`;
+      document.head.appendChild(base);
+    })();
+  </script>
   <link rel="icon" type="image/jpeg" href="../assets/icons/logo.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -133,24 +146,25 @@
         <defs>
           <path id="flow-curve-signup" d="M368 -48C216 112 190 302 250 480C321 662 309 812 178 1008"></path>
         </defs>
-        <use href="#flow-curve-signup" x="0"></use>
-        <use href="#flow-curve-signup" x="-14"></use>
-        <use href="#flow-curve-signup" x="-28"></use>
-        <use href="#flow-curve-signup" x="-42"></use>
-        <use href="#flow-curve-signup" x="-56"></use>
-        <use href="#flow-curve-signup" x="-70"></use>
-        <use href="#flow-curve-signup" x="-84"></use>
-        <use href="#flow-curve-signup" x="-98"></use>
-        <use href="#flow-curve-signup" x="-112"></use>
-        <use href="#flow-curve-signup" x="-126"></use>
-        <use href="#flow-curve-signup" x="-140"></use>
-        <use href="#flow-curve-signup" x="-154"></use>
-        <use href="#flow-curve-signup" x="-168"></use>
-        <use href="#flow-curve-signup" x="-182"></use>
+        <use href="./signup.html#flow-curve-signup" x="0"></use>
+        <use href="./signup.html#flow-curve-signup" x="-14"></use>
+        <use href="./signup.html#flow-curve-signup" x="-28"></use>
+        <use href="./signup.html#flow-curve-signup" x="-42"></use>
+        <use href="./signup.html#flow-curve-signup" x="-56"></use>
+        <use href="./signup.html#flow-curve-signup" x="-70"></use>
+        <use href="./signup.html#flow-curve-signup" x="-84"></use>
+        <use href="./signup.html#flow-curve-signup" x="-98"></use>
+        <use href="./signup.html#flow-curve-signup" x="-112"></use>
+        <use href="./signup.html#flow-curve-signup" x="-126"></use>
+        <use href="./signup.html#flow-curve-signup" x="-140"></use>
+        <use href="./signup.html#flow-curve-signup" x="-154"></use>
+        <use href="./signup.html#flow-curve-signup" x="-168"></use>
+        <use href="./signup.html#flow-curve-signup" x="-182"></use>
       </svg>
     </div>
   </main>
 
+  <script src="../../assets/js/runtime-config.js"></script>
   <script src="../../assets/js/system-settings.js"></script>
   <script src="../js/auth.js"></script>
 </body>

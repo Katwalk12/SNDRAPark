@@ -7,13 +7,31 @@ function getProjectRoot() {
   return projectIndex > 0 ? `/${pathSegments.slice(0, projectIndex).join("/")}` : "";
 }
 
-const dashboardAuthApi = `${window.location.origin}${getProjectRoot()}/backend/api/v1`;
-const USER_API_BASE = `${window.location.origin}${getProjectRoot()}/backend/user`;
+function getBackendUrl(pathName) {
+  if (typeof window.getSndraBackendUrl === "function") {
+    return window.getSndraBackendUrl(pathName);
+  }
+
+  return `${window.location.origin}${getProjectRoot()}${pathName}`;
+}
+
+function getRoutePath(pageName, fallbackPath) {
+  if (typeof window.getSndraRoutePath === "function") {
+    return window.getSndraRoutePath(pageName);
+  }
+
+  return fallbackPath;
+}
+
+const dashboardAuthApi = getBackendUrl("/backend/api/v1");
+const USER_API_BASE = getBackendUrl("/backend/user");
 const USER_PROFILE_API = `${dashboardAuthApi}/users`;
 const USER_PROFILE_KEY = "userProfile";
 const PARKING_RESERVATIONS_KEY = "parkingReservations";
 const FEEDBACK_MESSAGES_KEY = "feedbackMessages";
-const PARKING_BACKEND_ORIGIN = `${window.location.origin}${getProjectRoot()}`;
+const PARKING_BACKEND_ORIGIN = typeof window.getSndraProjectBasePath === "function"
+  ? `${window.location.origin}${window.getSndraProjectBasePath()}`
+  : `${window.location.origin}${getProjectRoot()}`;
 const SYSTEM_SETTINGS_API = `${PARKING_BACKEND_ORIGIN}/backend/config/get-system-settings.php`;
 const USER_FLOORS_API = `${USER_API_BASE}/get_floors.php`;
 const USER_SLOTS_API = `${USER_API_BASE}/get_slots_by_floor.php`;
@@ -21,6 +39,7 @@ const USER_RESERVATION_API = `${USER_API_BASE}/submit_reservation.php`;
 const USER_RESERVATIONS_API = `${USER_API_BASE}/get_reservations.php`;
 const USER_CANCEL_RESERVATION_API = `${USER_API_BASE}/cancel_reservation.php`;
 const FEEDBACK_SUBMIT_API = `${PARKING_BACKEND_ORIGIN}/backend/feedback/submit.php`;
+const LOGIN_ROUTE = getRoutePath("login", "./login.html");
 const RESERVATION_LOG_STATUS_TIMEOUT = 2800;
 const FLOOR_REFRESH_INTERVAL = 5 * 60 * 1000;
 const SLOT_REFRESH_INTERVAL = 3000;
@@ -267,7 +286,7 @@ async function ensureAuthenticatedSession() {
 
     return normalizedSession;
   } catch (error) {
-    window.location.replace("./login.html");
+    window.location.replace(LOGIN_ROUTE);
     return null;
   }
 }
@@ -768,7 +787,7 @@ function bindLogout() {
         credentials: "same-origin"
       });
     } finally {
-      window.location.replace("./login.html");
+      window.location.replace(LOGIN_ROUTE);
     }
   });
 }

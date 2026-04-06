@@ -1,8 +1,12 @@
-const PROJECT_ROOT = window.location.pathname.includes("/frontend/")
-  ? window.location.pathname.split("/frontend/")[0]
-  : "";
-const BOOTH_AUTH_API = `${window.location.origin}${PROJECT_ROOT}/backend/parking-booth/login.php`;
-const BOOTH_SESSION_API = `${window.location.origin}${PROJECT_ROOT}/backend/parking-booth/session.php`;
+const BOOTH_AUTH_API = typeof window.getSndraBackendUrl === "function"
+  ? window.getSndraBackendUrl("/backend/parking-booth/login.php")
+  : `${window.location.origin}/backend/parking-booth/login.php`;
+const BOOTH_SESSION_API = typeof window.getSndraBackendUrl === "function"
+  ? window.getSndraBackendUrl("/backend/parking-booth/session.php")
+  : `${window.location.origin}/backend/parking-booth/session.php`;
+const BOOTH_DASHBOARD_ROUTE = typeof window.getSndraRoutePath === "function"
+  ? window.getSndraRoutePath("boothDashboard")
+  : "./parking-booth.html";
 
 const boothLoginForm = document.getElementById("booth-login-form");
 const boothLoginStatus = document.getElementById("booth-login-status");
@@ -11,7 +15,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const activeSession = await fetchBoothSession();
 
   if (activeSession?.role === "booth") {
-    window.location.replace("./parking-booth.html");
+    window.location.replace(BOOTH_DASHBOARD_ROUTE);
     return;
   }
 
@@ -33,8 +37,11 @@ async function handleBoothLogin(event) {
   try {
     const result = await loginBoothViaApi(email, password);
     setStatus("Login successful. Redirecting to parking booth dashboard...", false);
-    const redirectTarget = String(result.redirect || "parking-booth.html").replace(/^\.\//, "");
-    window.setTimeout(() => window.location.replace(`./${redirectTarget}`), 400);
+    const redirectTarget = String(result.redirect || BOOTH_DASHBOARD_ROUTE);
+    const normalizedTarget = /parking-booth\.html$/i.test(redirectTarget)
+      ? BOOTH_DASHBOARD_ROUTE
+      : redirectTarget;
+    window.setTimeout(() => window.location.replace(normalizedTarget), 400);
   } catch (error) {
     setStatus(error.message || "Invalid booth teller credentials.", true);
   }
