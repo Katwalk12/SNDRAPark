@@ -201,16 +201,18 @@ Open <http://localhost/phpmyadmin> and import, **in this order**:
 | # | File | Creates |
 |---|---|---|
 | 1 | [database/database.sql](database/database.sql) | `sndrapark_db`, `users`, base tables |
-| 2 | [database/parking_booth_xampp.sql](database/parking_booth_xampp.sql) | `reservations`, `parking_transactions`, `payments` |
-| 3 | [database/staff_auth.sql](database/staff_auth.sql) | `staff_accounts`, `staff_login_logs` |
-| 4 | [database/admin_dashboard_updates.sql](database/admin_dashboard_updates.sql) | `parking_floors`, slot columns |
-| 5 | [database/realtime_dashboard_updates.sql](database/realtime_dashboard_updates.sql) | live monitor columns |
-| 6 | [database/booth_teller_pin_accounts.sql](database/booth_teller_pin_accounts.sql) | `booth_teller_accounts` |
-| 7 | [database/vehicle_management.sql](database/vehicle_management.sql) + [database/users_vehicle_columns.sql](database/users_vehicle_columns.sql) | `vehicles` |
-| 8 | [database/password_security_policy.sql](database/password_security_policy.sql) | lockout + password ageing |
-| 9 | [database/forgot_password_email_otp.sql](database/forgot_password_email_otp.sql) | `password_resets` |
-| 10 | [database/feedback_inbox_updates.sql](database/feedback_inbox_updates.sql) | feedback replies |
-| 11 | [database/slot_unavailable_reason.sql](database/slot_unavailable_reason.sql) | out-of-service reasons |
+| 2 | [database/parking_booth.sql](database/parking_booth.sql) | `reservations`, `parking_transactions`, `payments`, `notifications` |
+| 3 | [database/parking_booth_xampp.sql](database/parking_booth_xampp.sql) | booth columns on the two reservation tables |
+| 4 | [database/staff_auth.sql](database/staff_auth.sql) | `staff_accounts`, `staff_login_logs` |
+| 5 | [database/admin_dashboard_updates.sql](database/admin_dashboard_updates.sql) | `parking_floors`, `system_settings`, `feedback_messages` |
+| 6 | [database/realtime_dashboard_updates.sql](database/realtime_dashboard_updates.sql) | live monitor columns on slots and reservations |
+| 7 | [database/booth_teller_pin_accounts.sql](database/booth_teller_pin_accounts.sql) | `booth_teller_accounts` |
+| 8 | [database/vehicle_management.sql](database/vehicle_management.sql) + [database/users_vehicle_columns.sql](database/users_vehicle_columns.sql) | `vehicles` |
+| 9 | [database/password_security_policy.sql](database/password_security_policy.sql) | lockout + password ageing |
+| 10 | [database/forgot_password_email_otp.sql](database/forgot_password_email_otp.sql) | `password_resets` |
+| 11 | [database/forgot_password_alter.sql](database/forgot_password_alter.sql) | `reset_otp_*` columns on `users` |
+| 12 | [database/feedback_inbox_updates.sql](database/feedback_inbox_updates.sql) | feedback replies |
+| 13 | [database/slot_unavailable_reason.sql](database/slot_unavailable_reason.sql) | out-of-service reasons |
 
 Then apply the security schema (audit log, rate limiting, roles, session
 columns):
@@ -221,11 +223,13 @@ c:\xampp\php\php.exe database\run_security_migrations.php
 
 Every migration is written with `IF NOT EXISTS`, so re-running one is safe.
 
-> **Do not run `multi_user_forgot_password.sql` or `forgot_password_alter.sql`.**
-> They are superseded drafts. The first would create a `users` table with the
-> wrong columns if it ran before `database.sql`, and defines `smtp_settings`
-> with a `password` column where the current code expects `app_password`. SMTP
-> credentials are read from `.env` now; the `smtp_settings` table is legacy.
+Four tables are not in any `.sql` file — `system_logs`, `admin_audit_logs`,
+`user_violations`, and `notification_reads` are created on first use by
+`backend/config/database.php` and `backend/notifications/common.php`. You do not
+need to create them by hand.
+
+> The `smtp_settings` table is legacy. SMTP credentials come from `.env` now;
+> nothing reads that table any more.
 
 ### 3. Configure the environment
 
@@ -577,11 +581,15 @@ The time must fall inside `parking_opening_time`–`parking_closing_time`
 (08:00–22:00 by default), and a same-day booking must be before
 `parking_same_day_cutoff`.
 
-**`build-tailwind.bat` fails with "the `bg-obsidian` class does not exist"**
-Do not run it. `frontend/css/tailwind.input.css` `@apply`s a palette that
-[tailwind.config.js](tailwind.config.js) never defines. The committed
-`assets/css/tailwind.css` is stale but working, and only the landing page loads
-it — every other screen ships hand-written CSS from `frontend/css/`.
+**Editing Tailwind classes changes nothing**
+Only the landing page loads `assets/css/tailwind.css`; every other screen ships
+hand-written CSS from `frontend/css/`. That stylesheet is committed and working
+but stale, and it cannot currently be rebuilt:
+`frontend/css/tailwind.input.css` `@apply`s a palette (`bg-obsidian`,
+`text-mist`, `bg-ember`, `bg-premium-grid`) that [tailwind.config.js](tailwind.config.js)
+never defines, so a build dies with "the `bg-obsidian` class does not exist".
+Define that palette in the config first, then rebuild with
+`npx tailwindcss -i frontend/css/tailwind.input.css -o assets/css/tailwind.css`.
 
 ---
 
