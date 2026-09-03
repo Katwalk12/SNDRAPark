@@ -1,0 +1,219 @@
+/* ==========================================================================
+   SNDRA Park — Password reset
+
+   The three reset screens (request a code / verify the code / set a new
+   password) run on the same shell as login and signup, so the flow does not
+   change character halfway through. This file adds only what those screens
+   need on top of auth.css: the step counter, the OTP field, the password
+   checklist, and the entrance motion.
+
+   Requires design-system.css, then auth.css.
+   ========================================================================== */
+
+.auth-page {
+  --auth-aside-image: url("../assets/images/login-background.jpg");
+}
+
+/* --- 1. Step counter ------------------------------------------------------
+   Sits in the .auth-main-top slot that login uses for "No account? Sign up".
+   Three rules rather than numerals: the position in the flow is the only
+   thing worth saying, and it says it without adding a sentence to read. */
+
+.reset-steps {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  margin: 0;
+}
+
+.reset-step {
+  width: 1.5rem;
+  height: 2px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-border-strong);
+  transition: background-color var(--ds-duration) var(--ds-ease);
+}
+
+.reset-step.is-done { background: var(--ds-ink-400); }
+.reset-step.is-current { background: var(--ds-text); }
+
+/* --- 2. OTP field ---------------------------------------------------------
+   text-indent cancels the trailing letter-space so the digits sit optically
+   centred rather than pushed left by the gap after the last one. */
+
+.otp-input {
+  text-align: center;
+  font-size: var(--ds-text-xl);
+  font-weight: 600;
+  letter-spacing: 0.55em;
+  text-indent: 0.55em;
+  font-variant-numeric: tabular-nums;
+}
+
+.otp-input::placeholder {
+  letter-spacing: 0.35em;
+  font-weight: 400;
+}
+
+/* --- 3. Password checklist ------------------------------------------------ */
+
+.password-rules {
+  display: grid;
+  gap: var(--ds-space-2);
+  margin: calc(var(--ds-space-2) * -1) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-text-muted);
+}
+
+.password-rules li {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  line-height: var(--ds-leading-tight);
+}
+
+.password-rule .rule-mark {
+  position: relative;
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid var(--ds-border-strong);
+  border-radius: var(--ds-radius-full);
+  transition: background-color var(--ds-duration) var(--ds-ease),
+              border-color var(--ds-duration) var(--ds-ease);
+}
+
+.password-rule.is-met {
+  color: var(--ds-success);
+}
+
+.password-rule.is-met .rule-mark {
+  background: var(--ds-success);
+  border-color: var(--ds-success);
+}
+
+.password-rule.is-met .rule-mark::after {
+  content: "";
+  position: absolute;
+  top: 0.16rem;
+  left: 0.34rem;
+  width: 0.22rem;
+  height: 0.44rem;
+  border: solid var(--ds-white);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* --- 4. Footer links ------------------------------------------------------ */
+
+.reset-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-4);
+  margin: var(--ds-space-8) 0 0;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-text-muted);
+}
+
+/* --- 5. Busy button -------------------------------------------------------
+   The label is hidden rather than replaced so the button keeps its width and
+   the row does not reflow while a request is in flight. */
+
+.action-btn.is-busy {
+  position: relative;
+  color: transparent;
+  pointer-events: none;
+}
+
+.action-btn.is-busy::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: -0.525rem 0 0 -0.525rem;
+  border: 2px solid currentColor;
+  border-top-color: var(--ds-text-invert);
+  border-radius: var(--ds-radius-full);
+  color: rgba(255, 255, 255, 0.35);
+  animation: reset-spin 0.6s linear infinite;
+}
+
+@keyframes reset-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* --- 6. Entrance motion ---------------------------------------------------
+   Everything starts 0.5rem low and rises as it fades in. The stagger runs
+   down the column so the eye is led to the first field rather than having the
+   whole form appear at once. */
+
+@keyframes reset-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.reset-page .auth-aside-inner > *,
+.reset-page .auth-main-top,
+.reset-page .auth-copy,
+.reset-page .auth-form > *,
+.reset-page .reset-foot {
+  animation: reset-rise var(--ds-duration-slow) var(--ds-ease) backwards;
+}
+
+.reset-page .auth-aside-inner > *:nth-child(1) { animation-delay: 0.04s; }
+.reset-page .auth-aside-inner > *:nth-child(2) { animation-delay: 0.10s; }
+.reset-page .auth-aside-inner > *:nth-child(3) { animation-delay: 0.16s; }
+
+.reset-page .auth-main-top { animation-delay: 0.06s; }
+.reset-page .auth-copy { animation-delay: 0.12s; }
+.reset-page .auth-form > *:nth-child(1) { animation-delay: 0.18s; }
+.reset-page .auth-form > *:nth-child(2) { animation-delay: 0.24s; }
+.reset-page .auth-form > *:nth-child(3) { animation-delay: 0.30s; }
+.reset-page .auth-form > *:nth-child(4) { animation-delay: 0.36s; }
+.reset-page .auth-form > *:nth-child(5) { animation-delay: 0.42s; }
+.reset-page .reset-foot { animation-delay: 0.46s; }
+
+/* --- 7. Rejection nudge ---------------------------------------------------
+   A wrong OTP returns the user to a field that already looks filled in, so
+   the field moves to show the attempt was read and refused. */
+
+@keyframes reset-nudge {
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
+}
+
+.input-shell.is-rejected {
+  animation: reset-nudge 0.36s var(--ds-ease);
+}
+
+.input-shell.is-rejected .auth-input {
+  border-color: var(--ds-danger);
+}
+
+/* Status messages arrive after a round trip, so they fade in on their own
+   rather than sharing the form's entrance stagger. */
+.reset-page .form-status:not(:empty) {
+  animation: reset-rise var(--ds-duration) var(--ds-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reset-page *,
+  .reset-page *::before,
+  .reset-page *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

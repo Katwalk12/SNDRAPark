@@ -60,7 +60,11 @@ try {
     $statement->execute();
     $staff = $statement->get_result()->fetch_assoc();
 
-    if (!$staff || (string) ($staff['role'] ?? '') !== 'admin' || (int) ($staff['is_active'] ?? 0) !== 1) {
+    // Supervisors sign in here too; admin_require_auth() is what holds them to
+    // read-only once they are in.
+    $staffRole = (string) ($staff['role'] ?? '');
+
+    if (!$staff || !in_array($staffRole, ['admin', 'supervisor'], true) || (int) ($staff['is_active'] ?? 0) !== 1) {
         admin_audit_log($connection, null, 'ADMIN_LOGIN_FAILED', 'Admin login failed due to invalid account credentials.', [
             'admin_email' => $email,
             'status' => 'failure',
@@ -95,52 +99,35 @@ try {
         ], 401);
     }
 
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
+    // One password stands between anyone and every user record, rate and
+    // payment in the system. When the second factor is switched on, the
+    // session is not created until the emailed code comes back.
+    if ((int) system_settings_value('admin_2fa_enabled', $connection) === 1) {
+        if (admin_start_two_factor_challenge($staff)) {
+            admin_audit_log($connection, [
+                'id' => (int) $staff['id'],
+                'fullName' => (string) ($staff['full_name'] ?? ''),
+                'email' => (string) ($staff['email'] ?? $email)
+            ], 'ADMIN_2FA_CHALLENGE_SENT', 'A sign-in code was emailed for admin two-factor authentication.', [
+                'target_type' => 'auth',
+                'status' => 'success'
+            ]);
+
+            admin_login_json_response([
+                'success' => true,
+                'requiresTwoFactor' => true,
+                'message' => 'We emailed a 6-digit code to ' . admin_mask_email((string) ($staff['email'] ?? $email))
+                    . '. Enter it to finish signing in.'
+            ]);
+        }
+
+        // The code could not be sent. Locking the only administrator out
+        // because SMTP is unavailable would be worse than the risk it covers,
+        // so the login proceeds and the failure is recorded.
+        admin_log('admin-2fa-mail-failed', ['email' => (string) ($staff['email'] ?? $email)]);
     }
 
-    session_regenerate_id(true);
-    $csrfToken = CsrfMiddleware::refresh();
-
-    $staffId = (int) $staff['id'];
-    $fullName = (string) ($staff['full_name'] ?? 'Administrator');
-    $staffEmail = (string) ($staff['email'] ?? $email);
-
-    $_SESSION['sndra_admin'] = [
-        'id' => $staffId,
-        'role' => 'admin',
-        'fullName' => $fullName,
-        'email' => $staffEmail
-    ];
-    $_SESSION['_admin_last_activity'] = time();
-
-    $updateStatement = $connection->prepare("UPDATE staff_accounts SET last_login_at = NOW() WHERE id = ?");
-    $updateStatement->bind_param('i', $staffId);
-    $updateStatement->execute();
-
-    admin_audit_log($connection, [
-        'id' => $staffId,
-        'fullName' => $fullName,
-        'email' => $staffEmail
-    ], 'ADMIN_LOGIN_SUCCESS', 'Admin logged in successfully.', [
-        'target_type' => 'auth',
-        'status' => 'success'
-    ]);
-
-    admin_login_json_response([
-        'success' => true,
-        'message' => 'Login successful.',
-        'redirect' => 'admin-dashboard.html',
-        'role' => 'admin',
-        'data' => [
-            'id' => $staffId,
-            'role' => 'admin',
-            'fullName' => $fullName,
-            'email' => $staffEmail,
-            'token' => session_id(),
-            'csrfToken' => $csrfToken
-        ]
-    ]);
+    admin_login_json_response(admin_establish_session($connection, $staff, $email));
 } catch (Throwable $exception) {
     if (function_exists('admin_log')) {
         admin_log('admin-login-failed', [

@@ -12,15 +12,13 @@ function admin_staff_payload(mysqli $connection): array
     $result = $connection->query("
         SELECT
             id,
-            full_name,
-            COALESCE(username, '') AS username,
-            email,
-            role,
+            teller_name,
+            COALESCE(teller_details, '') AS teller_details,
             is_active,
             last_login_at,
             created_at
-        FROM staff_accounts
-        ORDER BY role ASC, created_at DESC
+        FROM booth_teller_accounts
+        ORDER BY created_at DESC
     ");
 
     while ($row = $result->fetch_assoc()) {
@@ -43,95 +41,83 @@ try {
     $action = admin_clean_text(admin_input('action'));
 
     if ($action === 'create') {
-        $fullName = admin_clean_text(admin_input('full_name'));
-        $username = admin_clean_text(admin_input('username'));
-        $email = admin_clean_text(admin_input('email'));
-        $password = admin_clean_text(admin_input('password'));
-        $role = admin_clean_text(admin_input('role')) ?: 'booth';
+        $tellerName = admin_clean_text(admin_input('teller_name'));
+        $tellerDetails = admin_clean_text(admin_input('teller_details'));
+        $pin = preg_replace('/\D+/', '', admin_clean_text(admin_input('pin')));
 
-        if ($fullName === '' || $email === '' || $password === '') {
-            admin_error('Name, email, and password are required.');
+        if ($tellerName === '' || $pin === '') {
+            admin_error('Teller name and PIN are required.');
         }
 
-        if (!in_array($role, ['admin', 'booth'], true)) {
-            $role = 'booth';
+        if (strlen($pin) !== BOOTH_PIN_LENGTH) {
+            admin_error('PIN must be exactly ' . BOOTH_PIN_LENGTH . ' digits.');
         }
 
-        if ($username === '') {
-            $username = strtok($email, '@') ?: $email;
-        }
-
-        $passwordHash = admin_staff_password_hash($password);
+        $pinHash = password_hash($pin, PASSWORD_DEFAULT);
         $statement = $connection->prepare("
-            INSERT INTO staff_accounts (full_name, username, email, password_hash, role, is_active)
-            VALUES (?, ?, ?, ?, ?, 1)
+            INSERT INTO booth_teller_accounts (teller_name, teller_details, pin_code, is_active)
+            VALUES (?, ?, ?, 1)
         ");
-        $statement->bind_param('sssss', $fullName, $username, $email, $passwordHash, $role);
+        $statement->bind_param('sss', $tellerName, $tellerDetails, $pinHash);
         $statement->execute();
-        admin_audit_log($connection, $admin, 'ADMIN_STAFF_CREATED', 'Admin created a new ' . $role . ' staff account for ' . $fullName . '.', [
-            'target_type' => 'staff_account',
+        admin_audit_log($connection, $admin, 'ADMIN_STAFF_CREATED', 'Admin created a booth teller PIN account for ' . $tellerName . '.', [
+            'target_type' => 'booth_teller_account',
             'target_id' => (string) $connection->insert_id,
             'status' => 'success',
             'metadata' => [
-                'full_name' => $fullName,
-                'username' => $username,
-                'email' => $email,
-                'role' => $role
+                'teller_name' => $tellerName,
+                'teller_details' => $tellerDetails
             ]
         ]);
 
-        admin_success('Staff account created successfully.', admin_staff_payload($connection));
+        admin_success('Booth teller PIN account created successfully.', admin_staff_payload($connection));
     }
 
     if ($action === 'update') {
         $staffId = (int) admin_input('staff_id');
-        $fullName = admin_clean_text(admin_input('full_name'));
-        $username = admin_clean_text(admin_input('username'));
-        $email = admin_clean_text(admin_input('email'));
-        $role = admin_clean_text(admin_input('role')) ?: 'booth';
-        $password = admin_clean_text(admin_input('password'));
+        $tellerName = admin_clean_text(admin_input('teller_name'));
+        $tellerDetails = admin_clean_text(admin_input('teller_details'));
+        $pin = preg_replace('/\D+/', '', admin_clean_text(admin_input('pin')));
         $isActive = admin_bool(admin_input('is_active'));
 
-        if ($staffId <= 0 || $fullName === '' || $email === '') {
-            admin_error('Complete staff details are required.');
+        if ($staffId <= 0 || $tellerName === '') {
+            admin_error('Complete teller details are required.');
         }
 
-        if (!in_array($role, ['admin', 'booth'], true)) {
-            $role = 'booth';
+        if ($pin !== '' && strlen($pin) !== BOOTH_PIN_LENGTH) {
+            admin_error('PIN must be exactly ' . BOOTH_PIN_LENGTH . ' digits.');
         }
 
-        if ($password !== '') {
-            $passwordHash = admin_staff_password_hash($password);
+        if ($pin !== '') {
+            $pinHash = password_hash($pin, PASSWORD_DEFAULT);
             $statement = $connection->prepare("
-                UPDATE staff_accounts
-                SET full_name = ?, username = ?, email = ?, role = ?, is_active = ?, password_hash = ?
+                UPDATE booth_teller_accounts
+                SET teller_name = ?, teller_details = ?, is_active = ?, pin_code = ?
                 WHERE id = ?
             ");
-            $statement->bind_param('ssssisi', $fullName, $username, $email, $role, $isActive, $passwordHash, $staffId);
+            $statement->bind_param('ssisi', $tellerName, $tellerDetails, $isActive, $pinHash, $staffId);
         } else {
             $statement = $connection->prepare("
-                UPDATE staff_accounts
-                SET full_name = ?, username = ?, email = ?, role = ?, is_active = ?
+                UPDATE booth_teller_accounts
+                SET teller_name = ?, teller_details = ?, is_active = ?
                 WHERE id = ?
             ");
-            $statement->bind_param('ssssii', $fullName, $username, $email, $role, $isActive, $staffId);
+            $statement->bind_param('ssii', $tellerName, $tellerDetails, $isActive, $staffId);
         }
 
         $statement->execute();
-        admin_audit_log($connection, $admin, 'ADMIN_STAFF_UPDATED', 'Admin updated staff account #' . $staffId . ' (' . $fullName . ').', [
-            'target_type' => 'staff_account',
+        admin_audit_log($connection, $admin, 'ADMIN_STAFF_UPDATED', 'Admin updated booth teller PIN account #' . $staffId . ' (' . $tellerName . ').', [
+            'target_type' => 'booth_teller_account',
             'target_id' => (string) $staffId,
             'status' => 'success',
             'metadata' => [
-                'full_name' => $fullName,
-                'username' => $username,
-                'email' => $email,
-                'role' => $role,
+                'teller_name' => $tellerName,
+                'teller_details' => $tellerDetails,
                 'is_active' => $isActive,
-                'password_changed' => $password !== ''
+                'pin_changed' => $pin !== ''
             ]
         ]);
-        admin_success('Staff account updated successfully.', admin_staff_payload($connection));
+        admin_success('Booth teller PIN account updated successfully.', admin_staff_payload($connection));
     }
 
     if ($action === 'delete') {
@@ -141,16 +127,16 @@ try {
             admin_error('Invalid staff account selected.');
         }
 
-        $statement = $connection->prepare("DELETE FROM staff_accounts WHERE id = ?");
+        $statement = $connection->prepare("DELETE FROM booth_teller_accounts WHERE id = ?");
         $statement->bind_param('i', $staffId);
         $statement->execute();
-        admin_audit_log($connection, $admin, 'ADMIN_STAFF_DELETED', 'Admin deleted staff account #' . $staffId . '.', [
-            'target_type' => 'staff_account',
+        admin_audit_log($connection, $admin, 'ADMIN_STAFF_DELETED', 'Admin deleted booth teller PIN account #' . $staffId . '.', [
+            'target_type' => 'booth_teller_account',
             'target_id' => (string) $staffId,
             'status' => 'success'
         ]);
 
-        admin_success('Staff account deleted successfully.', admin_staff_payload($connection));
+        admin_success('Booth teller PIN account deleted successfully.', admin_staff_payload($connection));
     }
 
     admin_error('Invalid staff action.');

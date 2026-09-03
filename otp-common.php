@@ -5,12 +5,49 @@ use PHPMailer\PHPMailer\Exception as PHPMailerException;
 use PHPMailer\PHPMailer\PHPMailer;
 
 require_once __DIR__ . '/backend/config/database.php';
+require_once __DIR__ . '/backend/utils/EnvHelper.php';
+require_once __DIR__ . '/backend/utils/PasswordPolicy.php';
+require_once __DIR__ . '/backend/middleware/RateLimiter.php';
 
 session_start();
 date_default_timezone_set('Asia/Manila');
 
 const OTP_EXPIRY_SECONDS = 300;
 const OTP_RESET_SESSION_TTL = 300;
+const OTP_MAX_VERIFY_ATTEMPTS = 5;
+
+/**
+ * Raised when a reset code cannot be delivered: bad SMTP credentials, an
+ * unreachable mail host, or missing mailer configuration. Kept separate so the
+ * endpoints can tell a delivery problem apart from any other failure.
+ */
+class OtpMailException extends RuntimeException
+{
+}
+
+/**
+ * Turn an unexpected failure into a safe JSON response.
+ *
+ * The real reason goes to the PHP error log so it can be diagnosed; the caller
+ * only ever sees a generic message, since SMTP and database errors leak
+ * server internals and mean nothing to the person resetting a password.
+ */
+function otp_fail(Throwable $exception, string $context): void
+{
+    error_log(sprintf(
+        '[otp] %s failed: %s (%s:%d)',
+        $context,
+        $exception->getMessage(),
+        $exception->getFile(),
+        $exception->getLine()
+    ));
+
+    $message = $exception instanceof OtpMailException
+        ? 'We could not send the reset code right now. Please try again in a few minutes.'
+        : 'Something went wrong. Please try again.';
+
+    otp_json_response(false, $message, 500);
+}
 
 function otp_json_response(bool $success, string $message, int $status = 200, array $extra = []): void
 {
@@ -43,8 +80,41 @@ function otp_clear_reset_session(): void
         $_SESSION['password_reset_user_id'],
         $_SESSION['password_reset_email'],
         $_SESSION['password_reset_allowed'],
-        $_SESSION['password_reset_verified_at']
+        $_SESSION['password_reset_verified_at'],
+        $_SESSION['password_reset_attempts']
     );
+}
+
+/**
+ * Count a wrong OTP entry. Returns how many tries are left before the code dies.
+ */
+function otp_register_failed_attempt(): int
+{
+    $attempts = (int) ($_SESSION['password_reset_attempts'] ?? 0) + 1;
+    $_SESSION['password_reset_attempts'] = $attempts;
+
+    return max(0, OTP_MAX_VERIFY_ATTEMPTS - $attempts);
+}
+
+function otp_reset_attempts(): void
+{
+    $_SESSION['password_reset_attempts'] = 0;
+}
+
+/**
+ * Limit how often a reset code can be requested for the same email / device.
+ */
+function otp_guard_request_rate(string $email): void
+{
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+
+    if (!RateLimiter::check('otp_request', $ip, strtolower($email))) {
+        otp_json_response(
+            false,
+            'Too many reset codes requested. Please wait a few minutes before trying again.',
+            429
+        );
+    }
 }
 
 function otp_mask_email(string $email): string
@@ -89,15 +159,7 @@ function otp_load_phpmailer(): void
         }
     }
 
-    throw new RuntimeException('PHPMailer files were not found in this project.');
-}
-
-function otp_table_exists(mysqli $connection, string $tableName): bool
-{
-    $safeTableName = $connection->real_escape_string($tableName);
-    $result = $connection->query("SHOW TABLES LIKE '{$safeTableName}'");
-
-    return $result !== false && $result->num_rows > 0;
+    throw new OtpMailException('PHPMailer files were not found in this project.');
 }
 
 function otp_get_table_columns(mysqli $connection, string $tableName): array
@@ -113,32 +175,23 @@ function otp_get_table_columns(mysqli $connection, string $tableName): array
     return $columns;
 }
 
-function otp_get_smtp_settings(mysqli $connection): array
+/**
+ * Mailer credentials, read from .env.
+ *
+ * This is the single source of truth for SMTP. It used to come from the
+ * smtp_settings table, which meant the credential travelled inside database
+ * dumps and could not differ between machines.
+ */
+function otp_get_smtp_settings(): array
 {
-    if (!otp_table_exists($connection, 'smtp_settings')) {
-        throw new RuntimeException('SMTP settings not configured in database.');
-    }
-
-    $smtp = $connection->query('SELECT * FROM smtp_settings LIMIT 1')?->fetch_assoc();
-
-    if (!is_array($smtp)) {
-        throw new RuntimeException('SMTP settings not configured in database.');
-    }
-
-    $smtpEmail = trim((string) ($smtp['email'] ?? ''));
-    $smtpPassword = trim((string) ($smtp['app_password'] ?? ''));
-    $smtpHost = trim((string) ($smtp['host'] ?? ''));
-    $smtpPort = (int) ($smtp['port'] ?? 0);
-    $smtpEncryption = trim((string) ($smtp['encryption'] ?? ''));
-
     return otp_validate_smtp_settings([
-        'host' => $smtpHost,
-        'username' => $smtpEmail,
-        'password' => $smtpPassword,
-        'port' => $smtpPort,
-        'encryption' => $smtpEncryption,
-        'from_email' => $smtpEmail,
-        'from_name' => 'SNDRA Park',
+        'host' => EnvHelper::get('MAIL_HOST', 'smtp.gmail.com'),
+        'username' => EnvHelper::get('MAIL_USERNAME', ''),
+        'password' => EnvHelper::get('MAIL_PASSWORD', ''),
+        'port' => EnvHelper::get('MAIL_PORT', 0),
+        'encryption' => EnvHelper::get('MAIL_ENCRYPTION', 'tls'),
+        'from_email' => EnvHelper::get('MAIL_FROM_EMAIL', ''),
+        'from_name' => EnvHelper::get('MAIL_FROM_NAME', 'SNDRA Park'),
     ]);
 }
 
@@ -152,8 +205,12 @@ function otp_validate_smtp_settings(array $settings): array
     $port = (int) ($settings['port'] ?? 0);
     $encryption = strtolower(trim((string) ($settings['encryption'] ?? 'tls')));
 
+    // Google shows app passwords as four spaced groups. The spaces are only for
+    // readability, so accept the pasted form rather than failing to authenticate.
+    $password = str_replace(' ', '', $password);
+
     if ($username === '' || $password === '') {
-        throw new RuntimeException('SMTP settings not configured in database.');
+        throw new OtpMailException('MAIL_USERNAME and MAIL_PASSWORD must be set in .env.');
     }
 
     if ($fromEmail === '') {
@@ -179,10 +236,10 @@ function otp_validate_smtp_settings(array $settings): array
     ];
 }
 
-function otp_send_reset_email(mysqli $connection, string $recipientEmail, string $otp): void
+function otp_send_reset_email(string $recipientEmail, string $otp): void
 {
     otp_load_phpmailer();
-    $smtp = otp_get_smtp_settings($connection);
+    $smtp = otp_get_smtp_settings();
 
     $mail = new PHPMailer(true);
 
@@ -237,7 +294,13 @@ function otp_send_reset_email(mysqli $connection, string $recipientEmail, string
                 </div>
 
                 <p style="margin:0 0 12px;">
-                    This OTP will expire in <strong style="color:#f4c542;">5 minutes</strong>.
+                    Requested at <strong style="color:#ffffff;">'
+            . htmlspecialchars(date('g:i A'), ENT_QUOTES, 'UTF-8')
+            . '</strong>. This OTP will expire in <strong style="color:#f4c542;">5 minutes</strong>.
+                </p>
+                <p style="margin:0 0 12px; color:#b8b8b8;">
+                    Requesting another code cancels this one, so if you asked more than once,
+                    use the code from the most recent email.
                 </p>
                 <p style="margin:0;">
                     If you did not request a password reset, you can safely ignore this email.
@@ -251,18 +314,19 @@ function otp_send_reset_email(mysqli $connection, string $recipientEmail, string
     </div>
 </body>
 </html>';
-        $mail->AltBody = "SNDRA Park Password Reset OTP\n\nHello,\n\nWe received a request to reset your password.\nYour OTP is: {$otp} (expires in 5 minutes)\n\nIf you did not request this, please ignore this email.\n\n© SNDRA Park System";
+        $requestedAt = date('g:i A');
+        $mail->AltBody = "SNDRA Park Password Reset OTP\n\nHello,\n\nWe received a request to reset your password.\nYour OTP is: {$otp} (requested at {$requestedAt}, expires in 5 minutes)\n\nRequesting another code cancels this one, so if you asked more than once, use the code from the most recent email.\n\nIf you did not request this, please ignore this email.\n\n© SNDRA Park System";
         $mail->send();
     } catch (PHPMailerException $exception) {
         $errorDetails = trim((string) $mail->ErrorInfo);
-        throw new RuntimeException($errorDetails !== '' ? $errorDetails : $exception->getMessage(), 0, $exception);
+        throw new OtpMailException($errorDetails !== '' ? $errorDetails : $exception->getMessage(), 0, $exception);
     }
 }
 
 function otp_find_user_by_email(mysqli $connection, string $email): ?array
 {
     $statement = $connection->prepare('
-        SELECT id, email
+        SELECT id, email, first_name, last_name, full_name, birth_date
         FROM users
         WHERE email = ?
         LIMIT 1
@@ -278,7 +342,8 @@ function otp_find_user_by_email(mysqli $connection, string $email): ?array
 function otp_find_user_for_reset(mysqli $connection, int $userId, string $email): ?array
 {
     $statement = $connection->prepare('
-        SELECT id, email, reset_otp_hash, reset_otp_expires_at, reset_otp_verified_at
+        SELECT id, email, first_name, last_name, full_name, birth_date,
+               reset_otp_hash, reset_otp_expires_at, reset_otp_verified_at
         FROM users
         WHERE id = ? AND email = ?
         LIMIT 1
@@ -338,6 +403,49 @@ function otp_get_password_column(mysqli $connection): string
     }
 
     throw new RuntimeException("The users table must contain a password column.");
+}
+
+/**
+ * Extra columns to refresh when a password is reset, skipping any that a
+ * database has not migrated yet.
+ */
+function otp_password_reset_extra_columns(mysqli $connection): string
+{
+    $columns = otp_get_table_columns($connection, 'users');
+    $assignments = [
+        'reset_otp_hash = NULL',
+        'reset_otp_expires_at = NULL',
+        'reset_otp_verified_at = NULL',
+    ];
+
+    $optional = [
+        'password_changed_at' => 'password_changed_at = NOW()',
+        'failed_login_attempts' => 'failed_login_attempts = 0',
+        'last_failed_login_at' => 'last_failed_login_at = NULL',
+        'login_locked_until' => 'login_locked_until = NULL',
+    ];
+
+    foreach ($optional as $column => $assignment) {
+        if (in_array($column, $columns, true)) {
+            $assignments[] = $assignment;
+        }
+    }
+
+    return implode(', ', $assignments);
+}
+
+/**
+ * Fetch the current password hash so a reset cannot reuse the same password.
+ */
+function otp_get_current_password_hash(mysqli $connection, int $userId, string $passwordColumn): string
+{
+    $safeColumn = str_replace('`', '``', $passwordColumn);
+    $statement = $connection->prepare("SELECT `{$safeColumn}` AS password_hash FROM users WHERE id = ? LIMIT 1");
+    $statement->bind_param('i', $userId);
+    $statement->execute();
+    $row = $statement->get_result()->fetch_assoc();
+
+    return (string) ($row['password_hash'] ?? '');
 }
 
 function otp_has_verified_session(): bool

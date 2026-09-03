@@ -14,5 +14,6 @@ booth_success('Booth session is active.', [
     'id' => (int) ($boothUser['id'] ?? 0),
     'role' => 'booth',
     'fullName' => (string) ($boothUser['full_name'] ?? 'Booth Teller'),
-    'email' => (string) ($boothUser['email'] ?? '')
+    'email' => (string) ($boothUser['email'] ?? ''),
+    'details' => (string) ($boothUser['booth_location'] ?? '')
 ]);

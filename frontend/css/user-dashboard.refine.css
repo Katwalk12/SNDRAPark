@@ -1,0 +1,857 @@
+/* ==========================================================================
+   User Dashboard — design-system refinement layer (PILOT)
+
+   Loaded LAST, after user-dashboard.css and soft-ui.css, so it wins without
+   editing 4,133 lines of existing CSS. Delete this file and remove its <link>
+   to revert the pilot completely.
+
+   Goal: read as an operational business console — compact header, flat
+   elevation, one type ramp, and deliberate motion on every interaction.
+   ========================================================================== */
+
+/* --- 1. Page header ------------------------------------------------------
+   Was a landing-page display heading: clamp(2.6rem, 5vw, 4.4rem) at
+   line-height 0.98, which ran to five lines and pushed the slot map — the
+   thing users actually come here for — below the fold. */
+
+.hero-copy h1,
+.hero-copy h2 {
+  font-size: var(--ds-text-2xl);
+  line-height: var(--ds-leading-tight);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ds-text);
+  max-width: 34ch;
+}
+
+.hero-copy .section-kicker,
+.section-kicker {
+  font-size: var(--ds-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--ds-tracking-caps);
+  text-transform: uppercase;
+  color: var(--ds-text-faint);
+}
+
+.hero-copy p:not(.section-kicker),
+.section-copy {
+  font-size: var(--ds-text-md);
+  line-height: var(--ds-leading);
+  color: var(--ds-text-muted);
+  max-width: 62ch;
+}
+
+.hero-shell {
+  gap: var(--ds-space-5);
+  padding: var(--ds-space-6);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-xs);
+}
+
+/* Decorative gradient smear behind the header — noise on an ops screen. */
+.hero-shell::after { display: none; }
+
+/* --- 2. Stat tiles -------------------------------------------------------- */
+
+.hero-quick-grid {
+  gap: var(--ds-space-3);
+  margin-top: var(--ds-space-5);
+}
+
+.hero-quick-card {
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-4);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+  box-shadow: none;
+}
+
+.hero-quick-card:hover { border-color: var(--ds-border-strong); }
+
+.metric-label {
+  font-size: var(--ds-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--ds-tracking-caps);
+  text-transform: uppercase;
+  color: var(--ds-text-faint);
+}
+
+.metric-value {
+  font-size: var(--ds-text-xl);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ds-text);
+}
+
+/* --- 3. Sidebar navigation ----------------------------------------------
+   "Friendly navigation": obvious hover, an unambiguous selected state, and a
+   keyboard focus ring — previously hover and active were nearly identical. */
+
+.sidebar-link {
+  gap: var(--ds-space-3);
+  padding: 0.625rem var(--ds-space-3);
+  border-radius: var(--ds-radius-md);
+  font-size: var(--ds-text-md);
+  font-weight: 500;
+  color: var(--ds-ink-700);
+  text-decoration: none;
+}
+
+.sidebar-link:hover {
+  background: var(--ds-ink-100);
+  color: var(--ds-text);
+}
+
+.sidebar-link.active,
+.sidebar-link[aria-current="page"] {
+  background: var(--ds-brand);
+  color: var(--ds-text-invert);
+  font-weight: 600;
+}
+
+.sidebar-link.active .sidebar-icon,
+.sidebar-link[aria-current="page"] .sidebar-icon {
+  color: var(--ds-text-invert);
+}
+
+.sidebar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ds-ink-500);
+}
+
+.sidebar-profile {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+  box-shadow: none;
+}
+
+.profile-name {
+  font-size: var(--ds-text-lg);
+  font-weight: 600;
+  color: var(--ds-text);
+}
+
+.profile-eyebrow {
+  font-size: var(--ds-text-2xs);
+  letter-spacing: var(--ds-tracking-caps);
+  text-transform: uppercase;
+  color: var(--ds-text-faint);
+}
+
+.profile-meta { font-size: var(--ds-text-sm); color: var(--ds-text-muted); }
+
+/* --- 4. Panels ----------------------------------------------------------- */
+
+.monitor-shell,
+.section-shell,
+.records-summary-card,
+.note-card,
+.slot-legend {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-xs);
+}
+
+.section-heading h2 {
+  font-size: var(--ds-text-xl);
+  line-height: var(--ds-leading-tight);
+  font-weight: 700;
+  color: var(--ds-text);
+}
+
+/* --- 5. Slot cards -------------------------------------------------------
+   The primary interaction on this page. Motion is a small, quick lift so a
+   grid of 10+ slots doesn't feel busy when the pointer crosses it. */
+
+.slot-card {
+  border-radius: var(--ds-radius-md);
+  transition:
+    transform var(--ds-duration-fast) var(--ds-ease),
+    box-shadow var(--ds-transition),
+    border-color var(--ds-transition);
+}
+
+.slot-card.available:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--ds-shadow-md);
+  cursor: pointer;
+}
+
+.slot-card.available:active { transform: translateY(0); }
+
+.slot-card[disabled],
+.slot-card.inactive,
+.slot-card.occupied {
+  cursor: not-allowed;
+}
+
+.slot-card[disabled]:hover,
+.slot-card.inactive:hover,
+.slot-card.occupied:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* --- 6. Status pills — never break mid-word ------------------------------ */
+
+.slot-status,
+.status-pill,
+.badge,
+[class*="status-chip"] {
+  white-space: nowrap;
+  font-size: var(--ds-text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* --- 7. Buttons ---------------------------------------------------------- */
+
+.action-btn {
+  gap: var(--ds-space-2);
+  padding: 0.625rem 1rem;
+  border-radius: var(--ds-radius-md);
+  font-size: var(--ds-text-md);
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.action-btn:active { transform: translateY(1px); }
+
+.action-btn-primary,
+.primary-btn {
+  background: var(--ds-brand);
+  border-color: var(--ds-brand);
+  color: var(--ds-text-invert);
+}
+
+.action-btn-primary:hover,
+.primary-btn:hover { background: var(--ds-brand-hover); }
+
+.action-btn-secondary {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border-strong);
+  color: var(--ds-text);
+}
+
+.action-btn-secondary:hover { background: var(--ds-surface-muted); }
+
+/* --- 8. Reservation modal ------------------------------------------------ */
+
+.modal-content,
+.modal-panel {
+  border-radius: var(--ds-radius-xl);
+  box-shadow: var(--ds-shadow-lg);
+}
+
+.modal-header h2 {
+  font-size: var(--ds-text-xl);
+  line-height: var(--ds-leading-tight);
+  font-weight: 700;
+}
+
+.auth-input,
+.modal-form input,
+.modal-form select {
+  border-radius: var(--ds-radius-md);
+  border: 1px solid var(--ds-border-strong);
+  font-size: var(--ds-text-md);
+  background: var(--ds-surface);
+}
+
+.auth-input:focus,
+.modal-form input:focus,
+.modal-form select:focus {
+  border-color: var(--ds-accent);
+  box-shadow: var(--ds-focus-ring);
+  outline: none;
+}
+
+.field-helper { font-size: var(--ds-text-2xs); color: var(--ds-text-faint); }
+.field-error  { font-size: var(--ds-text-2xs); color: var(--ds-danger); }
+
+/* --- 9. Account notice --------------------------------------------------- */
+
+.account-warning-banner {
+  border: 1px solid var(--ds-warning-soft);
+  border-left: 3px solid var(--ds-warning);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-warning-soft);
+  box-shadow: none;
+}
+
+.account-warning-banner strong { color: var(--ds-warning); }
+
+/* ==========================================================================
+   10. Overriding soft-ui.css
+   soft-ui.css carries 139 !important declarations — one ~30-selector block
+   locks border / background / color / box-shadow on most panels. Matching it
+   is the only way to restyle them without editing that file.
+
+   This is a pilot workaround, not the end state: the rollout should retire
+   soft-ui.css in favour of design-system.css rather than keep escalating.
+   ========================================================================== */
+
+.dashboard-hero-shell,
+.hero-quick-card,
+.monitor-frame,
+.monitor-screen,
+.records-summary-card,
+.floor-card,
+.panel-card,
+.summary-card,
+.detail-item,
+.stat-card {
+  border: 1px solid var(--ds-border) !important;
+  background: var(--ds-surface) !important;
+  color: var(--ds-text) !important;
+  box-shadow: var(--ds-shadow-xs) !important;
+  backdrop-filter: none;
+}
+
+.account-warning-banner {
+  border: 1px solid #FDE68A !important;
+  border-left: 3px solid var(--ds-warning) !important;
+  background: var(--ds-warning-soft) !important;
+  color: var(--ds-ink-800) !important;
+  box-shadow: none !important;
+}
+
+.account-warning-banner strong { color: var(--ds-warning) !important; }
+
+/* --- Floor selector: was min-height 140px, rendering ~171px tall for an
+       icon and a two-word label. Sized to its content instead. --- */
+.floor-card {
+  min-height: 0 !important;
+  padding: var(--ds-space-4) !important;
+  border-radius: var(--ds-radius-md) !important;
+}
+
+.floor-card:hover {
+  border-color: var(--ds-border-strong) !important;
+  transform: translateY(-1px);
+}
+
+.floor-card.is-selected {
+  border-color: var(--ds-brand) !important;
+  box-shadow: 0 0 0 1px var(--ds-brand) !important;
+}
+
+/* --- Top utility strip: a 64px dark scrim, linear-gradient(rgba(5,5,5,.88),
+       transparent), sitting above a light dashboard. Reads as a smear. --- */
+.page-utility-bar {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  height: auto !important;
+  padding: var(--ds-space-3) var(--ds-space-2) 0 !important;
+}
+
+/* --- 11. Floor card contents --------------------------------------------
+   Pre-existing bug: the per-floor stats were rgba(255,255,255,.68) on a white
+   card — invisible. The card was styled for a dark surface, then soft-ui.css
+   forced the background to white and the text colours were never updated.
+   That is why the cards read as tall empty boxes. */
+
+.floor-card > strong {
+  font-size: var(--ds-text-lg);
+  font-weight: 600;
+  color: var(--ds-text);
+  line-height: 1.2;
+}
+
+.floor-card > span:not(.floor-card-icon) {
+  font-size: var(--ds-text-xs);
+  font-weight: 600;
+  color: var(--ds-success);
+}
+
+.floor-card > small {
+  font-size: var(--ds-text-2xs);
+  color: var(--ds-text-muted);
+}
+
+.floor-card {
+  gap: var(--ds-space-1) !important;
+  justify-items: start;
+  text-align: left;
+}
+
+.floor-card-icon {
+  margin-bottom: var(--ds-space-1);
+}
+
+/* "11 open" was lowercase next to an uppercased "0 RESERVED" — match them. */
+.floor-card > small { text-transform: none !important; letter-spacing: 0 !important; }
+
+/* --- 12. Reservation modal ----------------------------------------------
+   soft-ui gives .modal-card a translucent rgba(253,253,253,.88) panel, which
+   over the dim backdrop renders grey rather than white. A form dialog should
+   sit on an opaque surface. */
+
+.modal-card {
+  background: var(--ds-surface) !important;
+  border: 1px solid var(--ds-border) !important;
+  border-radius: var(--ds-radius-xl) !important;
+  box-shadow: var(--ds-shadow-lg) !important;
+  backdrop-filter: none !important;
+}
+
+.modal-form .field-group input,
+.modal-form .field-group select {
+  background: var(--ds-surface) !important;
+  border: 1px solid var(--ds-border-strong) !important;
+  border-radius: var(--ds-radius-md) !important;
+  color: var(--ds-text) !important;
+}
+
+.modal-form .field-group input[readonly] {
+  background: var(--ds-ink-50) !important;
+  color: var(--ds-text-muted) !important;
+}
+
+.modal-form label {
+  color: var(--ds-text-muted) !important;
+  font-weight: 600;
+  letter-spacing: var(--ds-tracking-caps);
+}
+
+.modal-backdrop {
+  background: rgba(11, 15, 25, 0.45) !important;
+  backdrop-filter: blur(2px);
+}
+
+/* --- 13. Slot map tinting ------------------------------------------------
+   The status fill used to come from soft-ui's re-skin of .slot-card. Now it is
+   derived from the --tone each status class sets, so one token drives the
+   border, the wash and the label. */
+
+.slot-card {
+  border: 1px solid color-mix(in srgb, var(--tone, var(--ds-border)) 35%, transparent) !important;
+  background: color-mix(in srgb, var(--tone, var(--ds-surface)) 8%, var(--ds-surface)) !important;
+  min-height: 0 !important;
+  padding: var(--ds-space-4) var(--ds-space-3) !important;
+}
+
+.slot-card .slot-code,
+.slot-card .slot-bay-number { color: var(--ds-text); }
+.slot-card .slot-meta { color: var(--ds-text-muted); font-size: var(--ds-text-2xs); }
+
+.slot-card .slot-status {
+  color: color-mix(in srgb, var(--tone, var(--ds-ink-700)) 78%, black);
+  background: color-mix(in srgb, var(--tone, var(--ds-ink-200)) 16%, var(--ds-white));
+  border-radius: var(--ds-radius-full);
+  padding: 0.2rem 0.55rem;
+}
+
+.slot-card.available:hover {
+  border-color: color-mix(in srgb, var(--tone) 60%, transparent) !important;
+}
+
+/* --- 14. Icon chips ------------------------------------------------------
+   These fell back to the page's teal accent once soft-ui stopped forcing them.
+   Ink matches the black wordmark and the active nav item; teal stays reserved
+   for selection states so it keeps meaning something. */
+
+.hero-quick-icon,
+.floor-card-icon {
+  background: var(--ds-brand) !important;
+  color: var(--ds-text-invert) !important;
+  border-radius: var(--ds-radius-md) !important;
+}
+
+/* --- 14. Compact parking workspace ---------------------------------------
+   Picking a floor and then a slot cost a scroll: the frame stacked to ~1350px
+   inside a 900px viewport, and LG's 13 slots spilled onto a second page. The
+   floor cards (164x160 each) collapse to one row of pills, slot cards drop the
+   bay number and "tap to reserve" line that repeated what was already on the
+   card, and a row now holds 7 slots so every floor fits a single view.
+   Declarations carry !important only where section 11/13 above already does. */
+
+/* Page header — sized as a hero, but it only labels the workspace. */
+.dashboard-hero-shell {
+  padding: var(--ds-space-4) var(--ds-space-5) !important;
+  gap: 0;
+}
+
+.dashboard-hero-shell .hero-copy h2 {
+  max-width: none;
+  font-size: 1.4rem;
+  line-height: 1.2;
+}
+
+.dashboard-hero-shell .hero-copy .section-copy {
+  margin: var(--ds-space-1) 0 0;
+  max-width: 100ch;
+  font-size: var(--ds-text-sm);
+  line-height: 1.4;
+}
+
+/* Floor picker: one wrapping row of pills. */
+.parking-lot-frame .monitor-floor-selector {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2) var(--ds-space-4);
+  padding: var(--ds-space-3);
+}
+
+.parking-lot-frame .monitor-floor-selector-copy {
+  display: none;
+}
+
+/* Repeated verbatim by the footer hint under the map. */
+.parking-lot-frame .monitor-floor-selector-copy .monitor-screen-meta,
+.parking-lot-frame .monitor-map-copy .monitor-screen-meta {
+  display: none;
+}
+
+.parking-lot-frame .monitor-floor-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2);
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.parking-lot-frame .monitor-floor-grid .floor-card {
+  display: inline-flex !important;
+  align-items: baseline;
+  gap: var(--ds-space-2) !important;
+  width: auto;
+  min-height: 0 !important;
+  padding: var(--ds-space-2) var(--ds-space-4) !important;
+  border-radius: var(--ds-radius-full) !important;
+  white-space: nowrap;
+}
+
+/* The building glyph repeated on all four pills, carrying no information. */
+.parking-lot-frame .monitor-floor-grid .floor-card .floor-card-icon {
+  display: none;
+}
+
+.parking-lot-frame .monitor-floor-grid .floor-card strong {
+  font-size: var(--ds-text-sm);
+  line-height: 1;
+}
+
+.parking-lot-frame .monitor-floor-grid .floor-card span,
+.parking-lot-frame .monitor-floor-grid .floor-card small {
+  font-size: var(--ds-text-2xs);
+  line-height: 1;
+}
+
+/* Pre-existing bug: `display: grid` on the banner outranks the UA stylesheet's
+   `[hidden] { display: none }`, so every user saw "Reservation warning active"
+   whether or not they had one — and it held 124px above the map. */
+.account-warning-banner[hidden] {
+  display: none !important;
+}
+
+.parking-lot-frame .monitor-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+
+.parking-lot-frame .monitor-floor-selector .monitor-stats {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.parking-lot-frame .monitor-stat {
+  gap: 0;
+  padding: var(--ds-space-1) var(--ds-space-2);
+  text-align: center;
+}
+
+.parking-lot-frame .monitor-stat strong {
+  font-size: var(--ds-text-base);
+  line-height: 1.1;
+}
+
+.parking-lot-frame .monitor-stat span {
+  font-size: var(--ds-text-2xs);
+}
+
+.monitor-stat.is-saved strong {
+  color: var(--ds-text);
+}
+
+/* Pager: only meaningful once a floor outgrows one page. */
+.monitor-nav[hidden] {
+  display: none;
+}
+
+/* Slot map. */
+.parking-lot-frame .parking-lot-viewport {
+  padding: var(--ds-space-3);
+}
+
+.parking-lot-frame .parking-row {
+  gap: var(--ds-space-2);
+}
+
+.parking-lot-frame .parking-row + .parking-row {
+  margin-top: var(--ds-space-2);
+}
+
+.parking-lot-frame .parking-row-label {
+  min-width: 84px;
+  padding: var(--ds-space-2);
+}
+
+.parking-lot-frame .parking-row-label strong {
+  font-size: var(--ds-text-sm);
+}
+
+.parking-lot-frame .parking-row-label span {
+  font-size: var(--ds-text-2xs);
+}
+
+.parking-lot-frame .parking-row-track {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-2);
+}
+
+.parking-lot-frame .parking-row-track .slot-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-1);
+  min-height: 0 !important;
+  padding: var(--ds-space-2) !important;
+}
+
+/* .slot-bay-number printed the code already shown by .slot-code, and
+   .slot-meta restated the status badge sitting directly beneath it. */
+.parking-lot-frame .parking-row-track .slot-card .slot-bay-number,
+.parking-lot-frame .parking-row-track .slot-card .slot-meta {
+  display: none;
+}
+
+.parking-lot-frame .parking-row-track .slot-card::before,
+.parking-lot-frame .parking-row-track .slot-card::after {
+  top: 8px;
+  bottom: 8px;
+}
+
+.parking-lot-frame .parking-row-track .slot-car-icon {
+  width: 2.1rem;
+  height: 2.1rem;
+}
+
+.parking-lot-frame .parking-row-track .slot-car-icon i {
+  font-size: 1rem;
+}
+
+.parking-lot-frame .parking-row-track .slot-copy {
+  display: block;
+  width: 100%;
+  gap: 0;
+  align-self: auto;
+  text-align: center;
+}
+
+/* An inherited 31px top margin on .slot-code was padding out every card. */
+.parking-lot-frame .parking-row-track .slot-copy > * {
+  margin: 0;
+}
+
+.parking-lot-frame .parking-row-track .slot-code {
+  font-size: var(--ds-text-sm);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.parking-lot-frame .parking-row-track .slot-status {
+  padding: 0.15rem 0.45rem;
+  font-size: var(--ds-text-2xs);
+  line-height: 1.2;
+}
+
+/* Monitor header: three stacked lines of chrome above the map. */
+.parking-lot-frame .monitor-topbar {
+  padding: var(--ds-space-2) var(--ds-space-3);
+}
+
+.parking-lot-frame {
+  padding: var(--ds-space-3) !important;
+}
+
+.parking-lot-frame .monitor-floor-selector {
+  padding: var(--ds-space-2) var(--ds-space-3);
+}
+
+.parking-lot-frame .monitor-floor-name {
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+
+.parking-lot-frame .monitor-title,
+.parking-lot-frame .monitor-subtitle,
+.parking-lot-frame .monitor-clock-label {
+  font-size: var(--ds-text-2xs);
+  line-height: 1.3;
+}
+
+.parking-lot-frame .monitor-clock-panel strong {
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.parking-lot-frame .monitor-footer {
+  padding: var(--ds-space-2) var(--ds-space-3);
+}
+
+/* Fewer columns before the cards stop being comfortably tappable. */
+@media (max-width: 1100px) {
+  .parking-lot-frame .parking-row-track {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .parking-lot-frame .parking-row-track {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .parking-lot-frame .monitor-floor-selector-copy {
+    flex: 1 1 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .parking-lot-frame .parking-row-track {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* --- 15. Page height ------------------------------------------------------
+   The shell scrolled ~100px no matter how short the content was: .dashboard-
+   page carried min-height:100vh inside .dashboard-layout, which carried its
+   own min-height:100vh plus 48px of padding, and the sticky sidebar asked for
+   another 100vh-8rem on top. Let the main column size to its content and cap
+   the sidebar to the viewport it is pinned to. Desktop only — below 1080px the
+   layout stacks and the sidebar must grow freely. */
+@media (min-width: 1081px) {
+  .dashboard-layout {
+    padding-bottom: var(--ds-space-4);
+  }
+
+  .dashboard-sidebar {
+    min-height: 0;
+    max-height: calc(100vh - 2rem);
+  }
+
+  .dashboard-page {
+    min-height: 0;
+    padding-bottom: var(--ds-space-4);
+  }
+}
+
+/* --- 16. Reservation-access card ------------------------------------------
+   "Clear History" was absolutely positioned in the card's top-right, and the
+   card carried padding-top: 4.2rem to clear it. A later rule reset that to a
+   flat 1.25rem without releasing the button, so it printed straight over the
+   "Ready Anytime" heading. Put the button back in flow, below the copy it acts
+   on, where no card width can make it collide. */
+.records-summary-card-access {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--ds-space-5);
+}
+
+.records-summary-card-access .reservation-access-clear-btn {
+  position: static;
+  order: 1;
+  align-self: flex-start;
+  margin: var(--ds-space-4) 0 0;
+}
+
+/* --- 17. Unavailable-slot notice ------------------------------------------
+   Unavailable slots are now clickable so they can explain themselves, but
+   they must not look reservable: no lift, no pointer, just a readable target. */
+.slot-card:not(.available).is-clickable {
+  cursor: help;
+}
+
+.slot-card:not(.available).is-clickable:hover {
+  transform: none;
+}
+
+#slot-unavailable-modal .slot-unavailable-hint {
+  color: var(--muted-text);
+  font-size: 0.86rem;
+}
+
+/* A closed floor stays visible so the driver can read why, but it must not
+   read as selectable. */
+.floor-card.is-closed {
+  opacity: 0.62;
+  cursor: help;
+}
+
+.floor-card.is-closed:hover {
+  transform: none;
+}
+
+.floor-card.is-closed strong {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+/* --- 18. Dismissible account notice ---------------------------------------
+   The banner sits above the slot map, so a warning the driver has already
+   read should be removable. The lock state hides this button instead - it is
+   the standing reason nothing can be booked. */
+.account-warning-banner {
+  position: relative;
+  padding-right: 3rem !important;
+}
+
+.account-warning-dismiss {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: 1.15rem;
+  line-height: 1;
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity 120ms ease, background 120ms ease;
+}
+
+.account-warning-dismiss:hover,
+.account-warning-dismiss:focus-visible {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* --- 19. Developer attribution -------------------------------------------- */
+.footer-attribution {
+  margin: 0.35rem 0 0;
+  color: var(--muted-text);
+  font-size: 0.8rem;
+}
+
+.footer-attribution strong {
+  color: var(--ds-text, #111827);
+  font-weight: 600;
+}

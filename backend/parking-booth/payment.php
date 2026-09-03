@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/common.php';
 require_once __DIR__ . '/../common/system-logs.php';
+require_once __DIR__ . '/../common/reservation-notifier.php';
 
 // Authenticate booth request with required permission
 $boothUser = booth_bootstrap_endpoint('POST', 'process_payment');
@@ -46,10 +47,47 @@ try {
         booth_success($result['message'], booth_format_transaction($result['transaction']));
     }
 
+    if ($action === 'issue_walkin') {
+        $issued = booth_issue_walkin_reservation($connection, $payload, $boothUser);
+        $transaction = booth_find_transaction_by_reservation_id($connection, (int) $issued['reservation_id']);
+        $connection->commit();
+
+        system_logs_write($connection, [
+            'user_id' => null,
+            'actor_role' => 'booth',
+            'actor_name' => (string) ($boothUser['full_name'] ?? $boothUser['email'] ?? 'Booth Teller'),
+            'action_type' => 'WALK_IN_TICKET_ISSUED',
+            'description' => 'Walk-in ticket issued for plate '
+                . (string) ($payload['plateNumber'] ?? $payload['plate_number'] ?? 'unknown')
+                . ' at ' . $issued['floor'] . ' ' . $issued['slot'] . '.',
+            'related_barcode' => (string) $issued['barcode'],
+            'related_floor' => (string) $issued['floor'],
+            'related_slot' => (string) $issued['slot'],
+            'status' => 'Parked'
+        ]);
+
+        AuditLogger::log('BOOTH_WALKIN_ISSUED', 'INFO', [
+            'service' => 'payment',
+            'status' => 'success',
+            'details' => 'Walk-in ticket issued: ' . $issued['barcode'],
+            'category' => 'payment'
+        ], (int) $boothUser['id']);
+
+        booth_success('Walk-in ticket issued.', booth_format_transaction($transaction));
+    }
+
     if ($action === 'mark_paid') {
         $result = booth_process_mark_paid($connection, $payload, $boothUser);
         $connection->commit();
         $reservationIdForLog = (string) ($payload['reservationId'] ?? $payload['reservation_id'] ?? 'unknown');
+
+        // Emailed after the commit, so a slow SMTP server cannot hold the
+        // driver at the gate or roll back a settled payment.
+        $settledReservationId = (int) ($payload['reservationId'] ?? $payload['reservation_id'] ?? 0);
+
+        if ($settledReservationId > 0) {
+            reservation_notifier_send_receipt($connection, $settledReservationId);
+        }
 
         // Use the supported audit logger API so booth payment logging stays editor-clean.
         AuditLogger::log('BOOTH_PAYMENT_MARKED', 'INFO', [
@@ -188,7 +226,15 @@ function booth_process_payment_scan(mysqli $connection, array $payload, array $b
 
     if (!empty($transaction['actual_time_in']) && empty($transaction['actual_time_out'])) {
         $actualTimeOut = booth_get_database_now($connection);
-        $payment = booth_calculate_payment($connection, (string) $transaction['actual_time_in'], $actualTimeOut, $reservationFee);
+        $vehicleType = (string) ($payload['vehicleType'] ?? $payload['vehicle_type'] ?? $transaction['vehicle_type'] ?? '');
+        $discountType = booth_normalize_discount_type($payload['discountType'] ?? $payload['discount_type'] ?? $transaction['discount_type'] ?? null);
+        $payment = booth_calculate_payment(
+            $connection,
+            (string) $transaction['actual_time_in'],
+            $actualTimeOut,
+            $reservationFee,
+            ['vehicle_type' => $vehicleType, 'discount_type' => $discountType]
+        );
 
         booth_upsert_transaction(
             $connection,
@@ -202,6 +248,7 @@ function booth_process_payment_scan(mysqli $connection, array $payload, array $b
             'Exited',
             null
         );
+        booth_apply_transaction_pricing($connection, $reservationId, $payment, $vehicleType !== '' ? $vehicleType : null);
         booth_update_reservation_status($connection, $reservationId, 'Unpaid');
 
         system_logs_write($connection, [
@@ -270,6 +317,30 @@ function booth_process_mark_paid(mysqli $connection, array $payload, array $boot
     }
 
     $paidAt = booth_get_database_now($connection);
+    $amountDue = round((float) ($transaction['total_payment'] ?? 0), 2);
+    $paymentMethod = booth_normalize_payment_method($payload['paymentMethod'] ?? $payload['payment_method'] ?? 'Cash');
+    $paymentReference = trim((string) ($payload['paymentReference'] ?? $payload['payment_reference'] ?? ''));
+    $amountTendered = isset($payload['amountTendered']) || isset($payload['amount_tendered'])
+        ? round((float) ($payload['amountTendered'] ?? $payload['amount_tendered']), 2)
+        : null;
+
+    // A cashless payment must carry its reference, or the shift cannot be
+    // reconciled against the wallet's own report later.
+    if ($paymentMethod !== 'Cash' && $paymentReference === '') {
+        booth_error('Enter the reference number for a ' . $paymentMethod . ' payment.', 422, [
+            'transaction' => booth_format_transaction($transaction)
+        ]);
+    }
+
+    if ($amountTendered !== null && $amountTendered + 0.001 < $amountDue) {
+        booth_error(
+            sprintf('Amount tendered (%.2f) is less than the amount due (%.2f).', $amountTendered, $amountDue),
+            422,
+            ['transaction' => booth_format_transaction($transaction)]
+        );
+    }
+
+    $changeDue = $amountTendered !== null ? round(max(0.0, $amountTendered - $amountDue), 2) : null;
 
     booth_upsert_transaction(
         $connection,
@@ -283,6 +354,17 @@ function booth_process_mark_paid(mysqli $connection, array $payload, array $boot
         'Completed',
         $paidAt
     );
+    booth_apply_transaction_tender(
+        $connection,
+        $reservationId,
+        [
+            'payment_method' => $paymentMethod,
+            'payment_reference' => $paymentReference,
+            'amount_tendered' => $amountTendered,
+            'change_due' => $changeDue
+        ],
+        isset($boothUser['id']) ? (int) $boothUser['id'] : null
+    );
     booth_update_reservation_status($connection, $reservationId, 'Completed');
     booth_update_reservation_barcode_status($connection, $reservationId, 'used');
 
@@ -292,7 +374,8 @@ function booth_process_mark_paid(mysqli $connection, array $payload, array $boot
         'actor_name' => (string) ($boothUser['full_name'] ?? $boothUser['email'] ?? 'Booth Teller'),
         'action_type' => 'PAYMENT_MARKED_AS_PAID',
         'description' => 'Payment marked as paid for barcode '
-            . (string) ($transaction['barcode_value'] ?? 'Unknown Barcode') . '.',
+            . (string) ($transaction['barcode_value'] ?? 'Unknown Barcode')
+            . ' via ' . $paymentMethod . '.',
         'related_barcode' => (string) ($transaction['barcode_value'] ?? ''),
         'related_floor' => (string) ($transaction['parking_floor'] ?? ''),
         'related_slot' => (string) ($transaction['parking_slot'] ?? ''),

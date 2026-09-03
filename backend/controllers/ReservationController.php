@@ -5,6 +5,7 @@ require_once __DIR__ . '/../models/ParkingSlot.php';
 require_once __DIR__ . '/../models/Reservation.php';
 require_once __DIR__ . '/../utils/RequestHelper.php';
 require_once __DIR__ . '/../utils/ResponseHelper.php';
+require_once __DIR__ . '/../parking/common.php';
 
 class ReservationController
 {
@@ -37,6 +38,15 @@ class ReservationController
         }
 
         $userId = (int) $_SESSION['user_id'];
+
+        // Same one-hold-at-a-time rule the dashboard path enforces; without it
+        // this route would be a way around the limit.
+        try {
+            parking_assert_single_active_reservation(Database::connection(), $userId);
+        } catch (RuntimeException $exception) {
+            ResponseHelper::error($exception->getMessage(), 409);
+        }
+
         ValidationMiddleware::validateRequired($data, ['parking_slot_id', 'reservation_date']);
 
         $slot = $this->parkingSlotModel->findById((int) $data['parking_slot_id']);

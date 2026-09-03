@@ -48,10 +48,32 @@ if (!function_exists('booth_log')) {
     }
 }
 
+if (!function_exists('booth_log_debug')) {
+    /**
+     * Tracing for endpoints the booth polls every few seconds.
+     *
+     * These wrote three "I was called" lines per poll -- about 2,400 lines per
+     * open booth session, none of them diagnostic. They now write only when
+     * APP_DEBUG is on in .env, so the error log holds errors again.
+     */
+    function booth_log_debug(string $message, array $context = []): void
+    {
+        static $enabled = null;
+
+        if ($enabled === null) {
+            $enabled = filter_var((string) EnvHelper::get('APP_DEBUG', ''), FILTER_VALIDATE_BOOLEAN);
+        }
+
+        if ($enabled) {
+            booth_log($message, $context);
+        }
+    }
+}
+
 if (!function_exists('booth_schema_cache_version')) {
     function booth_schema_cache_version(): string
     {
-        return '20260402_1';
+        return '20260901_pricing_walkin_notify_appeal_supervisor';
     }
 }
 
@@ -138,8 +160,21 @@ if (!function_exists('booth_db')) {
             $nextConnection->query('CREATE DATABASE IF NOT EXISTS `' . booth_escape_identifier($database) . '`');
             $nextConnection->select_db($database);
             if (!booth_schema_is_fresh($database)) {
-                booth_ensure_schema($nextConnection);
-                booth_mark_schema_ready($database);
+                // Migrations are best-effort. Two requests arriving together
+                // after a schema-version bump both try to run them, and the
+                // one that loses the race used to surface its lock error as
+                // "Database connection failed" -- on a connection that was
+                // perfectly good. The next request retries, because the ready
+                // marker is only written on a clean pass.
+                try {
+                    booth_ensure_schema($nextConnection);
+                    booth_mark_schema_ready($database);
+                } catch (Throwable $schemaException) {
+                    booth_log('database-schema-update-deferred', [
+                        'database' => $database,
+                        'error' => $schemaException->getMessage()
+                    ]);
+                }
             }
 
             $connection = $nextConnection;
@@ -269,6 +304,7 @@ if (!function_exists('booth_ensure_schema')) {
             CREATE TABLE IF NOT EXISTS reservations (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 user_id INT NOT NULL,
+                vehicle_id INT NULL,
                 barcode_value VARCHAR(120) NOT NULL,
                 barcode_lookup VARCHAR(120) NOT NULL DEFAULT '',
                 barcode_status VARCHAR(20) NOT NULL DEFAULT 'active',
@@ -283,6 +319,19 @@ if (!function_exists('booth_ensure_schema')) {
                 status VARCHAR(20) NOT NULL DEFAULT 'Reserved',
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        ");
+
+        $connection->query("
+            CREATE TABLE IF NOT EXISTS vehicles (
+                vehicle_id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                vehicle_type ENUM('Car', 'Motorcycle') NOT NULL,
+                plate_number VARCHAR(20) NOT NULL,
+                brand VARCHAR(100) NULL,
+                model VARCHAR(100) NULL,
+                color VARCHAR(50) NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
         ");
 
@@ -441,7 +490,7 @@ if (!function_exists('booth_ensure_schema')) {
                 full_name VARCHAR(150) NOT NULL,
                 username VARCHAR(80) NULL,
                 email VARCHAR(150) NOT NULL UNIQUE,
-                password_hash CHAR(64) NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
                 role ENUM('admin', 'booth') NOT NULL,
                 is_active TINYINT(1) NOT NULL DEFAULT 1,
                 last_login_at DATETIME NULL,
@@ -450,8 +499,24 @@ if (!function_exists('booth_ensure_schema')) {
             )
         ");
 
+        $connection->query("
+            CREATE TABLE IF NOT EXISTS booth_teller_accounts (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                teller_name VARCHAR(150) NOT NULL,
+                teller_details VARCHAR(255) NULL,
+                pin_code VARCHAR(255) NOT NULL,
+                is_active TINYINT(1) NOT NULL DEFAULT 1,
+                last_login_at DATETIME NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        ");
+
         booth_add_column_if_missing($connection, 'reservations', 'barcode_value', "ALTER TABLE reservations ADD COLUMN barcode_value VARCHAR(120) NOT NULL DEFAULT '' AFTER user_id");
+        booth_add_column_if_missing($connection, 'reservations', 'vehicle_id', "ALTER TABLE reservations ADD COLUMN vehicle_id INT NULL AFTER user_id");
         booth_add_column_if_missing($connection, 'reservations', 'barcode_lookup', "ALTER TABLE reservations ADD COLUMN barcode_lookup VARCHAR(120) NOT NULL DEFAULT '' AFTER barcode_value");
+        booth_add_column_if_missing($connection, 'reservations', 'short_code', "ALTER TABLE reservations ADD COLUMN short_code VARCHAR(16) NULL AFTER barcode_lookup");
+        booth_add_column_if_missing($connection, 'reservations', 'short_code_lookup', "ALTER TABLE reservations ADD COLUMN short_code_lookup VARCHAR(32) NULL AFTER short_code");
         booth_add_column_if_missing($connection, 'reservations', 'full_name', "ALTER TABLE reservations ADD COLUMN full_name VARCHAR(150) NULL AFTER barcode_value");
         booth_add_column_if_missing($connection, 'reservations', 'email', "ALTER TABLE reservations ADD COLUMN email VARCHAR(150) NULL AFTER full_name");
         booth_add_column_if_missing($connection, 'reservations', 'parking_floor', "ALTER TABLE reservations ADD COLUMN parking_floor VARCHAR(50) NULL AFTER barcode_value");
@@ -477,6 +542,12 @@ if (!function_exists('booth_ensure_schema')) {
         booth_add_column_if_missing($connection, 'users', 'reset_otp_hash', "ALTER TABLE users ADD COLUMN reset_otp_hash VARCHAR(255) NULL AFTER password_hash");
         booth_add_column_if_missing($connection, 'users', 'reset_otp_expires_at', "ALTER TABLE users ADD COLUMN reset_otp_expires_at DATETIME NULL AFTER reset_otp_hash");
         booth_add_column_if_missing($connection, 'users', 'reset_otp_verified_at', "ALTER TABLE users ADD COLUMN reset_otp_verified_at DATETIME NULL AFTER reset_otp_expires_at");
+        booth_add_column_if_missing($connection, 'users', 'vehicle_type', "ALTER TABLE users ADD COLUMN vehicle_type ENUM('Motorcycle', 'Car') NULL DEFAULT NULL AFTER birth_date");
+        booth_add_column_if_missing($connection, 'users', 'plate_number', "ALTER TABLE users ADD COLUMN plate_number VARCHAR(20) NULL DEFAULT NULL AFTER vehicle_type");
+        booth_add_column_if_missing($connection, 'users', 'vehicle_brand', "ALTER TABLE users ADD COLUMN vehicle_brand VARCHAR(100) NULL DEFAULT NULL AFTER plate_number");
+        booth_add_column_if_missing($connection, 'users', 'vehicle_model', "ALTER TABLE users ADD COLUMN vehicle_model VARCHAR(100) NULL DEFAULT NULL AFTER vehicle_brand");
+        booth_add_column_if_missing($connection, 'users', 'vehicle_color', "ALTER TABLE users ADD COLUMN vehicle_color VARCHAR(50) NULL DEFAULT NULL AFTER vehicle_model");
+        booth_add_column_if_missing($connection, 'vehicles', 'model', "ALTER TABLE vehicles ADD COLUMN model VARCHAR(100) NULL AFTER brand");
         booth_add_column_if_missing($connection, 'reservations', 'barcode_status', "ALTER TABLE reservations ADD COLUMN barcode_status VARCHAR(20) NOT NULL DEFAULT 'active' AFTER barcode_value");
         booth_add_column_if_missing($connection, 'user_violations', 'related_reservation_id', "ALTER TABLE user_violations ADD COLUMN related_reservation_id INT NULL AFTER description");
         booth_add_column_if_missing($connection, 'user_violations', 'created_by', "ALTER TABLE user_violations ADD COLUMN created_by VARCHAR(50) NOT NULL DEFAULT 'system' AFTER related_reservation_id");
@@ -493,6 +564,10 @@ if (!function_exists('booth_ensure_schema')) {
         booth_add_column_if_missing($connection, 'feedback_messages', 'admin_reply', "ALTER TABLE feedback_messages ADD COLUMN admin_reply TEXT NULL AFTER message");
         booth_add_column_if_missing($connection, 'feedback_messages', 'replied_at', "ALTER TABLE feedback_messages ADD COLUMN replied_at DATETIME NULL AFTER submitted_at");
         booth_add_column_if_missing($connection, 'staff_accounts', 'username', "ALTER TABLE staff_accounts ADD COLUMN username VARCHAR(80) NULL AFTER full_name");
+        booth_add_column_if_missing($connection, 'booth_teller_accounts', 'teller_details', "ALTER TABLE booth_teller_accounts ADD COLUMN teller_details VARCHAR(255) NULL AFTER teller_name");
+        booth_add_column_if_missing($connection, 'booth_teller_accounts', 'is_active', "ALTER TABLE booth_teller_accounts ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER pin_code");
+        booth_add_column_if_missing($connection, 'booth_teller_accounts', 'last_login_at', "ALTER TABLE booth_teller_accounts ADD COLUMN last_login_at DATETIME NULL AFTER is_active");
+        booth_add_column_if_missing($connection, 'booth_teller_accounts', 'updated_at', "ALTER TABLE booth_teller_accounts ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at");
         booth_add_column_if_missing($connection, 'notifications', 'audience', "ALTER TABLE notifications ADD COLUMN audience VARCHAR(50) NOT NULL DEFAULT 'Users' AFTER message");
         booth_add_column_if_missing($connection, 'notifications', 'notification_date', "ALTER TABLE notifications ADD COLUMN notification_date DATE NULL AFTER audience");
         booth_add_column_if_missing($connection, 'notifications', 'updated_at', "ALTER TABLE notifications ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at");
@@ -501,8 +576,117 @@ if (!function_exists('booth_ensure_schema')) {
         booth_add_column_if_missing($connection, 'parking_transactions', 'total_hours', "ALTER TABLE parking_transactions ADD COLUMN total_hours DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER actual_time_out");
         booth_add_column_if_missing($connection, 'parking_transactions', 'overtime_fee', "ALTER TABLE parking_transactions ADD COLUMN overtime_fee DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER total_hours");
 
+        // Pricing detail and tender, so a settled transaction records what was
+        // charged, why, and how the money arrived -- none of which the table
+        // could express when every stay was one flat cash rate.
+        booth_add_column_if_missing($connection, 'parking_transactions', 'vehicle_type', "ALTER TABLE parking_transactions ADD COLUMN vehicle_type VARCHAR(30) NULL AFTER total_payment");
+        booth_add_column_if_missing($connection, 'parking_transactions', 'discount_type', "ALTER TABLE parking_transactions ADD COLUMN discount_type VARCHAR(20) NOT NULL DEFAULT 'None' AFTER vehicle_type");
+        booth_add_column_if_missing($connection, 'parking_transactions', 'discount_percent', "ALTER TABLE parking_transactions ADD COLUMN discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0.00 AFTER discount_type");
+        booth_add_column_if_missing($connection, 'parking_transactions', 'discount_amount', "ALTER TABLE parking_transactions ADD COLUMN discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER discount_percent");
+        booth_add_column_if_missing($connection, 'parking_transactions', 'gross_amount', "ALTER TABLE parking_transactions ADD COLUMN gross_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER discount_amount");
+        booth_add_column_if_missing($connection, 'parking_transactions', 'payment_method', "ALTER TABLE parking_transactions ADD COLUMN payment_method VARCHAR(30) NULL AFTER gross_amount");
+        booth_add_column_if_missing($connection, 'parking_transactions', 'payment_reference', "ALTER TABLE parking_transactions ADD COLUMN payment_reference VARCHAR(80) NULL AFTER payment_method");
+        booth_add_column_if_missing($connection, 'parking_transactions', 'amount_tendered', "ALTER TABLE parking_transactions ADD COLUMN amount_tendered DECIMAL(10,2) NULL AFTER payment_reference");
+        booth_add_column_if_missing($connection, 'parking_transactions', 'change_due', "ALTER TABLE parking_transactions ADD COLUMN change_due DECIMAL(10,2) NULL AFTER amount_tendered");
+        booth_add_column_if_missing($connection, 'parking_transactions', 'settled_by_staff_id', "ALTER TABLE parking_transactions ADD COLUMN settled_by_staff_id INT NULL AFTER change_due");
+        booth_add_index_if_missing($connection, 'parking_transactions', 'idx_parking_transactions_method', "CREATE INDEX idx_parking_transactions_method ON parking_transactions (payment_method)");
+
+        // A walk-in has no account, so the reservation's user_id has to be
+        // allowed to stand empty.
+        $nullableCheck = $connection->query("
+            SELECT IS_NULLABLE
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'reservations'
+              AND COLUMN_NAME = 'user_id'
+        ");
+        $nullableRow = $nullableCheck ? $nullableCheck->fetch_assoc() : null;
+
+        if ($nullableRow && strtoupper((string) $nullableRow['IS_NULLABLE']) === 'NO') {
+            $connection->query("ALTER TABLE reservations MODIFY user_id INT NULL");
+        }
+
+        // Walk-in drivers have no account, so the reservation carries their
+        // plate and the flag that says the booth issued it at the gate.
+        booth_add_column_if_missing($connection, 'reservations', 'is_walk_in', "ALTER TABLE reservations ADD COLUMN is_walk_in TINYINT(1) NOT NULL DEFAULT 0 AFTER status");
+        booth_add_column_if_missing($connection, 'reservations', 'walk_in_plate', "ALTER TABLE reservations ADD COLUMN walk_in_plate VARCHAR(20) NULL AFTER is_walk_in");
+        booth_add_column_if_missing($connection, 'reservations', 'walk_in_vehicle_type', "ALTER TABLE reservations ADD COLUMN walk_in_vehicle_type VARCHAR(30) NULL AFTER walk_in_plate");
+        booth_add_column_if_missing($connection, 'reservations', 'issued_by_staff_id', "ALTER TABLE reservations ADD COLUMN issued_by_staff_id INT NULL AFTER walk_in_vehicle_type");
+
+        // A supervisor reads reports without being able to change anything.
+        $roleColumn = $connection->query("
+            SELECT COLUMN_TYPE
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'staff_accounts'
+              AND COLUMN_NAME = 'role'
+        ");
+        $roleRow = $roleColumn ? $roleColumn->fetch_assoc() : null;
+
+        if ($roleRow && stripos((string) $roleRow['COLUMN_TYPE'], 'supervisor') === false) {
+            $connection->query("ALTER TABLE staff_accounts MODIFY role ENUM('admin','supervisor','booth') NOT NULL");
+        }
+
+        // Appeals ride in the feedback inbox, which already has threading,
+        // replies and resolution -- they only needed telling apart.
+        booth_add_column_if_missing($connection, 'feedback_messages', 'category', "ALTER TABLE feedback_messages ADD COLUMN category VARCHAR(20) NOT NULL DEFAULT 'General' AFTER message");
+        booth_add_index_if_missing($connection, 'feedback_messages', 'idx_feedback_category', "CREATE INDEX idx_feedback_category ON feedback_messages (category, status)");
+
+        // Reminder bookkeeping for the scheduled sweep: one nudge per booking.
+        booth_add_column_if_missing($connection, 'reservations', 'reminder_sent_at', "ALTER TABLE reservations ADD COLUMN reminder_sent_at DATETIME NULL AFTER issued_by_staff_id");
+        booth_add_column_if_missing($connection, 'reservations', 'confirmation_sent_at', "ALTER TABLE reservations ADD COLUMN confirmation_sent_at DATETIME NULL AFTER reminder_sent_at");
+
         booth_add_index_if_missing($connection, 'reservations', 'uq_reservations_barcode_value', "CREATE UNIQUE INDEX uq_reservations_barcode_value ON reservations (barcode_value)");
-        booth_add_index_if_missing($connection, 'reservations', 'idx_reservations_barcode_lookup', "CREATE INDEX idx_reservations_barcode_lookup ON reservations (barcode_lookup)");
+
+        // barcode_lookup is the column the booth actually resolves a scan
+        // against, and it only carried a plain index -- two reservations whose
+        // barcodes differed by punctuation normalised to the same lookup, and
+        // the booth's LIMIT 1 would pick one of them. Repair any existing
+        // collision, then make it impossible.
+        $connection->query("
+            UPDATE reservations
+            SET barcode_lookup = CONCAT('SPFIX', id, UPPER(SUBSTRING(MD5(RAND()), 1, 8)))
+            WHERE barcode_lookup IS NULL OR TRIM(barcode_lookup) = ''
+        ");
+        $connection->query("
+            UPDATE reservations r
+            JOIN (
+                SELECT id FROM (
+                    SELECT id, ROW_NUMBER() OVER (PARTITION BY barcode_lookup ORDER BY id) AS row_position
+                    FROM reservations
+                ) ranked
+                WHERE ranked.row_position > 1
+            ) duplicates ON duplicates.id = r.id
+            SET r.barcode_value = CONCAT('SP-FIX-', r.id, '-', UPPER(SUBSTRING(MD5(RAND()), 1, 8))),
+                r.barcode_lookup = CONCAT('SPFIX', r.id, UPPER(SUBSTRING(MD5(RAND()), 1, 8)))
+        ");
+        $connection->query("UPDATE reservations SET short_code_lookup = NULL WHERE TRIM(COALESCE(short_code_lookup, '')) = ''");
+        $connection->query("
+            UPDATE reservations r
+            JOIN (
+                SELECT id FROM (
+                    SELECT id, ROW_NUMBER() OVER (PARTITION BY short_code_lookup ORDER BY id) AS row_position
+                    FROM reservations
+                    WHERE short_code_lookup IS NOT NULL
+                ) ranked
+                WHERE ranked.row_position > 1
+            ) duplicates ON duplicates.id = r.id
+            SET r.short_code = NULL,
+                r.short_code_lookup = NULL
+        ");
+        booth_drop_index_if_exists($connection, 'reservations', 'idx_reservations_barcode_lookup');
+        booth_add_index_if_missing($connection, 'reservations', 'uq_reservations_barcode_lookup', "CREATE UNIQUE INDEX uq_reservations_barcode_lookup ON reservations (barcode_lookup)");
+        booth_add_index_if_missing($connection, 'reservations', 'uq_reservations_short_code_lookup', "CREATE UNIQUE INDEX uq_reservations_short_code_lookup ON reservations (short_code_lookup)");
+        $connection->query("
+            INSERT IGNORE INTO vehicles (user_id, vehicle_type, plate_number, brand, model, color)
+            SELECT id, vehicle_type, UPPER(TRIM(plate_number)), vehicle_brand, vehicle_model, vehicle_color
+            FROM users
+            WHERE vehicle_type IN ('Car', 'Motorcycle')
+              AND plate_number IS NOT NULL
+              AND TRIM(plate_number) <> ''
+        ");
+        booth_add_index_if_missing($connection, 'vehicles', 'uq_vehicles_user_plate', "CREATE UNIQUE INDEX uq_vehicles_user_plate ON vehicles (user_id, plate_number)");
+        booth_add_index_if_missing($connection, 'reservations', 'idx_reservations_vehicle_id', "CREATE INDEX idx_reservations_vehicle_id ON reservations (vehicle_id)");
         booth_add_index_if_missing($connection, 'reservations', 'idx_reservations_dashboard', "CREATE INDEX idx_reservations_dashboard ON reservations (reservation_date, status, updated_at)");
         booth_add_index_if_missing($connection, 'parking_transactions', 'uq_parking_transactions_reservation_id', "CREATE UNIQUE INDEX uq_parking_transactions_reservation_id ON parking_transactions (reservation_id)");
         booth_add_index_if_missing($connection, 'parking_transactions', 'idx_parking_transactions_status_lookup', "CREATE INDEX idx_parking_transactions_status_lookup ON parking_transactions (payment_status, booth_status, updated_at)");
@@ -517,6 +701,7 @@ if (!function_exists('booth_ensure_schema')) {
         booth_add_index_if_missing($connection, 'feedback_messages', 'idx_feedback_messages_user_status', "CREATE INDEX idx_feedback_messages_user_status ON feedback_messages (user_id, status)");
         booth_add_index_if_missing($connection, 'notifications', 'idx_notifications_date_created', "CREATE INDEX idx_notifications_date_created ON notifications (notification_date, created_at)");
         booth_add_index_if_missing($connection, 'staff_accounts', 'idx_staff_accounts_role_active', "CREATE INDEX idx_staff_accounts_role_active ON staff_accounts (role, is_active)");
+        booth_add_index_if_missing($connection, 'booth_teller_accounts', 'idx_booth_teller_accounts_active', "CREATE INDEX idx_booth_teller_accounts_active ON booth_teller_accounts (is_active, created_at)");
         booth_add_index_if_missing($connection, 'user_violations', 'idx_user_violations_user_created', "CREATE INDEX idx_user_violations_user_created ON user_violations (user_id, created_at)");
         booth_add_index_if_missing($connection, 'user_violations', 'idx_user_violations_type_created', "CREATE INDEX idx_user_violations_type_created ON user_violations (violation_type, created_at)");
 
@@ -798,6 +983,16 @@ if (!function_exists('booth_seed_default_staff_accounts')) {
                 role = VALUES(role),
                 is_active = VALUES(is_active)
         ");
+
+        $defaultPinHash = password_hash('1234', PASSWORD_DEFAULT);
+        $statement = $connection->prepare("
+            INSERT INTO booth_teller_accounts (teller_name, teller_details, pin_code, is_active)
+            SELECT 'Booth Teller', 'Default booth teller account', ?, 1
+            WHERE NOT EXISTS (SELECT 1 FROM booth_teller_accounts LIMIT 1)
+        ");
+        $statement->bind_param('s', $defaultPinHash);
+        $statement->execute();
+        $statement->close();
     }
 }
 
@@ -807,7 +1002,7 @@ if (!function_exists('booth_seed_default_settings')) {
         $defaults = [
             'system_name' => 'SNDRA Park',
             'contact_number' => '+63 917 555 0142',
-            'gmail_address' => 'sndraparkemulator@gmail.com',
+            'gmail_address' => 'sndraparksupport@gmail.com',
             'parking_base_rate' => '20',
             'extra_hourly_rate' => '10'
         ];

@@ -15,10 +15,19 @@ function getApiRoutes()
         ],
         'users' => [
             'GET' => [
-                'default' => 'getProfile'
+                'default' => 'getProfile',
+                'profile' => 'getProfile',
+                'vehicles' => 'getVehicles'
             ],
             'POST' => [
-                'update' => 'updateProfile'
+                'update' => 'updateProfile',
+                'vehicles' => 'addVehicle'
+            ],
+            'PUT' => [
+                'vehicles' => 'updateVehicle'
+            ],
+            'DELETE' => [
+                'vehicles' => 'removeVehicle'
             ]
         ],
         'parking' => [

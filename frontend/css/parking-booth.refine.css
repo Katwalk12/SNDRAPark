@@ -1,0 +1,207 @@
+/* ==========================================================================
+   Parking Booth Console — design-system refinement layer
+   Loaded after parking-booth.css and components.css.
+   ========================================================================== */
+
+/* --- 1. Headings ---------------------------------------------------------
+   This is a till-side console operated all shift; the display-sized titles
+   were taking the top third of the screen before any data appeared. */
+
+.booth-workspace h1,
+.booth-header h1,
+.section-heading h2,
+.booth-section h2 {
+  font-size: var(--ds-text-2xl) !important;
+  line-height: var(--ds-leading-tight) !important;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ds-text);
+}
+
+.booth-header p,
+.section-heading p,
+.booth-section p {
+  font-size: var(--ds-text-md);
+  line-height: var(--ds-leading);
+  color: var(--ds-text-muted);
+  max-width: 68ch;
+}
+
+.section-kicker,
+.meta-label {
+  font-size: var(--ds-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--ds-tracking-caps);
+  text-transform: uppercase;
+  color: var(--ds-text-faint);
+}
+
+/* --- 2. Top utility strip ------------------------------------------------
+   Same 64px dark scrim the user dashboard had: a near-black gradient sitting
+   over a light console. */
+
+.page-utility-bar {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  height: auto !important;
+  padding: var(--ds-space-3) var(--ds-space-2) 0 !important;
+}
+
+/* --- 3. Panels + stat tiles ---------------------------------------------- */
+
+.booth-card,
+.booth-panel,
+.summary-card,
+.stat-card,
+.table-shell,
+.booth-workspace > header {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-xs);
+}
+
+.summary-card strong,
+.stat-card strong {
+  font-size: var(--ds-text-2xl);
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--ds-text);
+}
+
+/* --- 4. Tables ----------------------------------------------------------- */
+
+.booth-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ds-text-sm);
+}
+
+.booth-table th {
+  padding: var(--ds-space-3);
+  text-align: left;
+  font-size: var(--ds-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--ds-tracking-caps);
+  text-transform: uppercase;
+  color: var(--ds-text-faint);
+  background: var(--ds-ink-50);
+  border-bottom: 1px solid var(--ds-border);
+  white-space: nowrap;
+}
+
+.booth-table td {
+  padding: var(--ds-space-3);
+  border-bottom: 1px solid var(--ds-border);
+  color: var(--ds-ink-700);
+  vertical-align: middle;
+}
+
+.booth-table tbody tr:hover { background: var(--ds-ink-50); }
+
+.booth-table td:first-child { font-variant-numeric: tabular-nums; }
+
+.table-shell { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-shell > table { min-width: 900px; }
+
+/* --- 5. Status pills — "Reserve/d" was wrapping mid-word ------------------ */
+
+.status-pill,
+.table-status,
+.booth-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap !important;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--ds-radius-full);
+  font-size: var(--ds-text-2xs);
+  font-weight: 600;
+  line-height: 1.4;
+  background: var(--ds-neutral-soft);
+  color: var(--ds-ink-700);
+}
+
+.status-pill.success, .table-status.available { background: var(--ds-success-soft); color: var(--ds-success); }
+.status-pill.warning, .table-status.reserved  { background: var(--ds-warning-soft); color: var(--ds-warning); }
+.status-pill.danger,  .table-status.occupied  { background: var(--ds-danger-soft);  color: var(--ds-danger); }
+
+.booth-table th:last-child,
+.booth-table td:last-child { white-space: nowrap; width: 1%; }
+
+/* --- 6. Sidebar navigation ----------------------------------------------- */
+
+.booth-sidebar {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-xs);
+}
+
+.booth-nav-button {
+  gap: var(--ds-space-3);
+  padding: 0.65rem var(--ds-space-3);
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-md);
+  font-size: var(--ds-text-md);
+  font-weight: 500;
+  color: var(--ds-ink-700);
+  background: transparent;
+  box-shadow: none;
+}
+
+.booth-nav-button:hover { background: var(--ds-ink-100); color: var(--ds-text); }
+
+.booth-nav-button.active {
+  background: var(--ds-brand);
+  border-color: var(--ds-brand);
+  color: var(--ds-text-invert);
+  font-weight: 600;
+}
+
+.booth-nav-button.active i { color: var(--ds-text-invert); }
+
+.booth-nav-button-danger { color: var(--ds-danger); }
+.booth-nav-button-danger:hover { background: var(--ds-danger-soft); color: var(--ds-danger); }
+
+/* --- 7. Scanner + payment inputs ----------------------------------------- */
+
+.booth-card input,
+.booth-card select,
+.payment-controls input {
+  min-height: 42px;
+  border: 1px solid var(--ds-border-strong);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  font-size: var(--ds-text-lg);
+  box-shadow: none;
+}
+
+.booth-card input:focus,
+.payment-controls input:focus {
+  border-color: var(--ds-accent);
+  box-shadow: var(--ds-focus-ring);
+  outline: none;
+}
+
+/* --- 8. Section headings (bare h2, no class) -----------------------------
+   These render at 48px / 44.8px straight from parking-booth.css. They carry no
+   class, so they have to be scoped by their container. */
+
+.booth-shell h2,
+.topbar-copy h2,
+.booth-workspace h2 {
+  font-size: var(--ds-text-2xl) !important;
+  line-height: var(--ds-leading-tight) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em;
+  color: var(--ds-text);
+  margin-bottom: var(--ds-space-1);
+}
+
+.booth-shell h3 {
+  font-size: var(--ds-text-lg) !important;
+  font-weight: 600 !important;
+  line-height: var(--ds-leading-tight) !important;
+}

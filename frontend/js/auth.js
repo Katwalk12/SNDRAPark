@@ -38,9 +38,15 @@ function normalizeRouteTarget(target) {
   return routeMap[String(target || "").trim()] || target;
 }
 
-const authApiBase = getBackendUrl("/backend/api/v1");
+const authApiBase = getBackendUrl("/backend/api/v1/auth.php");
 const userDashboardRoute = getRoutePath("dashboard", "./user-dashboard.html");
 const managedSelector = "form[data-auth-form], #login-form, #register-form, #signup-form";
+
+function buildAuthApiUrl(action) {
+  const url = new URL(authApiBase, window.location.origin);
+  url.searchParams.set("action", action);
+  return url.toString();
+}
 
 function getManagedForms() {
   return Array.from(document.querySelectorAll(managedSelector));
@@ -118,36 +124,156 @@ function setFormStatus(form, message, type = "") {
   if (type) {
     statusElement.classList.add(`is-${type}`);
   }
+
+  revealAppealPanelIfLocked(message);
 }
+
+/**
+ * The appeal form only exists for the one failure it answers: an account
+ * locked for repeated no-shows. Any other login error leaves it hidden.
+ */
+function revealAppealPanelIfLocked(message) {
+  const panel = document.getElementById("appeal-panel");
+
+  if (!panel) {
+    return;
+  }
+
+  const text = String(message || "").toLowerCase();
+  const isLocked = text.includes("locked") || text.includes("letter of appeal");
+
+  if (isLocked) {
+    panel.hidden = false;
+  }
+}
+
+async function submitAccountAppeal() {
+  const panel = document.getElementById("appeal-panel");
+  const messageField = document.getElementById("appeal-message");
+  const statusNode = document.getElementById("appeal-status");
+  const button = document.getElementById("appeal-submit-btn");
+  const emailField = document.getElementById("login-email");
+
+  if (!panel || !messageField || !statusNode) {
+    return;
+  }
+
+  const setStatus = (text, type) => {
+    statusNode.textContent = text;
+    statusNode.classList.remove("is-error", "is-success");
+
+    if (type) {
+      statusNode.classList.add(`is-${type}`);
+    }
+  };
+
+  const email = String(emailField?.value || "").trim();
+  const message = String(messageField.value || "").trim();
+
+  if (!email) {
+    setStatus("Enter the email address of the locked account above first.", "error");
+    emailField?.focus();
+    return;
+  }
+
+  if (message.length < 20) {
+    setStatus("Explain what happened in at least 20 characters.", "error");
+    messageField.focus();
+    return;
+  }
+
+  if (button) {
+    button.disabled = true;
+  }
+
+  try {
+    const endpoint = typeof window.getSndraBackendUrl === "function"
+      ? window.getSndraBackendUrl("/backend/user/submit-appeal.php")
+      : `${window.location.origin}/backend/user/submit-appeal.php`;
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ email, message })
+    });
+
+    const rawText = await response.text();
+    let result = {};
+
+    try {
+      result = rawText.trim() ? JSON.parse(rawText) : {};
+    } catch (parseError) {
+      throw new Error("The server did not return a valid response.");
+    }
+
+    if (!response.ok || result.success === false) {
+      throw new Error(result.message || "Failed to submit the appeal.");
+    }
+
+    setStatus(result.message || "Your appeal has been submitted.", "success");
+    messageField.value = "";
+  } catch (error) {
+    setStatus(error.message || "Failed to submit the appeal.", "error");
+  } finally {
+    if (button) {
+      button.disabled = false;
+    }
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("appeal-submit-btn")?.addEventListener("click", submitAccountAppeal);
+});
 
 function validateEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function validatePasswordStrength(value) {
-  return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(value);
+function getPasswordPolicy() {
+  return window.SndraPasswordPolicy || null;
 }
 
-function getPasswordStrength(value) {
-  let score = 0;
-
-  if (/[A-Z]/.test(value)) {
-    score += 1;
+// Details the password is not allowed to contain (name, email, birth date).
+function getPasswordContext(form) {
+  if (!form) {
+    return {};
   }
 
-  if (/[a-z]/.test(value)) {
-    score += 1;
+  const readField = (name) => String(form.querySelector(`[name="${name}"]`)?.value || "").trim();
+
+  return {
+    firstName: readField("firstName"),
+    lastName: readField("lastName"),
+    email: readField("email"),
+    birthDate: readField("birthDate")
+  };
+}
+
+function evaluatePassword(value, context) {
+  const policy = getPasswordPolicy();
+
+  if (policy) {
+    return policy.evaluate(value, context);
   }
 
-  if (/\d/.test(value)) {
-    score += 1;
-  }
+  // Fallback when password-policy.js is not loaded on the page.
+  const valid = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d])\S{8,}$/.test(value);
 
-  if (/[^A-Za-z\d]/.test(value) && value.length >= 8) {
-    score += 1;
-  }
+  return {
+    valid,
+    errors: valid ? [] : ["Use 8+ characters with uppercase, lowercase, a number and a special character."],
+    checks: {},
+    score: valid ? 4 : 0
+  };
+}
 
-  return score;
+function validatePlateNumber(value) {
+  return /^[A-Z0-9-]{2,20}$/.test(String(value || "").trim().toUpperCase());
+}
+
+function getPasswordStrength(value, context) {
+  return evaluatePassword(value, context).score;
 }
 
 function getAdultCutoffDate() {
@@ -199,7 +325,12 @@ function getFieldRules(field) {
 
 function validateField(form, field) {
   const rules = getFieldRules(field);
-  const value = field.type === "checkbox" ? field.checked : field.value.trim();
+  // Passwords are never trimmed so what the user typed is what gets checked and sent.
+  const value = field.type === "checkbox"
+    ? field.checked
+    : field.type === "password"
+      ? field.value
+      : field.value.trim();
 
   clearFieldError(form, field);
 
@@ -216,8 +347,17 @@ function validateField(form, field) {
       return false;
     }
 
-    if (rule === "password" && value && !validatePasswordStrength(value)) {
-      setFieldError(form, field, "Use 8+ characters with upper, lower, number, and symbol.");
+    if (rule === "password" && value) {
+      const result = evaluatePassword(value, getPasswordContext(form));
+
+      if (!result.valid) {
+        setFieldError(form, field, result.errors[0]);
+        return false;
+      }
+    }
+
+    if (rule === "plate-number" && value && !validatePlateNumber(value)) {
+      setFieldError(form, field, "Use 2-20 letters/numbers. Hyphens are allowed.");
       return false;
     }
 
@@ -238,7 +378,7 @@ function validateField(form, field) {
     if (rule === "confirm-password") {
       const passwordField = form.querySelector('input[name="password"]');
 
-      if (passwordField && value !== passwordField.value.trim()) {
+      if (passwordField && value !== passwordField.value) {
         setFieldError(form, field, "Passwords do not match.");
         return false;
       }
@@ -287,7 +427,12 @@ function buildAuthPayload(form) {
       lastName: payload.lastName?.trim() || "",
       birthDate: payload.birthDate || "",
       email: payload.email?.trim() || "",
-      password: payload.password || ""
+      password: payload.password || "",
+      vehicleType: payload.vehicleType || "",
+      plateNumber: (payload.plateNumber || "").trim().toUpperCase(),
+      vehicleBrand: payload.vehicleBrand?.trim() || "",
+      vehicleModel: payload.vehicleModel?.trim() || "",
+      vehicleColor: payload.vehicleColor?.trim() || ""
     };
   }
 
@@ -318,7 +463,7 @@ async function requestAuth(action, payload, method = "POST") {
     options.body = JSON.stringify(payload);
   }
 
-  const response = await fetch(`${authApiBase}/${encodeURIComponent(action)}`, options);
+  const response = await fetch(buildAuthApiUrl(action), options);
   const rawText = await response.text();
   let result = null;
 
@@ -340,22 +485,6 @@ async function requestAuth(action, payload, method = "POST") {
   }
 
   return result;
-}
-
-function handleDemoAction(trigger) {
-  const form = trigger.closest("form");
-
-  if (!form) {
-    return;
-  }
-
-  if (trigger.dataset.demoAction === "google") {
-    setFormStatus(form, "Google sign-in UI is ready. Backend OAuth can be connected next.", "success");
-  }
-
-  if (trigger.dataset.demoLink === "forgot-password") {
-    setFormStatus(form, "Forgot password flow will be available once backend support is added.", "success");
-  }
 }
 
 function togglePasswordVisibility(toggleButton) {
@@ -390,15 +519,102 @@ function openDatePicker(toggleButton) {
   input.click();
 }
 
-function updatePasswordMeter(input) {
+function renderPasswordRules(container, result) {
+  const policy = getPasswordPolicy();
+
+  if (!policy) {
+    container.hidden = true;
+    return;
+  }
+
+  if (!container.dataset.rendered) {
+    container.innerHTML = policy.RULES
+      .map((rule) => `<li class="password-rule" data-rule="${rule.id}"><span class="rule-mark" aria-hidden="true"></span>${rule.label}</li>`)
+      .join("");
+    container.dataset.rendered = "true";
+  }
+
+  container.querySelectorAll("[data-rule]").forEach((item) => {
+    const passed = Boolean(result.checks[item.dataset.rule]);
+    item.classList.toggle("is-met", passed);
+    item.setAttribute("aria-checked", String(passed));
+  });
+}
+
+function updatePasswordFeedback(input) {
   if (!input || !input.id) {
     return;
   }
 
+  const form = input.form;
+  const result = evaluatePassword(input.value, getPasswordContext(form));
+
   document.querySelectorAll(`[data-password-meter][data-target="${input.id}"]`).forEach((meter) => {
-    const strength = input.value ? getPasswordStrength(input.value) : 0;
-    meter.dataset.strength = String(strength);
+    meter.dataset.strength = String(input.value ? result.score : 0);
   });
+
+  document.querySelectorAll(`[data-password-rules][data-target="${input.id}"]`).forEach((container) => {
+    renderPasswordRules(container, result);
+  });
+}
+
+// Turns a Google OAuth failure redirect into a message the user can act on.
+function getGoogleErrorNotice(params) {
+  if (params.get("error") !== "google_oauth_error") {
+    return null;
+  }
+
+  // Google sends access_denied both when the person closes the consent window
+  // and when the OAuth app is still in Testing and their account is not on the
+  // tester list. The two are indistinguishable in the callback, so the copy has
+  // to name both rather than assert "cancelled" and send them looking in the
+  // wrong place.
+  const knownCodes = {
+    access_denied: "Google did not complete the sign in. Either the Google window was closed, or this Google account is not approved to use the app yet. You can log in with your email and password instead.",
+    admin_policy_enforced: "Your Google Workspace administrator has blocked sign in to this app. Contact your administrator, or log in with your email and password.",
+    invalid_state: "Your Google sign in session expired. Please click Continue with Google again.",
+    email_not_verified: "Your Google email address is not verified. Verify it with Google, then try again.",
+    missing_env_credentials: "Google sign in is not configured on this server. Please contact the administrator.",
+    oauth_api_error: "Google could not complete the sign in. Please try again, or log in with your email and password.",
+    oauth_http_failed: "Could not reach Google. Check your connection and try again, or log in with your email and password.",
+    callback_error: "Google sign in failed. Please try again, or log in with your email and password."
+  };
+
+  const code = params.get("code") || "";
+  const message = knownCodes[code] || params.get("msg") || "Google sign in failed. Please try again.";
+  const detail = (params.get("detail") || "").trim();
+
+  // `detail` only ever carries Google's own user-facing explanation; internal
+  // failure text stays in the server log (see google_oauth_fail).
+  return [detail ? `${message} (Google said: ${detail})` : message, "error"];
+}
+
+// Explains why the user landed back on the login page (idle logout, finished reset, ...).
+function showEntryNotice() {
+  const loginForm = document.getElementById("login-form");
+
+  if (!loginForm) {
+    return;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+
+  const notices = {
+    timeout: ["You were logged out automatically after a period of inactivity. Please log in again.", "error"],
+    "session-expired": ["Your session has expired. Please log in again.", "error"],
+    "password-reset": ["Your password has been updated. Please log in using your new password.", "success"]
+  };
+
+  const notice = getGoogleErrorNotice(params) || notices[params.get("reason")];
+
+  if (notice) {
+    setFormStatus(loginForm, notice[0], notice[1]);
+
+    // Keep the error out of the address bar so a refresh does not repeat it.
+    if (window.history.replaceState) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }
 }
 
 async function redirectIfAuthenticated() {
@@ -409,10 +625,11 @@ async function redirectIfAuthenticated() {
   }
 
   try {
+    // Binago para tumuro sa tamang action endpoint query param imbes na maging subfolder array URL path
     await requestAuth("session", {}, "GET");
     window.location.replace(userDashboardRoute);
   } catch (error) {
-    // No active session, stay on the current page.
+    // Walang aktibong login session, manatili lang sa login window.
   }
 }
 
@@ -425,6 +642,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   for (const form of getManagedForms()) {
     const fields = Array.from(form.querySelectorAll("[data-validate]"));
+    const strengthFields = fields.filter((field) => getFieldRules(field).includes("password"));
+    const contextFieldNames = ["firstName", "lastName", "email", "birthDate"];
+
+    const refreshPasswordFeedback = () => {
+      strengthFields.forEach((passwordField) => {
+        updatePasswordFeedback(passwordField);
+
+        // The name/email/birth date are part of the policy, so a password that was
+        // already accepted has to be re-checked when any of them changes.
+        if (passwordField.value) {
+          validateField(form, passwordField);
+        }
+      });
+    };
 
     fields.forEach((field) => {
       const eventName = field.type === "checkbox" ? "change" : "input";
@@ -437,7 +668,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         updateFloatingFieldState(field);
 
         if (field.type === "password") {
-          updatePasswordMeter(field);
+          updatePasswordFeedback(field);
+        }
+
+        if (contextFieldNames.includes(field.name)) {
+          refreshPasswordFeedback();
         }
       });
 
@@ -451,17 +686,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
 
       if (field.type === "password") {
-        updatePasswordMeter(field);
+        updatePasswordFeedback(field);
       }
     });
   }
-
-  document.querySelectorAll("[data-demo-action], [data-demo-link]").forEach((trigger) => {
-    trigger.addEventListener("click", (event) => {
-      event.preventDefault();
-      handleDemoAction(trigger);
-    });
-  });
 
   document.querySelectorAll("[data-password-toggle]").forEach((toggleButton) => {
     toggleButton.addEventListener("click", () => {
@@ -474,6 +702,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       openDatePicker(toggleButton);
     });
   });
+
+  showEntryNotice();
 
   await redirectIfAuthenticated();
 });
@@ -495,21 +725,47 @@ document.addEventListener("submit", async (event) => {
     return;
   }
 
+  const submitButton = form.querySelector('button[type="submit"]');
+
   try {
+    if (submitButton) {
+      submitButton.disabled = true;
+    }
+
     const action = getAuthAction(form);
     const payload = buildAuthPayload(form);
     const result = await requestAuth(action, payload);
-    setFormStatus(form, result.message || "Authentication successful.", "success");
+
+    // Remind the user when the password is due for its periodic change.
+    const passwordNotice = result.notice || result.password_status?.message || "";
+    setFormStatus(form, passwordNotice || result.message || "Authentication successful.", "success");
+
+    if (passwordNotice) {
+      try {
+        window.sessionStorage.setItem("sndraPasswordNotice", passwordNotice);
+      } catch (storageError) {
+        // Storage is unavailable (private mode); the reminder is simply skipped.
+      }
+    }
 
     const redirectTarget = result.redirect || form.dataset.redirect;
 
     if (redirectTarget) {
       window.setTimeout(() => {
         window.location.href = normalizeRouteTarget(redirectTarget);
-      }, 500);
+      }, passwordNotice ? 1600 : 500);
     }
   } catch (error) {
     console.error("Authentication request failed.", error);
     setFormStatus(form, error.message || "Authentication request failed.", "error");
+
+    if (submitButton) {
+      submitButton.disabled = false;
+    }
   }
 });
+
+// Exposed for signup-steps.js. The signup wizard has to decide whether a step
+// may be left, and it must reach that verdict with exactly the rules the submit
+// handler applies - a second copy would drift.
+window.SndraAuthForms = { validateField, validateForm, clearFieldError };

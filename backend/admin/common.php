@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+// Sets the Asia/Manila timezone. Without it these endpoints ran on the
+// php.ini default while MySQL ran on system time, and every timestamp
+// they wrote or compared was hours out.
+require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/system-settings.php';
 require_once __DIR__ . '/../middleware/CsrfMiddleware.php';
@@ -9,6 +13,17 @@ require_once __DIR__ . '/../middleware/RateLimiter.php';
 require_once __DIR__ . '/../middleware/RBACMiddleware.php';
 require_once __DIR__ . '/../middleware/ValidationMiddleware.php';
 require_once __DIR__ . '/audit-log.php';
+
+/**
+ * Booth teller PINs are a fixed length, checked both where they are issued
+ * (manage_booth_staff.php) and where they are used (parking-booth/login.php).
+ *
+ * The keypad in frontend/js/booth-login.js mirrors this as BOOTH_PIN_LENGTH
+ * and must be changed with it.
+ */
+if (!defined('BOOTH_PIN_LENGTH')) {
+    define('BOOTH_PIN_LENGTH', 4);
+}
 
 if (!function_exists('admin_prepare_session_storage')) {
     function admin_prepare_session_storage(): void
@@ -198,8 +213,20 @@ if (!function_exists('admin_require_auth')) {
             }
         }
 
-        // Check role
-        if ($admin['role'] !== $requiredRole && $requiredRole !== '*') {
+        // Check role.
+        //
+        // A supervisor is an admin who may look but not touch: they satisfy an
+        // 'admin' requirement on reads and are refused on anything that
+        // changes state. Every mutating admin endpoint is a POST, so the method
+        // is the whole test -- and it holds for endpoints written later without
+        // anyone having to remember this rule.
+        $isSupervisor = $admin['role'] === 'supervisor';
+
+        if ($isSupervisor && $requiredRole === 'admin') {
+            if (admin_method() !== 'GET') {
+                admin_error('Forbidden: supervisors have read-only access.', 403);
+            }
+        } elseif ($admin['role'] !== $requiredRole && $requiredRole !== '*') {
             admin_error('Forbidden: Insufficient permissions for this action.', 403);
         }
 
@@ -221,6 +248,137 @@ if (!function_exists('admin_require_auth')) {
             'email' => $admin['email'],
             'fullName' => $admin['fullName'] ?? 'Admin'
         ];
+    }
+}
+
+if (!function_exists('admin_mask_email')) {
+    /** j***@example.com -- enough to recognise, not enough to harvest. */
+    function admin_mask_email(string $email): string
+    {
+        $parts = explode('@', trim($email), 2);
+
+        if (count($parts) !== 2 || $parts[0] === '') {
+            return 'your email';
+        }
+
+        $visible = mb_substr($parts[0], 0, 1);
+
+        return $visible . str_repeat('*', max(3, mb_strlen($parts[0]) - 1)) . '@' . $parts[1];
+    }
+}
+
+if (!function_exists('admin_establish_session')) {
+    /**
+     * Everything that turns a verified staff row into a signed-in session.
+     *
+     * Shared by login.php and verify-2fa.php so the two paths cannot drift --
+     * a second factor that skipped the session regeneration or the audit entry
+     * would be worse than no second factor at all.
+     */
+    function admin_establish_session(mysqli $connection, array $staff, string $fallbackEmail = ''): array
+    {
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session_start();
+        }
+
+        session_regenerate_id(true);
+        $csrfToken = CsrfMiddleware::refresh();
+
+        $staffId = (int) ($staff['id'] ?? 0);
+        $staffRole = (string) ($staff['role'] ?? 'admin');
+        $fullName = (string) ($staff['full_name'] ?? 'Administrator');
+        $staffEmail = (string) ($staff['email'] ?? $fallbackEmail);
+
+        $_SESSION['sndra_admin'] = [
+            'id' => $staffId,
+            'role' => $staffRole,
+            'fullName' => $fullName,
+            'email' => $staffEmail
+        ];
+        $_SESSION['_admin_last_activity'] = time();
+        unset($_SESSION['admin_pending_2fa']);
+
+        $updateStatement = $connection->prepare("UPDATE staff_accounts SET last_login_at = NOW() WHERE id = ?");
+        $updateStatement->bind_param('i', $staffId);
+        $updateStatement->execute();
+
+        admin_audit_log($connection, [
+            'id' => $staffId,
+            'fullName' => $fullName,
+            'email' => $staffEmail
+        ], 'ADMIN_LOGIN_SUCCESS', 'Admin logged in successfully.', [
+            'target_type' => 'auth',
+            'status' => 'success'
+        ]);
+
+        return [
+            'success' => true,
+            'message' => 'Login successful.',
+            'redirect' => 'admin-dashboard.html',
+            'role' => $staffRole,
+            'data' => [
+                'id' => $staffId,
+                'role' => $staffRole,
+                'fullName' => $fullName,
+                'email' => $staffEmail,
+                'token' => session_id(),
+                'csrfToken' => $csrfToken
+            ]
+        ];
+    }
+}
+
+if (!function_exists('admin_start_two_factor_challenge')) {
+    /**
+     * Issue the second factor.
+     *
+     * The code is emailed and only its hash is kept, next to an expiry and an
+     * attempt counter, so the session cannot be read for the answer. Returns
+     * false when the mail could not be sent -- the caller then lets the login
+     * through rather than locking the only administrator out of the system
+     * because SMTP is down.
+     */
+    function admin_start_two_factor_challenge(array $staff): bool
+    {
+        require_once __DIR__ . '/../common/mailer.php';
+
+        $email = trim((string) ($staff['email'] ?? ''));
+
+        if ($email === '') {
+            return false;
+        }
+
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session_start();
+        }
+
+        $_SESSION['admin_pending_2fa'] = [
+            'staff_id' => (int) ($staff['id'] ?? 0),
+            'email' => $email,
+            'code_hash' => password_hash($code, PASSWORD_DEFAULT),
+            'expires_at' => time() + 300,
+            'attempts' => 0
+        ];
+
+        $sent = sndra_mail_send(
+            $email,
+            'Your SNDRA Park admin sign-in code',
+            sndra_mail_layout(
+                'Admin sign-in code',
+                'Someone is signing in to the SNDRA Park admin dashboard. Enter this code to continue.',
+                ['Expires' => '5 minutes from now', 'Account' => $email],
+                $code,
+                'If this was not you, change the admin password immediately.'
+            )
+        );
+
+        if (!$sent) {
+            unset($_SESSION['admin_pending_2fa']);
+        }
+
+        return $sent;
     }
 }
 
@@ -267,7 +425,11 @@ if (!function_exists('admin_validate_csrf')) {
         try {
             CsrfMiddleware::validate();
         } catch (RuntimeException $e) {
-            admin_error('Security validation failed: ' . $e->getMessage(), (int) $e->getCode());
+            // A rejected token used to surface as a 500. The middleware throws
+            // 419, which Apache rewrites to 500 because it has no reason
+            // phrase for it, so the answer is pinned to 403: the client can
+            // tell a refused request from a server fault and re-authenticate.
+            admin_error('Security validation failed: ' . $e->getMessage(), 403);
         }
     }
 }

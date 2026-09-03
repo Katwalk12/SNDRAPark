@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 try {
-    booth_log('recent-request', [
+    booth_log_debug('recent-request', [
         'method' => $_SERVER['REQUEST_METHOD'] ?? 'UNKNOWN'
     ]);
 

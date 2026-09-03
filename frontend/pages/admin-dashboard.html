@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SNDRA Park | Admin Dashboard</title>
+  <link rel="icon" type="image/png" href="../../assets/images/favicon.png">
+  <link rel="apple-touch-icon" href="../../assets/images/favicon.png">
   <script>
     (function () {
       const pathName = String(window.location.pathname || "");
@@ -17,37 +19,41 @@
       document.head.appendChild(base);
     })();
   </script>
-  <link rel="icon" type="image/jpeg" href="../assets/icons/logo.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  <link rel="stylesheet" href="../css/design-system.css?v=20260824-ds1">
   <link rel="stylesheet" href="../css/admin-dashboard.css?v=20260402-2">
+  <link rel="stylesheet" href="../css/components.css?v=20260824-ds1">
+  <link rel="stylesheet" href="../css/admin-dashboard.refine.css?v=20260901-ops1">
 </head>
 <body>
   <main class="admin-shell">
     <aside class="admin-sidebar">
       <nav class="sidebar-nav" aria-label="Admin sections">
-        <button class="sidebar-link is-active" type="button" data-section="dashboard">Dashboard</button>
-        <button class="sidebar-link" type="button" data-section="slots">Manage Floors &amp; Slots</button>
-        <button class="sidebar-link" type="button" data-section="reservations">Reservations</button>
-        <button class="sidebar-link" type="button" data-section="users">Users</button>
-        <button class="sidebar-link" type="button" data-section="staff">Booth Staff</button>
-        <button class="sidebar-link" type="button" data-section="payments">Payments</button>
-        <button class="sidebar-link" type="button" data-section="logs">Admin Audit Logs</button>
-        <button class="sidebar-link" type="button" data-section="feedback">Feedback / Concerns</button>
-        <button class="sidebar-link" type="button" data-section="notifications">Notifications</button>
-        <button class="sidebar-link" type="button" data-section="settings">Settings</button>
+        <button class="sidebar-link is-active" type="button" data-section="dashboard"><i class="fa-solid fa-chart-line" aria-hidden="true"></i> Dashboard</button>
+        <button class="sidebar-link" type="button" data-section="slots"><i class="fa-solid fa-square-parking" aria-hidden="true"></i> Manage Floors &amp; Slots</button>
+        <button class="sidebar-link" type="button" data-section="reservations"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i> Reservations</button>
+        <button class="sidebar-link" type="button" data-section="users"><i class="fa-solid fa-users" aria-hidden="true"></i> Users</button>
+        <button class="sidebar-link" type="button" data-section="staff"><i class="fa-solid fa-id-badge" aria-hidden="true"></i> Booth Staff</button>
+        <button class="sidebar-link" type="button" data-section="payments"><i class="fa-solid fa-receipt" aria-hidden="true"></i> Payments</button>
+        <button class="sidebar-link" type="button" data-section="sales"><i class="fa-solid fa-chart-column" aria-hidden="true"></i> Sales Report</button>
+        <button class="sidebar-link" type="button" data-section="logs"><i class="fa-solid fa-file-shield" aria-hidden="true"></i> Admin Audit Logs</button>
+        <button class="sidebar-link" type="button" data-section="feedback"><i class="fa-solid fa-inbox" aria-hidden="true"></i> Feedback / Concerns</button>
+        <button class="sidebar-link" type="button" data-section="notifications"><i class="fa-solid fa-bell" aria-hidden="true"></i> Notifications</button>
+        <button class="sidebar-link" type="button" data-section="settings"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Settings</button>
       </nav>
 
       <div class="sidebar-footer">
-        <button class="logout-btn" id="admin-logout-btn" type="button">Logout</button>
+        <button class="logout-btn" id="admin-logout-btn" type="button"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i> Logout</button>
       </div>
     </aside>
 
     <section class="admin-workspace">
-      <a class="workspace-logo" href="./index.html" aria-label="SNDRA Park home">
-        <img src="../assets/icons/logo.jpg" alt="SNDRA Park logo">
-      </a>
+      <div class="workspace-logo">
+        <img src="../../assets/images/brand-mark.png" alt="SNDRA Park logo">
+      </div>
 
       <header class="workspace-header">
         <div>
@@ -109,6 +115,169 @@
           </article>
         </div>
 
+        <div class="analytics-grid" aria-label="Admin analytics overview">
+          <section class="panel-card chart-card" id="status-mix-card">
+            <div class="chart-heading">
+              <div class="chart-heading-row">
+                <div>
+                  <p class="section-kicker">Reservation Outcomes</p>
+                  <h3>Where reservations end up</h3>
+                </div>
+                <div class="chart-kpi">
+                  <strong id="no-show-rate">0%</strong>
+                  <span id="no-show-detail">No-show rate</span>
+                </div>
+              </div>
+              <p class="chart-sub">Every reservation on record, grouped by how it finished.</p>
+            </div>
+
+            <div class="donut-layout">
+              <figure class="donut-figure">
+                <svg class="donut-svg" viewBox="0 0 180 180" role="img" aria-labelledby="donut-title">
+                  <title id="donut-title">Reservation outcome distribution</title>
+                  <g id="donut-segments" transform="rotate(-90 90 90)"></g>
+                </svg>
+                <figcaption class="donut-center">
+                  <strong id="donut-total">0</strong>
+                  <span>Reservations</span>
+                </figcaption>
+              </figure>
+
+              <ul class="donut-legend" id="donut-legend"></ul>
+            </div>
+
+            <details class="chart-table">
+              <summary>View as table</summary>
+              <table class="admin-table compact-table">
+                <thead><tr><th>Outcome</th><th>Reservations</th><th>Share</th></tr></thead>
+                <tbody id="donut-table-body"></tbody>
+              </table>
+            </details>
+          </section>
+
+          <section class="panel-card chart-card" id="monthly-sales-card">
+            <div class="chart-heading">
+              <div class="chart-heading-row">
+                <div>
+                  <p class="section-kicker">Revenue</p>
+                  <h3>Collected per month</h3>
+                </div>
+                <div class="chart-kpi">
+                  <strong id="sales-total">PHP 0.00</strong>
+                  <span id="sales-delta">Last 12 months</span>
+                  <span id="sales-average">Average ticket PHP 0.00</span>
+                </div>
+              </div>
+              <p class="chart-sub">Payments confirmed at the booth, by the month they were settled.</p>
+            </div>
+
+            <figure class="sales-figure">
+              <svg class="sales-svg" viewBox="0 0 660 260" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="sales-title">
+                <title id="sales-title">Revenue collected per month over the last twelve months</title>
+                <g id="sales-grid"></g>
+                <g id="sales-columns"></g>
+                <g id="sales-axis"></g>
+              </svg>
+            </figure>
+
+            <details class="chart-table">
+              <summary>View as table</summary>
+              <table class="admin-table compact-table">
+                <thead><tr><th>Month</th><th>Transactions</th><th>Revenue</th></tr></thead>
+                <tbody id="sales-table-body"></tbody>
+              </table>
+            </details>
+          </section>
+        </div>
+
+        <div class="analytics-grid analytics-grid-wide" aria-label="Demand analytics">
+          <section class="panel-card chart-card" id="peak-hours-card">
+            <div class="chart-heading">
+              <div class="chart-heading-row">
+                <div>
+                  <p class="section-kicker">Demand Pattern</p>
+                  <h3>Busiest booking hours</h3>
+                </div>
+                <div class="chart-kpi">
+                  <strong id="peak-hour-value">--</strong>
+                  <span id="peak-hour-detail">Peak arrival hour</span>
+                </div>
+              </div>
+              <p class="chart-sub">Reservations grouped by the arrival hour drivers chose.</p>
+            </div>
+
+            <figure class="sales-figure">
+              <svg class="sales-svg" viewBox="0 0 660 220" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="hours-title">
+                <title id="hours-title">Reservations by arrival hour across the day</title>
+                <g id="hours-grid"></g>
+                <g id="hours-columns"></g>
+                <g id="hours-axis"></g>
+              </svg>
+            </figure>
+
+            <details class="chart-table">
+              <summary>View as table</summary>
+              <table class="admin-table compact-table">
+                <thead><tr><th>Hour</th><th>Reservations</th><th>Within opening hours</th></tr></thead>
+                <tbody id="hours-table-body"></tbody>
+              </table>
+            </details>
+          </section>
+
+          <section class="panel-card chart-card" id="floor-demand-card">
+            <div class="chart-heading">
+              <div class="chart-heading-row">
+                <div>
+                  <p class="section-kicker">Floor Demand</p>
+                  <h3>Where drivers park</h3>
+                </div>
+                <div class="chart-kpi">
+                  <strong id="top-floor-value">--</strong>
+                  <span id="top-floor-detail">Most requested</span>
+                </div>
+              </div>
+              <p class="chart-sub">Share of all reservations taken by each parking floor.</p>
+            </div>
+
+            <ul class="hbar-list" id="floor-demand-list"></ul>
+
+            <details class="chart-table">
+              <summary>View as table</summary>
+              <table class="admin-table compact-table">
+                <thead><tr><th>Floor</th><th>Reservations</th><th>Share</th></tr></thead>
+                <tbody id="floor-table-body"></tbody>
+              </table>
+            </details>
+          </section>
+        </div>
+
+        <div class="modal-backdrop" id="floor-reason-modal" aria-hidden="true">
+          <div class="modal-card modal-card-confirm">
+            <div class="modal-header">
+              <div>
+                <p class="section-kicker">Close Floor</p>
+                <h2 class="section-title" id="floor-reason-title">Why is this floor unavailable?</h2>
+              </div>
+              <button class="modal-close" type="button" data-close-floor-reason aria-label="Cancel">&times;</button>
+            </div>
+            <div class="confirm-copy">
+              <p>Drivers see this message when they tap any slot on this floor, so write it for them.</p>
+              <div class="field-group">
+                <label for="floor-reason-input">Reason</label>
+                <textarea id="floor-reason-input" rows="3" maxlength="255"
+                  placeholder="Example: Closed for floor resurfacing until Monday."></textarea>
+                <p class="field-error" id="floor-reason-error"></p>
+              </div>
+            </div>
+            <div class="modal-actions">
+              <button class="action-btn action-btn-secondary" type="button" data-close-floor-reason><span>Cancel</span></button>
+              <button class="action-btn action-btn-primary" id="floor-reason-confirm" type="button"><span>Close Floor</span></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-tooltip" id="chart-tooltip" role="status" aria-live="polite" hidden></div>
+
         <section class="panel-card">
           <div class="panel-heading with-tools">
             <div>
@@ -137,6 +306,7 @@
               </tbody>
             </table>
           </div>
+          <p class="table-more"><button class="link-button" type="button" data-jump-section="reservations">View all reservations</button></p>
         </section>
 
         <section class="panel-card">
@@ -165,6 +335,7 @@
               </tbody>
             </table>
           </div>
+          <p class="table-more"><button class="link-button" type="button" data-jump-section="reservations">View the full reservation log</button></p>
         </section>
       </section>
 
@@ -193,15 +364,17 @@
           </div>
         </section>
 
-        <div class="slots-control-grid">
-          <section class="panel-card form-panel-card">
-            <div class="panel-heading">
-              <div>
-                <p class="section-kicker">New Floor</p>
-                <h3>Add parking floor</h3>
-              </div>
+        <section class="panel-card setup-card">
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">Floor &amp; Slot Setup</p>
+              <h3>Add a floor, then its slots</h3>
             </div>
-            <form id="floor-form" class="admin-form">
+          </div>
+
+          <form id="floor-form" class="admin-form setup-form">
+            <p class="setup-step-label">Step 1 &middot; New floor</p>
+            <div class="setup-row setup-row-floor">
               <div class="field-group">
                 <label for="floor-name">Floor Name</label>
                 <input id="floor-name" name="floor_name" type="text" placeholder="Example: 6th Floor">
@@ -211,30 +384,72 @@
                 <input id="floor-label" name="floor_label" type="text" placeholder="Optional label">
               </div>
               <button class="primary-btn" type="submit">Add Floor</button>
-            </form>
-          </section>
+            </div>
+          </form>
 
-          <section class="panel-card form-panel-card">
-            <div class="panel-heading with-tools">
-              <div>
-                <p class="section-kicker">New Slot</p>
-                <h3>Add parking slot</h3>
-              </div>
+          <form id="slot-form" class="admin-form setup-form setup-form-divided">
+            <div class="setup-step-head">
+              <p class="setup-step-label">Step 2 &middot; New slots</p>
               <p class="header-copy" id="slot-form-floor-copy">Select a floor card below to target a floor quickly.</p>
             </div>
-            <form id="slot-form" class="admin-form">
+
+            <div class="setup-row setup-row-slot">
               <div class="field-group">
                 <label for="slot-floor">Select Floor</label>
                 <select id="slot-floor" name="floor_id"></select>
               </div>
               <div class="field-group">
-                <label for="slot-code">Slot Code</label>
-                <input id="slot-code" name="slot_code" type="text" placeholder="Example: F1">
+                <label for="slot-code">Single Slot Code</label>
+                <input id="slot-code" name="slot_code" type="text" placeholder="Example: F1-S1">
               </div>
-              <button class="primary-btn" type="submit">Add Slot</button>
-            </form>
-          </section>
-        </div>
+              <div class="field-group">
+                <label for="slot-start-number">Start Number</label>
+                <input id="slot-start-number" name="start_number" type="number" min="1" value="1" placeholder="1">
+              </div>
+              <div class="field-group">
+                <label for="slot-total">Auto-Generate Count</label>
+                <input id="slot-total" name="total_slots" type="number" min="0" max="100" value="0" placeholder="10">
+              </div>
+            </div>
+
+            <p class="field-helper">Use the slot code for one custom slot, or a generate count for a batch. Recommended format is F1-S1, F1-S2, F2-S1.</p>
+
+            <div class="setup-foot">
+              <div class="slot-preview-panel" id="slot-preview-panel" hidden>
+                <span>Preview</span>
+                <strong id="slot-preview-title">No slots to preview</strong>
+                <p id="slot-preview-copy">Select a floor and enter a slot code or generation count.</p>
+              </div>
+              <button class="primary-btn" type="submit">Save Slot Setup</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel-card slot-guide-card">
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">Admin Guide</p>
+              <h3>Slot naming and generation</h3>
+            </div>
+          </div>
+          <div class="slot-guide-grid">
+            <article>
+              <span>Recommended Format</span>
+              <strong>F1-S1, F1-S2, F2-S1</strong>
+              <p>Use F for floor and S for slot number. The system sorts numeric parts properly, so F1-S10 appears after F1-S9.</p>
+            </article>
+            <article>
+              <span>Existing Format</span>
+              <strong>L1, L2, L10</strong>
+              <p>Older labels still work and now sort naturally instead of text sorting as L1, L10, L2.</p>
+            </article>
+            <article>
+              <span>Bulk Creation</span>
+              <strong>Use 10 to create F1-S1 to F1-S10</strong>
+              <p>Recommended maximum is 100 slots per generation so the floor stays easy to review.</p>
+            </article>
+          </div>
+        </section>
 
         <section class="panel-card browser-panel-card">
           <div class="panel-heading with-tools browser-panel-heading">
@@ -321,6 +536,13 @@
                 </select>
               </div>
 
+              <div class="field-group" id="slot-editor-reason-group" hidden>
+                <label for="slot-editor-reason">Reason it is unavailable</label>
+                <textarea id="slot-editor-reason" name="unavailable_reason" rows="2" maxlength="255"
+                  placeholder="Example: Under repair until Friday."></textarea>
+                <p class="field-helper">Drivers see this word for word when they tap the slot.</p>
+              </div>
+
               <div class="editor-actions">
                 <button class="secondary-btn" id="slot-editor-clear-btn" type="button">Clear Selection</button>
                 <button class="primary-btn" type="submit">Save Slot</button>
@@ -387,11 +609,20 @@
 
       <section class="admin-section" id="section-users">
         <section class="panel-card">
-          <div class="panel-heading">
+          <div class="panel-heading with-tools">
             <div>
               <p class="section-kicker">Users</p>
               <h3>Registered user accounts</h3>
             </div>
+            <form class="toolbar-form" id="users-filter-form">
+              <input id="users-search" name="search" type="search" placeholder="Search by name or email">
+              <select id="users-status-filter" name="status">
+                <option value="">All Statuses</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+              <button class="primary-btn" type="button" id="add-user-btn">+ Add User</button>
+            </form>
           </div>
           <div class="table-shell">
             <table class="admin-table users-admin-table">
@@ -431,52 +662,41 @@
             <div class="panel-heading">
               <div>
                 <p class="section-kicker">Booth Staff</p>
-                <h3>Create staff account</h3>
+                <h3>Create teller PIN</h3>
               </div>
             </div>
             <form class="admin-form" id="staff-form">
               <div class="field-group">
-                <label for="staff-full-name">Name</label>
-                <input id="staff-full-name" name="full_name" type="text" placeholder="Full name">
+                <label for="staff-teller-name">Teller Name</label>
+                <input id="staff-teller-name" name="teller_name" type="text" placeholder="Full name">
               </div>
               <div class="field-group">
-                <label for="staff-username">Username</label>
-                <input id="staff-username" name="username" type="text" placeholder="Username">
+                <label for="staff-teller-details">Details</label>
+                <input id="staff-teller-details" name="teller_details" type="text" placeholder="Booth assignment or note">
               </div>
               <div class="field-group">
-                <label for="staff-email">Email</label>
-                <input id="staff-email" name="email" type="email" placeholder="Email address">
+                <label for="staff-pin">PIN Code</label>
+                <input id="staff-pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="4 digits">
               </div>
-              <div class="field-group">
-                <label for="staff-password">Password</label>
-                <input id="staff-password" name="password" type="text" placeholder="Create password">
-              </div>
-              <div class="field-group">
-                <label for="staff-role">Role</label>
-                <select id="staff-role" name="role">
-                  <option value="booth">Booth</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-              <button class="primary-btn" type="submit">Create Staff Account</button>
+              <button class="primary-btn" type="submit">Create Teller PIN</button>
             </form>
           </section>
 
           <section class="panel-card">
             <div class="panel-heading">
               <div>
-                <p class="section-kicker">Staff List</p>
-                <h3>Booth and admin accounts</h3>
+                <p class="section-kicker">PIN Accounts</p>
+                <h3>Booth teller access</h3>
               </div>
             </div>
             <div class="table-shell">
               <table class="admin-table">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Username</th>
-                    <th>Email</th>
-                    <th>Role</th>
+                    <th>Teller</th>
+                    <th>Details</th>
+                    <th>Last Login</th>
+                    <th>Created</th>
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
@@ -527,6 +747,159 @@
               </thead>
               <tbody id="payments-table-body">
                 <tr><td colspan="6" class="empty-table">No payment records available.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="admin-section" id="section-sales">
+        <div class="stats-grid sales-stat-grid">
+          <article class="stat-card">
+            <span>Sales Today</span>
+            <strong id="sales-today-total">PHP 0.00</strong>
+            <p id="sales-today-detail">Payments settled at the booth today.</p>
+          </article>
+          <article class="stat-card">
+            <span id="sales-month-label">Sales This Month</span>
+            <strong id="sales-month-total">PHP 0.00</strong>
+            <p id="sales-month-detail">Month-to-date collections.</p>
+          </article>
+          <article class="stat-card">
+            <span id="sales-year-label">Sales This Year</span>
+            <strong id="sales-year-total">PHP 0.00</strong>
+            <p id="sales-year-detail">Year-to-date collections.</p>
+          </article>
+          <article class="stat-card">
+            <span>All-Time Sales</span>
+            <strong id="sales-lifetime-total">PHP 0.00</strong>
+            <p id="sales-lifetime-detail">Every payment on record.</p>
+          </article>
+          <article class="stat-card">
+            <span>Uncollected</span>
+            <strong id="sales-outstanding-total">PHP 0.00</strong>
+            <p id="sales-outstanding-detail">Vehicles already out with payment still pending.</p>
+          </article>
+        </div>
+
+        <section class="panel-card chart-card" id="sales-report-card">
+          <div class="chart-heading">
+            <div class="chart-heading-row">
+              <div>
+                <p class="section-kicker">Sales Summary</p>
+                <h3 id="sales-report-title">Collected per month</h3>
+              </div>
+              <div class="chart-kpi">
+                <strong id="sales-report-total">PHP 0.00</strong>
+                <span id="sales-report-range">--</span>
+                <span id="sales-report-trend">--</span>
+              </div>
+            </div>
+            <p class="chart-sub" id="sales-report-sub">Payments confirmed at the booth, grouped by the period they were settled in.</p>
+            <div class="chart-toolbar">
+              <div class="segmented-control" role="group" aria-label="Group sales by">
+                <button class="segmented-option" type="button" data-granularity="day">Daily</button>
+                <button class="segmented-option is-active" type="button" data-granularity="month" aria-pressed="true">Monthly</button>
+                <button class="segmented-option" type="button" data-granularity="year">Yearly</button>
+              </div>
+              <button class="secondary-btn" type="button" id="sales-export-btn"><i class="fa-solid fa-file-csv" aria-hidden="true"></i> Download CSV</button>
+            </div>
+          </div>
+
+          <figure class="sales-figure">
+            <svg class="sales-svg" viewBox="0 0 660 260" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="sales-report-chart-title">
+              <title id="sales-report-chart-title">Sales collected per period</title>
+              <g id="sales-report-grid"></g>
+              <g id="sales-report-columns"></g>
+              <g id="sales-report-axis"></g>
+            </svg>
+          </figure>
+        </section>
+
+        <section class="panel-card" id="sales-operations-card">
+          <div class="panel-heading with-tools">
+            <div>
+              <p class="section-kicker">Operations</p>
+              <h3>How the lot performed</h3>
+            </div>
+            <div class="panel-chip-row">
+              <span class="panel-chip" id="ops-window-chip">This window</span>
+            </div>
+          </div>
+
+          <div class="ops-metric-grid">
+            <article class="ops-metric">
+              <span>Average Stay</span>
+              <strong id="ops-average-dwell">0.0 h</strong>
+              <p id="ops-dwell-detail">Across completed stays.</p>
+            </article>
+            <article class="ops-metric">
+              <span>Slot Coverage</span>
+              <strong id="ops-slot-coverage">0%</strong>
+              <p id="ops-coverage-detail">Slots that earned money at least once.</p>
+            </article>
+            <article class="ops-metric">
+              <span>Turns per Slot</span>
+              <strong id="ops-turns">0.0</strong>
+              <p id="ops-turns-detail">Completed stays per slot used.</p>
+            </article>
+            <article class="ops-metric">
+              <span>Walk-ins</span>
+              <strong id="ops-walkin-share">0%</strong>
+              <p id="ops-walkin-detail">Share of stays issued at the booth.</p>
+            </article>
+            <article class="ops-metric">
+              <span>No-Shows</span>
+              <strong id="ops-noshow-rate">0%</strong>
+              <p id="ops-noshow-detail">Bookings that expired unscanned.</p>
+            </article>
+          </div>
+
+          <div class="ops-table-pair">
+            <div class="table-shell">
+              <table class="admin-table compact-table">
+                <thead><tr><th>Floor</th><th>Transactions</th><th>Sales</th></tr></thead>
+                <tbody id="ops-floor-body">
+                  <tr><td colspan="3" class="empty-table">No sales in this window.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="table-shell">
+              <table class="admin-table compact-table">
+                <thead><tr><th>Payment Method</th><th>Transactions</th><th>Sales</th></tr></thead>
+                <tbody id="ops-method-body">
+                  <tr><td colspan="3" class="empty-table">No payments in this window.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-card">
+          <div class="panel-heading with-tools">
+            <div>
+              <p class="section-kicker">Breakdown</p>
+              <h3 id="sales-breakdown-title">Month by month</h3>
+            </div>
+            <div class="panel-chip-row">
+              <span class="panel-chip" id="sales-breakdown-count">0 periods</span>
+              <span class="panel-chip" id="sales-breakdown-best">Best period --</span>
+            </div>
+          </div>
+          <div class="table-shell">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Period</th>
+                  <th>Transactions</th>
+                  <th>Sales</th>
+                  <th>Average Ticket</th>
+                  <th>Share</th>
+                  <th>Change</th>
+                </tr>
+              </thead>
+              <tbody id="sales-breakdown-body">
+                <tr><td colspan="6" class="empty-table">No sales recorded for this period.</td></tr>
               </tbody>
             </table>
           </div>
@@ -622,31 +995,143 @@
           <div class="panel-heading">
             <div>
               <p class="section-kicker">System Settings</p>
-              <h3>Update contact and pricing details</h3>
+              <h3>Contact, pricing, hours and no-show policy</h3>
             </div>
           </div>
           <form class="admin-form settings-form" id="settings-form">
-            <div class="field-group">
-              <label for="setting-system-name">System Name</label>
-              <input id="setting-system-name" name="system_name" type="text">
-            </div>
-            <div class="field-group">
-              <label for="setting-contact-number">Contact Number</label>
-              <input id="setting-contact-number" name="contact_number" type="text">
-            </div>
-            <div class="field-group">
-              <label for="setting-gmail-address">Gmail Address</label>
-              <input id="setting-gmail-address" name="gmail_address" type="email">
-            </div>
-            <div class="field-group">
-              <label for="setting-base-rate">Parking Base Rate</label>
-              <input id="setting-base-rate" name="parking_base_rate" type="number" step="0.01" min="0">
-            </div>
-            <div class="field-group">
-              <label for="setting-extra-rate">Extra Hourly Rate</label>
-              <input id="setting-extra-rate" name="extra_hourly_rate" type="number" step="0.01" min="0">
-            </div>
-            <button class="primary-btn" type="submit">Save Settings</button>
+            <fieldset class="settings-fieldset">
+              <legend>Identity</legend>
+              <div class="settings-grid">
+                <div class="field-group">
+                  <label for="setting-system-name">System Name</label>
+                  <input id="setting-system-name" name="system_name" type="text">
+                </div>
+                <div class="field-group">
+                  <label for="setting-contact-number">Contact Number</label>
+                  <input id="setting-contact-number" name="contact_number" type="text">
+                </div>
+                <div class="field-group">
+                  <label for="setting-gmail-address">Support Email</label>
+                  <input id="setting-gmail-address" name="gmail_address" type="email">
+                </div>
+              </div>
+            </fieldset>
+
+            <fieldset class="settings-fieldset">
+              <legend>Pricing</legend>
+              <p class="settings-hint">The base rate covers the included hours. Every hour after that adds the extra hourly rate, then the vehicle multiplier applies to the whole fee.</p>
+              <div class="settings-grid">
+                <div class="field-group">
+                  <label for="setting-base-rate">Base Rate (PHP)</label>
+                  <input id="setting-base-rate" name="parking_base_rate" type="number" step="0.01" min="0">
+                </div>
+                <div class="field-group">
+                  <label for="setting-included-hours">Hours Included in Base</label>
+                  <input id="setting-included-hours" name="base_included_hours" type="number" step="0.5" min="0" max="24">
+                </div>
+                <div class="field-group">
+                  <label for="setting-extra-rate">Extra Hourly Rate (PHP)</label>
+                  <input id="setting-extra-rate" name="extra_hourly_rate" type="number" step="0.01" min="0">
+                </div>
+                <div class="field-group">
+                  <label for="setting-multiplier-motorcycle">Motorcycle Multiplier</label>
+                  <input id="setting-multiplier-motorcycle" name="rate_multiplier_motorcycle" type="number" step="0.05" min="0" max="20">
+                </div>
+                <div class="field-group">
+                  <label for="setting-multiplier-car">Car Multiplier</label>
+                  <input id="setting-multiplier-car" name="rate_multiplier_car" type="number" step="0.05" min="0" max="20">
+                </div>
+                <div class="field-group">
+                  <label for="setting-multiplier-suv">SUV / Van Multiplier</label>
+                  <input id="setting-multiplier-suv" name="rate_multiplier_suv" type="number" step="0.05" min="0" max="20">
+                </div>
+                <div class="field-group">
+                  <label for="setting-multiplier-truck">Truck Multiplier</label>
+                  <input id="setting-multiplier-truck" name="rate_multiplier_truck" type="number" step="0.05" min="0" max="20">
+                </div>
+                <div class="field-group">
+                  <label for="setting-statutory-discount">Senior / PWD Discount (%)</label>
+                  <input id="setting-statutory-discount" name="statutory_discount_percent" type="number" step="1" min="0" max="100">
+                </div>
+              </div>
+            </fieldset>
+
+            <fieldset class="settings-fieldset">
+              <legend>Night Rate</legend>
+              <p class="settings-hint">A stay that begins inside this band is surcharged. Set the surcharge to 0 to switch the band off.</p>
+              <div class="settings-grid">
+                <div class="field-group">
+                  <label for="setting-night-start">Band Starts</label>
+                  <input id="setting-night-start" name="night_rate_start" type="time">
+                </div>
+                <div class="field-group">
+                  <label for="setting-night-end">Band Ends</label>
+                  <input id="setting-night-end" name="night_rate_end" type="time">
+                </div>
+                <div class="field-group">
+                  <label for="setting-night-surcharge">Surcharge (%)</label>
+                  <input id="setting-night-surcharge" name="night_rate_surcharge_percent" type="number" step="1" min="0" max="300">
+                </div>
+              </div>
+            </fieldset>
+
+            <fieldset class="settings-fieldset">
+              <legend>Operating Hours</legend>
+              <div class="settings-grid">
+                <div class="field-group">
+                  <label for="setting-opening-time">Opens</label>
+                  <input id="setting-opening-time" name="parking_opening_time" type="time">
+                </div>
+                <div class="field-group">
+                  <label for="setting-closing-time">Closes</label>
+                  <input id="setting-closing-time" name="parking_closing_time" type="time">
+                </div>
+                <div class="field-group">
+                  <label for="setting-same-day-cutoff">Same-Day Booking Cutoff</label>
+                  <input id="setting-same-day-cutoff" name="parking_same_day_cutoff" type="time">
+                </div>
+              </div>
+            </fieldset>
+
+            <fieldset class="settings-fieldset">
+              <legend>No-Show Policy</legend>
+              <p class="settings-hint">The grace period runs from the driver's booked arrival time. When it passes, the slot is released and the booking costs one warning.</p>
+              <div class="settings-grid">
+                <div class="field-group">
+                  <label for="setting-grace-minutes">Grace Period (minutes)</label>
+                  <input id="setting-grace-minutes" name="reservation_grace_minutes" type="number" step="1" min="5" max="720">
+                </div>
+                <div class="field-group">
+                  <label for="setting-reminder-minutes">Remind Before Expiry (minutes)</label>
+                  <input id="setting-reminder-minutes" name="reservation_reminder_minutes" type="number" step="1" min="0" max="240">
+                </div>
+                <div class="field-group">
+                  <label for="setting-warning-allowance">Warnings Before Lock</label>
+                  <input id="setting-warning-allowance" name="reservation_warning_allowance" type="number" step="1" min="1" max="20">
+                </div>
+                <div class="field-group">
+                  <label for="setting-warning-window">Warning Window (days)</label>
+                  <input id="setting-warning-window" name="reservation_warning_window_days" type="number" step="1" min="1" max="365">
+                </div>
+                <div class="field-group">
+                  <label for="setting-notify-email">Email Notifications</label>
+                  <select id="setting-notify-email" name="notify_email_enabled">
+                    <option value="1">On</option>
+                    <option value="0">Off</option>
+                  </select>
+                </div>
+                <div class="field-group">
+                  <label for="setting-admin-2fa">Admin Sign-In Code (2FA)</label>
+                  <select id="setting-admin-2fa" name="admin_2fa_enabled">
+                    <option value="1">On</option>
+                    <option value="0">Off</option>
+                  </select>
+                </div>
+              </div>
+            </fieldset>
+
+            <p class="admin-status" id="settings-form-status" aria-live="polite" hidden></p>
+            <button class="primary-btn" type="submit" disabled>Save Settings</button>
           </form>
         </section>
       </section>
@@ -755,6 +1240,7 @@
             </div>
 
             <div class="feedback-modal-actions">
+              <button class="secondary-btn" id="feedback-modal-approve-appeal-btn" type="button" hidden>Approve Appeal &amp; Unlock</button>
               <button class="secondary-btn" id="feedback-modal-resolve-btn" type="button">Mark Resolved</button>
               <button class="primary-btn" type="submit">Send Reply</button>
             </div>
@@ -764,9 +1250,9 @@
     </div>
   </div>
 
-  <script src="../../assets/js/runtime-config.js"></script>
-  <script src="../../assets/js/system-settings.js?v=20260331-1"></script>
-  <script src="../js/admin-dashboard.js?v=20260402-1"></script>
+  <script src="../../assets/js/runtime-config.js?v=20260830-attrib1"></script>
+  <script src="../../assets/js/system-settings.js?v=20260829-title1"></script>
+  <script src="../js/admin-dashboard.js?v=20260901-ops1"></script>
 </body>
 </html>
 

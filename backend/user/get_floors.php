@@ -12,7 +12,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
 
 try {
     $connection = booth_db();
-    $floors = parking_get_floors($connection, true);
+    // Closed floors are returned too, flagged inactive, so the dashboard can
+    // show them greyed out and explain why rather than silently hiding them.
+    $floors = parking_get_floors($connection, false);
 
     booth_success('Parking floors loaded successfully.', [
         'floors' => $floors

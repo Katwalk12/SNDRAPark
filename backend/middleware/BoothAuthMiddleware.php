@@ -59,6 +59,38 @@ class BoothAuthMiddleware
 
         try {
             $connection = Database::connection();
+            $accountType = (string) ($session['accountType'] ?? '');
+
+            if ($accountType === 'booth_teller_pin') {
+                $stmt = $connection->prepare("
+                    SELECT id, teller_name, teller_details, is_active
+                    FROM booth_teller_accounts
+                    WHERE id = ?
+                    LIMIT 1
+                ");
+                $stmt->bind_param('i', $staffId);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $teller = $result->fetch_assoc();
+                $stmt->close();
+
+                if (!$teller || (int) ($teller['is_active'] ?? 0) !== 1) {
+                    throw new RuntimeException('Invalid booth session.', 401);
+                }
+
+                if ($requiredPermission && !self::hasBoothPermission('booth', $requiredPermission)) {
+                    throw new RuntimeException('Insufficient booth permissions.', 403);
+                }
+
+                return [
+                    'id' => (int) $teller['id'],
+                    'email' => '',
+                    'full_name' => (string) ($teller['teller_name'] ?? 'Booth Teller'),
+                    'role' => 'booth',
+                    'booth_location' => (string) ($teller['teller_details'] ?? '')
+                ];
+            }
+
             $stmt = $connection->prepare("
                 SELECT id, email, full_name, role, is_active
                 FROM staff_accounts

@@ -6,9 +6,12 @@ require_once __DIR__ . '/../middleware/RBACMiddleware.php';
 require_once __DIR__ . '/../middleware/RateLimiter.php';
 require_once __DIR__ . '/../middleware/AuditLogger.php';
 require_once __DIR__ . '/../models/User.php';
+require_once __DIR__ . '/../models/Vehicle.php';
 require_once __DIR__ . '/../common/reservation-security.php';
 require_once __DIR__ . '/../utils/ResponseHelper.php';
 require_once __DIR__ . '/../utils/SessionManager.php';
+require_once __DIR__ . '/../utils/PasswordPolicy.php';
+require_once __DIR__ . '/../utils/LoginThrottle.php';
 
 class AuthController
 {
@@ -35,7 +38,7 @@ class AuthController
             throw new InvalidArgumentException('Password is required.', 422);
         }
 
-        if (strlen($password) > 128) {
+        if (strlen($password) > PasswordPolicy::MAX_LENGTH) {
             throw new InvalidArgumentException('Password is too long.', 422);
         }
 
@@ -47,32 +50,87 @@ class AuthController
                     'ip_address' => $ip,
                     'email' => $email
                 ]);
-            throw new RuntimeException('Too many login attempts. Please try again later.', 429);
+            throw new RuntimeException('Too many login attempts from this device. Please try again later.', 429);
         }
 
         // Find user
         $user = $this->userModel->findByEmail($email);
 
-        if (!$user || !password_verify($password, $user['password_hash'])) {
-            // Record failed attempt (rate limiter automatically records on check)
+        if (!$user) {
             AuditLogger::log('login_failed', 'auth', 'warning',
                 'Login failed - invalid credentials', [
                     'email' => $email,
                     'ip_address' => $ip,
                     'reason' => 'invalid_credentials'
                 ]);
-            throw new RuntimeException('Invalid email or password.', 401);
+            throw new RuntimeException('Invalid username or password.', 401);
         }
 
-        // Check if account is locked
-        if (isset($user['account_locked_until']) && strtotime($user['account_locked_until']) > time()) {
+        // Strategy A: Block manual login for accounts provisioned via Google with no password set.
+        // Detect Google-linked account when `google_id` exists and `password_hash` is empty.
+        $googleId = isset($user['google_id']) ? trim((string) $user['google_id']) : '';
+        $passwordHash = isset($user['password_hash']) ? (string) $user['password_hash'] : '';
+
+        if ($passwordHash === '' && $googleId !== '') {
+            AuditLogger::log('login_blocked_google_account', 'auth', 'warning',
+                'Manual login blocked - account registered via Google', [
+                    'email' => $email,
+                    'user_id' => $user['id'] ?? null,
+                    'ip_address' => $ip
+                ]);
+
+            ResponseHelper::json([
+                'success' => false,
+                'message' => "This account was registered via Google. Please click 'Continue with Google' to log in."
+            ], 403);
+
+            return;
+        }
+
+        // Too many unsuccessful attempts? Refuse before even looking at the password.
+        $lockState = LoginThrottle::lockState($user);
+
+        if ($lockState['locked']) {
+            AuditLogger::log('login_locked_out', 'auth', 'warning',
+                'Login attempt while temporarily locked out', [
+                    'user_id' => $user['id'],
+                    'email' => $email,
+                    'ip_address' => $ip,
+                    'minutes_remaining' => $lockState['minutes_remaining']
+                ]);
+            throw new RuntimeException($lockState['message'], 423);
+        }
+
+        // Verify provided password against stored hash (safe because hash is non-empty here)
+        if (!password_verify($password, $passwordHash)) {
+            $failure = LoginThrottle::registerFailure((int) $user['id'], $user);
+
+            AuditLogger::log($failure['locked'] ? 'account_locked' : 'login_failed', 'auth', 'warning',
+                $failure['locked']
+                    ? 'Account temporarily locked after too many failed logins'
+                    : 'Login failed - invalid credentials', [
+                    'user_id' => $user['id'],
+                    'email' => $email,
+                    'ip_address' => $ip,
+                    'failed_attempts' => $failure['attempts'],
+                    'reason' => 'invalid_credentials'
+                ]);
+
+            throw new RuntimeException($failure['message'], $failure['locked'] ? 423 : 401);
+        }
+
+        // Successful password check clears the failed attempt streak.
+        LoginThrottle::clearFailures((int) $user['id']);
+
+        // Check if account is locked by an administrator / reservation violations
+        if (isset($user['account_locked_until']) && strtotime((string) $user['account_locked_until']) > time()) {
             AuditLogger::log('account_locked_login_attempt', 'auth', 'warning',
                 'Login attempt on locked account', [
                     'user_id' => $user['id'],
                     'email' => $email,
                     'ip_address' => $ip
                 ]);
-            throw new RuntimeException('Account is temporarily locked. Please try again later.', 423);
+            throw new RuntimeException('Account is temporarily locked. Please try again later or contact the system administrator.', 423);
         }
 
         // Validate user can login (existing business logic)
@@ -94,10 +152,12 @@ class AuthController
             ]);
 
         $sessionData = SessionManager::getSessionData();
+        $passwordStatus = PasswordPolicy::expiryStatus($user['password_changed_at'] ?? null);
         $responseData = [
             'user' => $this->sanitizeUser($user),
             'session' => $sessionData,
             'role' => $sessionData['user_role'] ?? 'user',
+            'password_status' => $passwordStatus,
             'redirect' => 'user-dashboard.html'
         ];
 
@@ -108,6 +168,8 @@ class AuthController
             'role' => $sessionData['user_role'] ?? 'user',
             'user' => $this->sanitizeUser($user),
             'session' => $sessionData,
+            'password_status' => $passwordStatus,
+            'notice' => $passwordStatus['message'],
             'data' => $responseData
         ]);
     }
@@ -135,13 +197,18 @@ class AuthController
 
         // Create user
         $userId = $this->userModel->create([
-            'email' => $validatedData['email'],
-            'password_hash' => password_hash($validatedData['password'], PASSWORD_DEFAULT),
-            'first_name' => $validatedData['first_name'] ?? null,
-            'last_name' => $validatedData['last_name'] ?? null,
-            'full_name' => trim(($validatedData['first_name'] ?? '') . ' ' . ($validatedData['last_name'] ?? '')),
-            'birth_date' => $validatedData['birth_date'] ?? null,
-            'role' => 'user' // Default role
+            'email'          => $validatedData['email'],
+            'password_hash'  => password_hash($validatedData['password'], PASSWORD_DEFAULT),
+            'first_name'     => $validatedData['first_name'] ?? null,
+            'last_name'      => $validatedData['last_name'] ?? null,
+            'full_name'      => trim(($validatedData['first_name'] ?? '') . ' ' . ($validatedData['last_name'] ?? '')),
+            'birth_date'     => $validatedData['birth_date'] ?? null,
+            'vehicle_type'   => $validatedData['vehicle_type'] ?? null,
+            'plate_number'   => $validatedData['plate_number'] ?? null,
+            'vehicle_brand'  => $validatedData['vehicle_brand'] ?? null,
+            'vehicle_model'  => $validatedData['vehicle_model'] ?? null,
+            'vehicle_color'  => $validatedData['vehicle_color'] ?? null,
+            'role'           => 'user'
         ]);
 
         if (!$userId) {
@@ -153,6 +220,15 @@ class AuthController
                 ]);
             throw new RuntimeException('Registration failed.', 500);
         }
+
+        $vehicleModel = new Vehicle();
+        $vehicleModel->create($userId, [
+            'vehicle_type' => $validatedData['vehicle_type'],
+            'plate_number' => $validatedData['plate_number'],
+            'brand' => $validatedData['vehicle_brand'] ?? '',
+            'model' => $validatedData['vehicle_model'] ?? '',
+            'color' => $validatedData['vehicle_color'] ?? ''
+        ]);
 
         // Get created user
         $user = $this->userModel->findById($userId);
@@ -216,11 +292,14 @@ class AuthController
             SessionManager::validateSession();
 
             $sessionData = SessionManager::getSessionData();
-            $user = $this->sanitizeUser($this->userModel->findById($sessionData['user_id']));
+            $userRecord = $this->userModel->findById($sessionData['user_id']);
+            $user = $this->sanitizeUser($userRecord);
+            $passwordStatus = PasswordPolicy::expiryStatus($userRecord['password_changed_at'] ?? null);
             $responseData = [
                 'user' => $user,
                 'session' => $sessionData,
                 'role' => $sessionData['user_role'] ?? 'user',
+                'password_status' => $passwordStatus,
                 'redirect' => 'user-dashboard.html'
             ];
 
@@ -232,14 +311,19 @@ class AuthController
                 'redirect' => 'user-dashboard.html',
                 'user' => $user,
                 'session' => $sessionData,
+                'password_status' => $passwordStatus,
+                'idle_timeout_seconds' => SessionManager::getSessionTimeout(),
                 'data' => $responseData
             ]);
         } catch (Exception $e) {
             ResponseHelper::json([
                 'success' => false,
                 'authenticated' => false,
-                'message' => 'No active session'
-            ], 401);
+                'message' => 'No active session',
+                'data' => [
+                    'authenticated' => false
+                ]
+            ]);
         }
     }
 
@@ -261,8 +345,12 @@ class AuthController
             throw new RuntimeException('User not found.', 404);
         }
 
+        // The password hash is not exposed by findById, so read it from the auth record.
+        $authRecord = $this->userModel->findByEmail($user['email']);
+        $currentHash = (string) ($authRecord['password_hash'] ?? '');
+
         // Verify current password
-        if (!password_verify($data['current_password'], $user['password_hash'])) {
+        if ($currentHash === '' || !password_verify($data['current_password'], $currentHash)) {
             AuditLogger::log('password_change_wrong_current', 'auth', 'warning',
                 'Password change failed - wrong current password', [
                     'user_id' => $userId,
@@ -271,8 +359,16 @@ class AuthController
             throw new RuntimeException('Current password is incorrect.', 400);
         }
 
-        // Validate new password
-        $newPassword = ValidationMiddleware::validatePassword($data['new_password']);
+        // Validate new password against the full policy, including the user's own details
+        $newPassword = ValidationMiddleware::validatePassword(
+            (string) $data['new_password'],
+            true,
+            PasswordPolicy::contextFromUser($user)
+        );
+
+        if (password_verify($newPassword, $currentHash)) {
+            throw new RuntimeException('New password must be different from your current password.', 422);
+        }
 
         // Update password
         $success = $this->userModel->updatePassword($userId, password_hash($newPassword, PASSWORD_DEFAULT));
@@ -301,14 +397,19 @@ class AuthController
         if (!$user) return null;
 
         return [
-            'id' => $user['id'],
-            'email' => $user['email'],
-            'full_name' => $user['full_name'],
-            'first_name' => $user['first_name'] ?? null,
-            'last_name' => $user['last_name'] ?? null,
-            'birth_date' => $user['birth_date'] ?? null,
-            'role' => $user['role'] ?? 'user',
-            'created_at' => $user['created_at'] ?? null
+            'id'             => $user['id'],
+            'email'          => $user['email'],
+            'full_name'      => $user['full_name'],
+            'first_name'     => $user['first_name'] ?? null,
+            'last_name'      => $user['last_name'] ?? null,
+            'birth_date'     => $user['birth_date'] ?? null,
+            'vehicle_type'   => $user['vehicle_type'] ?? null,
+            'plate_number'   => $user['plate_number'] ?? null,
+            'vehicle_brand'  => $user['vehicle_brand'] ?? null,
+            'vehicle_model'  => $user['vehicle_model'] ?? null,
+            'vehicle_color'  => $user['vehicle_color'] ?? null,
+            'role'           => $user['role'] ?? 'user',
+            'created_at'     => $user['created_at'] ?? null
         ];
     }
 

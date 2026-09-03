@@ -1,6 +1,7 @@
 const POLLING_INTERVAL_MS = 3000;
 const SETTINGS_REFRESH_INTERVAL_MS = 30000;
 const DEFAULT_SYSTEM_SETTINGS = {
+  system_name: "SNDRA Park",
   parking_base_rate: 20,
   extra_hourly_rate: 10
 };
@@ -33,6 +34,7 @@ const BOOTH_API_ENDPOINTS = {
   monitor: `${PHP_BOOTH_API_BASE}/realtime-monitor.php`,
   recent: `${PHP_BOOTH_API_BASE}/recent.php`,
   payment: `${PHP_BOOTH_API_BASE}/payment.php`,
+  walkin: `${PHP_BOOTH_API_BASE}/walkin.php`,
   logs: `${PHP_BOOTH_API_BASE}/logs.php`
 };
 
@@ -67,6 +69,20 @@ const markPaidButton = document.getElementById("mark-paid-btn");
 const clearTransactionButton = document.getElementById("clear-transaction-btn");
 const printReceiptButton = document.getElementById("print-receipt-btn");
 const actionNote = document.getElementById("action-note");
+const walkinForm = document.getElementById("walkin-form");
+const walkinPlateInput = document.getElementById("walkin-plate");
+const walkinVehicleTypeSelect = document.getElementById("walkin-vehicle-type");
+const walkinFloorInput = document.getElementById("walkin-floor");
+const walkinSlotInput = document.getElementById("walkin-slot");
+const walkinButton = document.getElementById("walkin-button");
+const discountSelect = document.getElementById("discount-select");
+const paymentMethodSelect = document.getElementById("payment-method-select");
+const amountTenderedInput = document.getElementById("amount-tendered-input");
+const paymentReferenceInput = document.getElementById("payment-reference-input");
+const tenderCashField = document.getElementById("tender-cash-field");
+const tenderReferenceField = document.getElementById("tender-reference-field");
+const changeDueNote = document.getElementById("change-due-note");
+const changeDueValue = document.getElementById("change-due-value");
 const recentActivityBody = document.getElementById("recent-activity-body");
 let scannerSubmitTimer = null;
 
@@ -92,7 +108,15 @@ const detailRefs = {
   overtimeFee: document.getElementById("detail-overtime-fee"),
   totalPayment: document.getElementById("detail-total-payment"),
   paymentStatus: document.getElementById("detail-payment-status"),
-  boothStatus: document.getElementById("detail-booth-status")
+  boothStatus: document.getElementById("detail-booth-status"),
+  vehicleType: document.getElementById("detail-vehicle-type"),
+  discount: document.getElementById("detail-discount"),
+  paymentMethod: document.getElementById("detail-payment-method")
+};
+const softVerificationRefs = {
+  code: document.getElementById("soft-verification-code"),
+  vehicle: document.getElementById("soft-verification-vehicle"),
+  slot: document.getElementById("soft-verification-slot")
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -122,6 +146,7 @@ function normalizeSystemSettings(settings) {
   const source = settings && typeof settings === "object" ? settings : {};
 
   return {
+    system_name: String(source.system_name || "").trim() || DEFAULT_SYSTEM_SETTINGS.system_name,
     parking_base_rate: Number.isFinite(Number(source.parking_base_rate))
       ? Number(source.parking_base_rate)
       : DEFAULT_SYSTEM_SETTINGS.parking_base_rate,
@@ -220,6 +245,10 @@ function activateView(targetId) {
 }
 
 function bindEvents() {
+  walkinForm?.addEventListener("submit", handleWalkinSubmit);
+  paymentMethodSelect?.addEventListener("change", syncTenderControls);
+  amountTenderedInput?.addEventListener("input", syncTenderControls);
+
   scanForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     await handleBarcodeScan();
@@ -405,7 +434,8 @@ async function handleBarcodeScan() {
       method: "POST",
       body: {
         action: "scan",
-        barcode
+        barcode,
+        discountType: discountSelect?.value || "None"
       }
     });
 
@@ -458,7 +488,10 @@ async function handleMarkAsPaid() {
       method: "POST",
       body: {
         action: "mark_paid",
-        reservationId: currentTransaction.reservationId
+        reservationId: currentTransaction.reservationId,
+        paymentMethod: paymentMethodSelect?.value || "Cash",
+        paymentReference: String(paymentReferenceInput?.value || "").trim(),
+        amountTendered: amountTenderedInput?.value === "" ? null : Number(amountTenderedInput?.value)
       }
     });
 
@@ -673,8 +706,42 @@ function renderTransactionDetails(transaction) {
   detailRefs.paymentStatus.textContent = transaction.paymentStatus || "--";
   detailRefs.boothStatus.textContent = transaction.boothStatus || "--";
 
+  if (detailRefs.vehicleType) {
+    detailRefs.vehicleType.textContent = [transaction.vehicleType, transaction.plateNumber]
+      .filter(Boolean).join(" - ") || "--";
+  }
+
+  if (detailRefs.discount) {
+    detailRefs.discount.textContent = transaction.discountAmount > 0
+      ? `${transaction.discountType} (-${formatCurrency(transaction.discountAmount)})`
+      : "None";
+  }
+
+  if (detailRefs.paymentMethod) {
+    detailRefs.paymentMethod.textContent = transaction.paymentMethod
+      ? transaction.paymentMethod + (transaction.paymentReference ? ` - ${transaction.paymentReference}` : "")
+      : "--";
+  }
+
+  // The discount has to be chosen before Time Out, because that is the scan
+  // that prices the stay.
+  if (discountSelect && transaction.discountType && transaction.discountType !== "None") {
+    discountSelect.value = transaction.discountType;
+  }
+
+  syncTenderControls();
+
   latestBarcode.textContent = transaction.barcode || "No barcode yet";
   latestUpdated.textContent = formatDateTime(transaction.lastUpdatedAt || transaction.paidAt || transaction.actualTimeOut || transaction.actualTimeIn);
+  if (softVerificationRefs.code) {
+    softVerificationRefs.code.textContent = transaction.barcode || "Scanned";
+  }
+  if (softVerificationRefs.vehicle) {
+    softVerificationRefs.vehicle.textContent = transaction.fullName || transaction.email || "Matched";
+  }
+  if (softVerificationRefs.slot) {
+    softVerificationRefs.slot.textContent = `${transaction.floor || "--"} / ${transaction.slot || "--"}`;
+  }
   actionNote.textContent = transaction.paymentStatus === "Unpaid"
     ? "Transaction is waiting for payment confirmation. Click Mark as Paid after collecting the payment."
     : "Scan a barcode to record Time In or Time Out.";
@@ -702,6 +769,15 @@ function resetTransactionPanel() {
 
   latestBarcode.textContent = "No barcode yet";
   latestUpdated.textContent = "Not available";
+  if (softVerificationRefs.code) {
+    softVerificationRefs.code.textContent = "Waiting";
+  }
+  if (softVerificationRefs.vehicle) {
+    softVerificationRefs.vehicle.textContent = "After scan";
+  }
+  if (softVerificationRefs.slot) {
+    softVerificationRefs.slot.textContent = "Realtime";
+  }
   markPaidButton.disabled = true;
   printReceiptButton.disabled = true;
   actionNote.textContent = "Scan a valid reservation barcode to begin Time In or Time Out processing.";
@@ -719,7 +795,148 @@ function handlePrintReceipt() {
     return;
   }
 
-  setBoothStatus("ready", "Receipt Placeholder", "Receipt printing can be connected to your booth printer next.");
+  const receiptWindow = window.open("", "_blank", "width=380,height=640");
+
+  if (!receiptWindow) {
+    setBoothStatus("warning", "Popup Blocked", "Allow popups for this site to print receipts.");
+    return;
+  }
+
+  receiptWindow.document.write(buildReceiptHtml(currentTransaction));
+  receiptWindow.document.close();
+  receiptWindow.focus();
+
+  // Give the layout one frame to settle before the print dialog takes over.
+  window.setTimeout(() => receiptWindow.print(), 250);
+  setBoothStatus("ready", "Receipt Ready", "Receipt sent to the printer dialog.");
+}
+
+/**
+ * A single-column 80mm receipt: the width thermal booth printers use, so the
+ * browser dialog and a real printer produce the same document.
+ */
+function buildReceiptHtml(transaction) {
+  const escape = (value) => String(value ?? "")
+    .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  const systemName = boothSystemSettings.system_name || "SNDRA Park";
+  const line = (label, value) => value === null || value === undefined || value === ""
+    ? ""
+    : `<tr><td>${escape(label)}</td><td class="right">${escape(value)}</td></tr>`;
+
+  const rows = [
+    line("Barcode", transaction.barcode),
+    line("Name", transaction.fullName),
+    line("Plate", transaction.plateNumber),
+    line("Vehicle", transaction.vehicleType),
+    line("Slot", `${transaction.floor || "--"} ${transaction.slot || ""}`.trim()),
+    line("Time in", formatDateTime(transaction.actualTimeIn)),
+    line("Time out", formatDateTime(transaction.actualTimeOut)),
+    line("Hours", formatHoursLabel(transaction.totalHours)),
+    transaction.grossAmount > 0 ? line("Subtotal", formatCurrency(transaction.grossAmount)) : "",
+    transaction.discountAmount > 0
+      ? line(`${transaction.discountType} discount`, `-${formatCurrency(transaction.discountAmount)}`)
+      : "",
+    line("TOTAL", formatCurrency(transaction.totalPayment)),
+    line("Paid via", transaction.paymentMethod),
+    line("Reference", transaction.paymentReference),
+    transaction.amountTendered !== null && transaction.amountTendered !== undefined
+      ? line("Tendered", formatCurrency(transaction.amountTendered))
+      : "",
+    transaction.changeDue !== null && transaction.changeDue !== undefined
+      ? line("Change", formatCurrency(transaction.changeDue))
+      : ""
+  ].join("");
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Receipt ${escape(transaction.barcode)}</title>
+<style>
+  @page { size: 80mm auto; margin: 4mm; }
+  body { width: 72mm; margin: 0 auto; font-family: "Courier New", monospace; font-size: 12px; color: #000; }
+  h1 { font-size: 15px; text-align: center; margin: 0 0 2px; letter-spacing: 1px; }
+  .sub { text-align: center; font-size: 11px; margin: 0 0 10px; }
+  hr { border: 0; border-top: 1px dashed #000; margin: 8px 0; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 2px 0; vertical-align: top; }
+  td.right { text-align: right; font-weight: bold; }
+  .foot { text-align: center; font-size: 10px; margin-top: 10px; }
+</style></head><body>
+  <h1>${escape(systemName)}</h1>
+  <p class="sub">Parking Receipt<br>${escape(formatDateTime(transaction.paidAt || new Date().toISOString()))}</p>
+  <hr>
+  <table>${rows}</table>
+  <hr>
+  <p class="foot">${transaction.isWalkIn ? "Walk-in ticket" : "Reserved online"}<br>Thank you for parking with us.</p>
+</body></html>`;
+}
+
+/** Cash needs an amount tendered; every other method needs a reference. */
+function syncTenderControls() {
+  if (!paymentMethodSelect) {
+    return;
+  }
+
+  const isCash = paymentMethodSelect.value === "Cash";
+
+  if (tenderCashField) {
+    tenderCashField.hidden = !isCash;
+  }
+
+  if (tenderReferenceField) {
+    tenderReferenceField.hidden = isCash;
+  }
+
+  const due = Number(currentTransaction?.totalPayment || 0);
+  const tendered = Number(amountTenderedInput?.value || 0);
+
+  if (changeDueNote && changeDueValue) {
+    const showChange = isCash && tendered > 0 && due > 0;
+    changeDueNote.hidden = !showChange;
+    changeDueValue.textContent = formatCurrency(Math.max(0, tendered - due));
+  }
+}
+
+async function handleWalkinSubmit(event) {
+  event.preventDefault();
+
+  const plate = String(walkinPlateInput?.value || "").trim().toUpperCase();
+
+  if (!plate) {
+    setBoothStatus("danger", "Plate Required", "Enter the plate number before issuing a walk-in ticket.");
+    walkinPlateInput?.focus();
+    return;
+  }
+
+  if (walkinButton) {
+    walkinButton.disabled = true;
+  }
+
+  try {
+    const result = await apiRequest(BOOTH_API_ENDPOINTS.walkin, {
+      method: "POST",
+      body: {
+        plateNumber: plate,
+        vehicleType: walkinVehicleTypeSelect?.value || "Car",
+        parkingFloor: String(walkinFloorInput?.value || "").trim(),
+        parkingSlot: String(walkinSlotInput?.value || "").trim().toUpperCase()
+      }
+    });
+
+    currentTransaction = normalizeReservationRecord(result.data);
+    renderTransactionDetails(currentTransaction);
+    setBoothStatus(
+      "success",
+      "Walk-in Issued",
+      `${plate} is parked at ${currentTransaction.floor} ${currentTransaction.slot}. Barcode ${currentTransaction.barcode} - print it for the driver.`
+    );
+
+    walkinForm?.reset();
+    await pollRealtimeData();
+  } catch (error) {
+    setBoothStatus("danger", "Walk-in Failed", error.message || "Unable to issue a walk-in ticket right now.");
+  } finally {
+    if (walkinButton) {
+      walkinButton.disabled = false;
+    }
+  }
 }
 
 function scheduleScannerSubmit(delayMs = 80) {
@@ -864,6 +1081,16 @@ function normalizeReservationRecord(record) {
     boothStatus: effectiveBoothStatus,
     reservationStatus,
     barcodeStatus,
+    vehicleType: record.vehicleType || record.vehicle_type || "",
+    plateNumber: record.plateNumber || record.plate_number || "",
+    isWalkIn: Boolean(record.isWalkIn ?? record.is_walk_in ?? false),
+    grossAmount: toCurrencyNumber(record.grossAmount ?? record.gross_amount ?? 0),
+    discountType: record.discountType || record.discount_type || "None",
+    discountAmount: toCurrencyNumber(record.discountAmount ?? record.discount_amount ?? 0),
+    paymentMethod: record.paymentMethod || record.payment_method || "",
+    paymentReference: record.paymentReference || record.payment_reference || "",
+    amountTendered: record.amountTendered ?? record.amount_tendered ?? null,
+    changeDue: record.changeDue ?? record.change_due ?? null,
     paidAt: record.paidAt || record.paid_at || null,
     lastUpdatedAt: record.lastUpdatedAt || record.last_updated_at || record.updated_at || record.paidAt || record.actualTimeOut || record.actualTimeIn || null,
     statusLabel: record.statusLabel || deriveStatusLabel(paymentStatus, effectiveBoothStatus, barcodeStatus, record.actualTimeIn || record.actual_time_in, record.actualTimeOut || record.actual_time_out)

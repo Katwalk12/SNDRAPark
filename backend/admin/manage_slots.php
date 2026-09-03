@@ -61,6 +61,34 @@ function admin_slot_exists(mysqli $connection, int $floorId, string $slotCode, ?
     return (bool) $statement->get_result()->fetch_assoc();
 }
 
+function admin_normalize_slot_code(string $slotCode): string
+{
+    $normalized = strtoupper(trim($slotCode));
+    $normalized = preg_replace('/\s+/', '', $normalized);
+
+    return (string) $normalized;
+}
+
+function admin_floor_number_from_record(array $floor): int
+{
+    $source = strtoupper((string) ($floor['floor_label'] ?? $floor['floor_name'] ?? ''));
+
+    if (preg_match('/(?:FLOOR|F)\s*([0-9]+)/', $source, $matches)) {
+        return max(1, (int) $matches[1]);
+    }
+
+    if (preg_match('/([0-9]+)/', $source, $matches)) {
+        return max(1, (int) $matches[1]);
+    }
+
+    return max(1, (int) ($floor['id'] ?? 1));
+}
+
+function admin_build_standard_slot_code(array $floor, int $slotNumber): string
+{
+    return 'F' . admin_floor_number_from_record($floor) . '-S' . $slotNumber;
+}
+
 function admin_manage_slots_payload(mysqli $connection): array
 {
     $floors = parking_get_floors($connection, false);
@@ -74,7 +102,8 @@ function admin_manage_slots_payload(mysqli $connection): array
             'is_active' => $slot['is_active'],
             'manual_status' => $slot['manual_status'],
             'live_status' => $slot['status'],
-            'status' => $slot['status']
+            'status' => $slot['status'],
+            'unavailable_reason' => $slot['unavailable_reason'] ?? ''
         ];
     }, parking_get_slots($connection, null, null, false));
 
@@ -127,13 +156,29 @@ try {
     if ($action === 'update_floor') {
         $floorId = (int) admin_input('floor_id');
         $isActive = admin_bool(admin_input('is_active'));
+        $reason = admin_clean_text(admin_input('unavailable_reason'));
 
         if ($floorId <= 0) {
             admin_error('A valid floor is required.', 422);
         }
 
-        $statement = $connection->prepare("UPDATE parking_floors SET is_active = ? WHERE id = ?");
-        $statement->bind_param('ii', $isActive, $floorId);
+        // Drivers see this text when they tap a slot on a closed floor, so a
+        // deactivation without one would leave them with no explanation.
+        if ($isActive === 0) {
+            if ($reason === '') {
+                admin_error('Please give a reason why this floor is unavailable. Drivers will see it.', 422);
+            }
+
+            if (mb_strlen($reason) > 255) {
+                admin_error('Keep the reason under 255 characters.', 422);
+            }
+        } else {
+            $reason = '';
+        }
+
+        $reasonValue = $reason !== '' ? $reason : null;
+        $statement = $connection->prepare("UPDATE parking_floors SET is_active = ?, unavailable_reason = ? WHERE id = ?");
+        $statement->bind_param('isi', $isActive, $reasonValue, $floorId);
         $statement->execute();
 
         $floorStatement = $connection->prepare("
@@ -161,7 +206,8 @@ try {
             'metadata' => [
                 'floor_name' => $floor['floor_name'] ?? '',
                 'floor_label' => $floor['floor_label'] ?? '',
-                'is_active' => $isActive
+                'is_active' => $isActive,
+                'unavailable_reason' => $reason
             ]
         ]);
 
@@ -171,10 +217,14 @@ try {
     if ($action === 'add_slot') {
         $floorId = (int) admin_input('floor_id');
         $floorName = admin_clean_text(admin_input('floor_name'));
-        $slotCode = strtoupper(admin_clean_text(admin_input('slot_code')));
+        $slotCode = admin_normalize_slot_code(admin_clean_text(admin_input('slot_code')));
 
         if (($floorId <= 0 && $floorName === '') || $slotCode === '') {
             admin_error('Floor and slot code are required.', 422);
+        }
+
+        if (!preg_match('/^[A-Z0-9-]+$/', $slotCode)) {
+            admin_error('Slot code can only contain letters, numbers, and hyphens.', 422);
         }
 
         $floor = $floorId > 0
@@ -224,15 +274,114 @@ try {
         admin_success('Parking slot added successfully.', admin_manage_slots_payload($connection));
     }
 
+    if ($action === 'generate_slots') {
+        $floorId = (int) admin_input('floor_id');
+        $totalSlots = (int) admin_input('total_slots');
+        $startNumber = max(1, (int) admin_input('start_number', 1));
+
+        if ($floorId <= 0 || $totalSlots <= 0) {
+            admin_error('Floor and number of slots are required.', 422);
+        }
+
+        if ($totalSlots > 100) {
+            admin_error('Generate up to 100 slots at a time for one floor.', 422);
+        }
+
+        $floor = admin_get_floor_record_by_id($connection, $floorId);
+        if (!$floor) {
+            admin_error('Selected floor was not found.', 404);
+        }
+
+        $floorName = (string) ($floor['floor_name'] ?? '');
+        $createdCodes = [];
+        $skippedCodes = [];
+
+        $connection->begin_transaction();
+
+        try {
+            $statement = $connection->prepare("
+                INSERT INTO parking_slots (floor_id, floor_name, slot_code, row_label, status, is_active, manual_status)
+                VALUES (?, ?, ?, ?, 'Available', 1, 'Auto')
+            ");
+
+            for ($index = 0; $index < $totalSlots; $index++) {
+                $slotCode = admin_build_standard_slot_code($floor, $startNumber + $index);
+
+                if (admin_slot_exists($connection, $floorId, $slotCode)) {
+                    $skippedCodes[] = $slotCode;
+                    continue;
+                }
+
+                $rowLabel = parking_row_label_from_slot($slotCode);
+                $statement->bind_param('isss', $floorId, $floorName, $slotCode, $rowLabel);
+                $statement->execute();
+                $createdCodes[] = $slotCode;
+            }
+
+            $connection->commit();
+        } catch (Throwable $exception) {
+            $connection->rollback();
+            throw $exception;
+        }
+
+        system_logs_write($connection, [
+            'actor_role' => 'admin',
+            'actor_name' => (string) ($admin['fullName'] ?? $admin['email'] ?? 'Administrator'),
+            'action_type' => 'ADMIN_SLOTS_GENERATED',
+            'description' => 'Admin generated ' . count($createdCodes) . ' slots on ' . $floorName . '.',
+            'related_floor' => $floorName,
+            'related_slot' => implode(', ', array_slice($createdCodes, 0, 12)),
+            'status' => 'Available'
+        ]);
+        admin_audit_log($connection, $admin, 'ADMIN_SLOTS_GENERATED', 'Admin generated ' . count($createdCodes) . ' slots on ' . $floorName . '.', [
+            'target_type' => 'parking_slot',
+            'target_id' => (string) $floorId,
+            'status' => 'success',
+            'metadata' => [
+                'floor_id' => $floorId,
+                'floor_name' => $floorName,
+                'created_codes' => $createdCodes,
+                'skipped_codes' => $skippedCodes
+            ]
+        ]);
+
+        $payload = admin_manage_slots_payload($connection);
+        $payload['createdSlots'] = $createdCodes;
+        $payload['skippedSlots'] = $skippedCodes;
+
+        admin_success(count($createdCodes) . ' parking slot(s) generated successfully.', $payload);
+    }
+
     if ($action === 'update_slot') {
         $slotId = (int) admin_input('slot_id');
-        $slotCode = strtoupper(admin_clean_text(admin_input('slot_code')));
+        $slotCode = admin_normalize_slot_code(admin_clean_text(admin_input('slot_code')));
         $isActive = admin_bool(admin_input('is_active'));
         $manualStatus = admin_clean_text(admin_input('manual_status'));
+        $reason = admin_clean_text(admin_input('unavailable_reason'));
         $allowedStatuses = ['Auto', 'Available', 'Reserved', 'Occupied', 'Inactive'];
 
         if ($slotId <= 0 || $slotCode === '') {
             admin_error('Slot details are incomplete.', 422);
+        }
+
+        // Either switch takes the slot out of service, so either one needs a
+        // reason the driver can read.
+        $takenOutOfService = $isActive === 0 || $manualStatus === 'Inactive';
+
+        if ($takenOutOfService) {
+            if ($reason === '') {
+                admin_error('Please give a reason why this slot is unavailable. Drivers will see it.', 422);
+            }
+
+            if (mb_strlen($reason) > 255) {
+                admin_error('Keep the reason under 255 characters.', 422);
+            }
+        } else {
+            $reason = '';
+        }
+
+        if (!preg_match('/^[A-Z0-9-]+$/', $slotCode)) {
+            admin_error('Slot code can only contain letters, numbers, and hyphens.', 422);
         }
 
         if (!in_array($manualStatus, $allowedStatuses, true)) {
@@ -259,11 +408,12 @@ try {
 
         $statement = $connection->prepare("
             UPDATE parking_slots
-            SET floor_name = ?, slot_code = ?, row_label = ?, is_active = ?, manual_status = ?
+            SET floor_name = ?, slot_code = ?, row_label = ?, is_active = ?, manual_status = ?, unavailable_reason = ?
             WHERE id = ?
         ");
         $rowLabel = parking_row_label_from_slot($slotCode);
-        $statement->bind_param('sssisi', $slot['floor_name'], $slotCode, $rowLabel, $isActive, $manualStatus, $slotId);
+        $reasonValue = $reason !== '' ? $reason : null;
+        $statement->bind_param('sssissi', $slot['floor_name'], $slotCode, $rowLabel, $isActive, $manualStatus, $reasonValue, $slotId);
         $statement->execute();
 
         system_logs_write($connection, [
@@ -284,7 +434,8 @@ try {
                 'floor_name' => $slot['floor_name'] ?? '',
                 'slot_code' => $slotCode,
                 'is_active' => $isActive,
-                'manual_status' => $manualStatus
+                'manual_status' => $manualStatus,
+                'unavailable_reason' => $reason
             ]
         ]);
 

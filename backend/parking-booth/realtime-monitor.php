@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 try {
-    booth_log('realtime-monitor-request', [
+    booth_log_debug('realtime-monitor-request', [
         'method' => $_SERVER['REQUEST_METHOD'] ?? 'UNKNOWN',
         'floor' => $_GET['floor'] ?? 'LG'
     ]);

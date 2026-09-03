@@ -3,6 +3,74 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/system-logs.php';
+require_once __DIR__ . '/../config/system-settings.php';
+
+/**
+ * No-show policy.
+ *
+ * A reservation whose barcode is never scanned expires, releases the slot back
+ * to Available, and costs the driver one strike. Three strikes are warnings;
+ * the fourth locks the account with no automatic release date, so it stays
+ * locked until an administrator approves a letter of appeal.
+ */
+const RESERVATION_SECURITY_WARNING_ALLOWANCE = 3;
+
+/** Fallback grace period, in minutes, when the settings table cannot be read. */
+const RESERVATION_SECURITY_DEFAULT_GRACE_MINUTES = 30;
+
+/**
+ * The three numbers that decide who gets locked out now come from the settings
+ * table, so an owner can loosen them without a deploy. The constants above stay
+ * as the fallback for a database that has not been migrated yet.
+ */
+function reservation_security_grace_minutes(?mysqli $connection = null): int
+{
+    try {
+        return (int) system_settings_value('reservation_grace_minutes', $connection);
+    } catch (Throwable $exception) {
+        return RESERVATION_SECURITY_DEFAULT_GRACE_MINUTES;
+    }
+}
+
+function reservation_security_warning_allowance(?mysqli $connection = null): int
+{
+    try {
+        return (int) system_settings_value('reservation_warning_allowance', $connection);
+    } catch (Throwable $exception) {
+        return RESERVATION_SECURITY_WARNING_ALLOWANCE;
+    }
+}
+
+function reservation_security_warning_window_seconds(?mysqli $connection = null): int
+{
+    try {
+        return ((int) system_settings_value('reservation_warning_window_days', $connection)) * 86400;
+    } catch (Throwable $exception) {
+        return RESERVATION_SECURITY_WARNING_WINDOW_SECONDS;
+    }
+}
+
+/** Strikes fall off if the fourth never arrives inside this window. */
+const RESERVATION_SECURITY_WARNING_WINDOW_SECONDS = 2592000; // 30 days
+
+function reservation_security_support_email(mysqli $connection): string
+{
+    try {
+        $settings = system_settings_fetch($connection);
+        $email = trim((string) ($settings['gmail_address'] ?? ''));
+    } catch (Throwable $exception) {
+        $email = '';
+    }
+
+    return $email !== '' ? $email : 'sndraparksupport@gmail.com';
+}
+
+function reservation_security_appeal_instruction(mysqli $connection): string
+{
+    return 'To have it reactivated, file a letter of appeal to '
+        . reservation_security_support_email($connection)
+        . ' explaining the missed reservations. An administrator will review it and restore your access.';
+}
 
 function reservation_security_cache_dir(): string
 {
@@ -175,7 +243,7 @@ function reservation_security_reset_warning_state(mysqli $connection, int $userI
             $connection,
             $userId,
             'warning_reset',
-            'The active warning window expired after 24 hours with no second barcode expiration.',
+            'The active warning window expired after 30 days without reaching the fourth barcode expiration.',
             null,
             'system'
         );
@@ -246,7 +314,7 @@ function reservation_security_sync_user_account(mysqli $connection, int $userId,
     if (($user['account_status'] ?? 'active') !== 'locked'
         && (int) ($user['warning_count'] ?? 0) > 0
         && $firstWarningTimestamp !== false
-        && ($nowTimestamp - $firstWarningTimestamp) >= 86400
+        && ($nowTimestamp - $firstWarningTimestamp) >= reservation_security_warning_window_seconds($connection)
     ) {
         reservation_security_reset_warning_state($connection, $userId);
         return reservation_security_get_user_state($connection, $userId, $forUpdate);
@@ -255,15 +323,30 @@ function reservation_security_sync_user_account(mysqli $connection, int $userId,
     return $user;
 }
 
-function reservation_security_build_login_lock_message(?string $lockedUntil): string
+/**
+ * A lock with no release date is an appeal lock; only an administrator can
+ * lift it. Locks that still carry a date are legacy timed locks, which the
+ * sync routine releases on its own.
+ */
+function reservation_security_build_login_lock_message(mysqli $connection, ?string $lockedUntil): string
 {
+    if (empty($lockedUntil)) {
+        return 'Your account is locked because too many reservations expired without you arriving at the parking lot. '
+            . reservation_security_appeal_instruction($connection);
+    }
+
     return 'Your account is temporarily locked until '
         . reservation_security_format_datetime_for_message($lockedUntil)
         . ' due to repeated expired reservations.';
 }
 
-function reservation_security_build_reservation_lock_message(?string $lockedUntil): string
+function reservation_security_build_reservation_lock_message(mysqli $connection, ?string $lockedUntil): string
 {
+    if (empty($lockedUntil)) {
+        return 'Your account is locked and cannot create a new reservation. '
+            . reservation_security_appeal_instruction($connection);
+    }
+
     return 'Your account is temporarily locked and cannot create a new reservation until '
         . reservation_security_format_datetime_for_message($lockedUntil)
         . '.';
@@ -283,7 +366,7 @@ function reservation_security_assert_user_can_login(mysqli $connection, int $use
 
     if (($user['account_status'] ?? 'active') === 'locked') {
         throw new RuntimeException(
-            reservation_security_build_login_lock_message($user['account_locked_until'] ?? null),
+            reservation_security_build_login_lock_message($connection, $user['account_locked_until'] ?? null),
             423
         );
     }
@@ -305,7 +388,7 @@ function reservation_security_assert_user_can_reserve(mysqli $connection, int $u
 
     if (($user['account_status'] ?? 'active') === 'locked') {
         throw new RuntimeException(
-            reservation_security_build_reservation_lock_message($user['account_locked_until'] ?? null),
+            reservation_security_build_reservation_lock_message($connection, $user['account_locked_until'] ?? null),
             423
         );
     }
@@ -323,6 +406,8 @@ function reservation_security_fetch_reservation_state(mysqli $connection, int $r
             COALESCE(r.barcode_status, 'active') AS barcode_status,
             r.status,
             r.created_at,
+            r.reservation_date,
+            r.reserved_time_in,
             pt.actual_time_in,
             pt.actual_time_out
         FROM reservations r
@@ -342,7 +427,35 @@ function reservation_security_fetch_reservation_state(mysqli $connection, int $r
     return $statement->get_result()->fetch_assoc() ?: null;
 }
 
-function reservation_security_reservation_is_due_for_expiration(array $reservation, ?int $nowTimestamp = null): bool
+/**
+ * The moment a booking stops being valid.
+ *
+ * This used to count from created_at, so a slot booked in the morning for a
+ * 6pm arrival died at 09:30 and cost the driver a warning for a time that had
+ * not come yet. The grace period runs from the reserved arrival instead, and
+ * its length is a setting rather than a hard-coded 1800 seconds.
+ */
+function reservation_security_deadline_timestamp(array $reservation, ?int $graceMinutes = null): ?int
+{
+    $graceMinutes = $graceMinutes ?? RESERVATION_SECURITY_DEFAULT_GRACE_MINUTES;
+    $date = trim((string) ($reservation['reservation_date'] ?? ''));
+    $time = trim((string) ($reservation['reserved_time_in'] ?? ''));
+
+    if ($date !== '') {
+        $arrival = strtotime(trim($date . ' ' . ($time !== '' ? $time : '00:00:00')));
+
+        if ($arrival !== false) {
+            return $arrival + ($graceMinutes * 60);
+        }
+    }
+
+    // Older rows predate reserved_time_in; fall back to when they were made.
+    $createdAtTimestamp = !empty($reservation['created_at']) ? strtotime((string) $reservation['created_at']) : false;
+
+    return $createdAtTimestamp === false ? null : $createdAtTimestamp + ($graceMinutes * 60);
+}
+
+function reservation_security_reservation_is_due_for_expiration(array $reservation, ?int $nowTimestamp = null, ?int $graceMinutes = null): bool
 {
     $barcodeStatus = strtolower(trim((string) ($reservation['barcode_status'] ?? 'active')));
 
@@ -354,14 +467,22 @@ function reservation_security_reservation_is_due_for_expiration(array $reservati
         return false;
     }
 
-    $createdAtTimestamp = !empty($reservation['created_at']) ? strtotime((string) $reservation['created_at']) : false;
+    $deadline = reservation_security_deadline_timestamp($reservation, $graceMinutes);
 
-    if ($createdAtTimestamp === false) {
+    if ($deadline === null) {
         return false;
     }
 
     $nowTimestamp = $nowTimestamp ?? strtotime('now');
-    return ($nowTimestamp - $createdAtTimestamp) >= 1800;
+
+    return $nowTimestamp >= $deadline;
+}
+
+function reservation_security_ordinal(int $number): string
+{
+    $names = [1 => 'first', 2 => 'second', 3 => 'third', 4 => 'fourth'];
+
+    return $names[$number] ?? ($number . 'th');
 }
 
 function reservation_security_apply_expiration_penalty(mysqli $connection, int $userId, int $reservationId): array
@@ -380,38 +501,53 @@ function reservation_security_apply_expiration_penalty(mysqli $connection, int $
     $nowTimestamp = strtotime($now) ?: time();
     $warningCount = (int) ($user['warning_count'] ?? 0);
     $firstWarningTimestamp = !empty($user['first_warning_at']) ? strtotime((string) $user['first_warning_at']) : false;
+
+    // Several reservations can fall due in the same sweep. Once the account is
+    // locked, keep counting for the record but do not announce the lock again.
+    if (($user['account_status'] ?? 'active') === 'locked') {
+        $carriedCount = $warningCount + 1;
+        $statement = $connection->prepare("UPDATE users SET warning_count = ? WHERE id = ?");
+        $statement->bind_param('ii', $carriedCount, $userId);
+        $statement->execute();
+
+        return [
+            'warning_count' => $carriedCount,
+            'account_status' => 'locked',
+            'account_locked_until' => $user['account_locked_until'] ?? null
+        ];
+    }
+
+    // Strikes only stack while the window from the first one is still open;
+    // outside it this expiration starts a fresh count.
     $withinWarningWindow = $warningCount >= 1
         && $firstWarningTimestamp !== false
-        && ($nowTimestamp - $firstWarningTimestamp) < 86400;
+        && ($nowTimestamp - $firstWarningTimestamp) < reservation_security_warning_window_seconds($connection);
 
-    if ($withinWarningWindow) {
+    $strikeNumber = $withinWarningWindow ? $warningCount + 1 : 1;
+
+    if ($strikeNumber > reservation_security_warning_allowance($connection)) {
+        // Fourth strike. No release date is set, so the account stays locked
+        // until an administrator acts on a letter of appeal.
         $statement = $connection->prepare("
             UPDATE users
             SET
-                warning_count = 2,
+                warning_count = ?,
                 account_status = 'locked',
-                account_locked_until = DATE_ADD(NOW(), INTERVAL 6 DAY)
+                account_locked_until = NULL
             WHERE id = ?
         ");
-        $statement->bind_param('i', $userId);
+        $statement->bind_param('ii', $strikeNumber, $userId);
         $statement->execute();
-
-        $lockedUntilStatement = $connection->prepare("
-            SELECT DATE_FORMAT(account_locked_until, '%Y-%m-%d %H:%i:%s') AS account_locked_until
-            FROM users
-            WHERE id = ?
-            LIMIT 1
-        ");
-        $lockedUntilStatement->bind_param('i', $userId);
-        $lockedUntilStatement->execute();
-        $lockedUntilRow = $lockedUntilStatement->get_result()->fetch_assoc() ?: [];
-        $lockedUntil = $lockedUntilRow['account_locked_until'] ?? null;
 
         reservation_security_log_violation(
             $connection,
             $userId,
-            'second_warning',
-            'A second reservation barcode expired within 24 hours of the first warning.',
+            'fourth_warning',
+            sprintf(
+                'A %s reservation barcode expired within the %d-day warning window.',
+                reservation_security_ordinal($strikeNumber),
+                (int) (reservation_security_warning_window_seconds($connection) / 86400)
+            ),
             $reservationId,
             'system'
         );
@@ -419,7 +555,8 @@ function reservation_security_apply_expiration_penalty(mysqli $connection, int $
             $connection,
             $userId,
             'account_locked',
-            'The user account was locked for 6 days due to repeated reservation barcode expiration.',
+            'The user account was locked pending a letter of appeal after '
+                . $strikeNumber . ' expired reservations.',
             $reservationId,
             'system'
         );
@@ -427,36 +564,59 @@ function reservation_security_apply_expiration_penalty(mysqli $connection, int $
         reservation_security_create_notification(
             $connection,
             'Account Locked',
-            'Your account has been temporarily locked for 6 days due to repeated reservation barcode expiration.',
+            'Your account has been locked after ' . $strikeNumber
+                . ' reservations expired without you arriving at the parking lot. '
+                . reservation_security_appeal_instruction($connection),
             'Users',
             $userId,
             $reservationId
         );
 
         return [
-            'warning_count' => 2,
+            'warning_count' => $strikeNumber,
             'account_status' => 'locked',
-            'account_locked_until' => $lockedUntil
+            'account_locked_until' => null
         ];
     }
 
-    $statement = $connection->prepare("
-        UPDATE users
-        SET
-            warning_count = 1,
-            first_warning_at = NOW(),
-            account_status = 'active',
-            account_locked_until = NULL
-        WHERE id = ?
-    ");
-    $statement->bind_param('i', $userId);
+    // Strikes 1 through 3: warn, and keep the window anchored on the first.
+    if ($strikeNumber === 1) {
+        $statement = $connection->prepare("
+            UPDATE users
+            SET
+                warning_count = 1,
+                first_warning_at = NOW(),
+                account_status = 'active',
+                account_locked_until = NULL
+            WHERE id = ?
+        ");
+        $statement->bind_param('i', $userId);
+    } else {
+        $statement = $connection->prepare("
+            UPDATE users
+            SET
+                warning_count = ?,
+                account_status = 'active',
+                account_locked_until = NULL
+            WHERE id = ?
+        ");
+        $statement->bind_param('ii', $strikeNumber, $userId);
+    }
+
     $statement->execute();
+
+    $remaining = reservation_security_warning_allowance($connection) - $strikeNumber;
 
     reservation_security_log_violation(
         $connection,
         $userId,
-        'first_warning',
-        'A first warning was issued after the reservation barcode expired without being scanned within 30 minutes.',
+        reservation_security_ordinal($strikeNumber) . '_warning',
+        sprintf(
+            'A %s warning was issued after a reservation barcode expired without a booth scan. %d chance%s left before the account is locked.',
+            reservation_security_ordinal($strikeNumber),
+            $remaining,
+            $remaining === 1 ? '' : 's'
+        ),
         $reservationId,
         'system'
     );
@@ -464,14 +624,25 @@ function reservation_security_apply_expiration_penalty(mysqli $connection, int $
     reservation_security_create_notification(
         $connection,
         'Reservation Warning',
-        'Warning: Your reservation barcode expired because it was not scanned within 30 minutes. If this happens again within 24 hours, your account will be locked for 6 days.',
+        sprintf(
+            'Warning %d of %d: your reservation expired because you did not arrive at the parking lot on time, and the slot was released. %s',
+            $strikeNumber,
+            reservation_security_warning_allowance($connection),
+            $remaining === 0
+                ? 'One more expired reservation will lock your account until a letter of appeal is approved.'
+                : sprintf(
+                    'You have %d more chance%s before your account is locked.',
+                    $remaining,
+                    $remaining === 1 ? '' : 's'
+                )
+        ),
         'Users',
         $userId,
         $reservationId
     );
 
     return [
-        'warning_count' => 1,
+        'warning_count' => $strikeNumber,
         'account_status' => 'active',
         'account_locked_until' => null
     ];
@@ -487,7 +658,11 @@ function reservation_security_expire_reservation_if_due(mysqli $connection, int 
 
     $nowTimestamp = strtotime(reservation_security_database_now($connection));
 
-    if (!reservation_security_reservation_is_due_for_expiration($reservation, $nowTimestamp ?: time())) {
+    if (!reservation_security_reservation_is_due_for_expiration(
+        $reservation,
+        $nowTimestamp ?: time(),
+        reservation_security_grace_minutes($connection)
+    )) {
         return $reservation;
     }
 
@@ -513,7 +688,7 @@ function reservation_security_expire_reservation_if_due(mysqli $connection, int 
             $connection,
             $userId,
             'barcode_expired',
-            'Reservation barcode expired after 30 minutes without a successful booth scan.',
+            sprintf('Reservation barcode expired after %d minutes without a successful booth scan.', reservation_security_grace_minutes($connection)),
             $reservationId,
             'system'
         );
@@ -521,7 +696,8 @@ function reservation_security_expire_reservation_if_due(mysqli $connection, int 
         reservation_security_create_notification(
             $connection,
             'Reservation Expired',
-            'Your reservation barcode expired because it was not scanned within 30 minutes.',
+            sprintf('Your reservation expired because you did not arrive at the parking lot within %d minutes, ', reservation_security_grace_minutes($connection))
+                . 'and the slot was released back to available.',
             'Users',
             $userId,
             $reservationId
@@ -533,30 +709,44 @@ function reservation_security_expire_reservation_if_due(mysqli $connection, int 
     return reservation_security_fetch_reservation_state($connection, $reservationId, false);
 }
 
-function reservation_security_expire_due_reservations(mysqli $connection, ?int $userId = null): array
+function reservation_security_expire_due_reservations(mysqli $connection, ?int $userId = null, bool $force = false): array
 {
     $cacheKey = $userId !== null && $userId > 0
         ? 'reservation-expire-user-' . $userId
         : 'reservation-expire-global';
 
-    if (!reservation_security_should_run($cacheKey, 10)) {
+    // The scheduled sweep passes $force: it is the authoritative run and must
+    // not be skipped because a web request happened to touch the throttle file
+    // a few seconds earlier.
+    if (!$force && !reservation_security_should_run($cacheKey, 10)) {
         return [
             'expired_count' => 0,
             'reservation_ids' => []
         ];
     }
 
+    $graceMinutes = reservation_security_grace_minutes($connection);
+
+    // Candidates are anything past its arrival time plus the grace period.
+    // Rows with no reserved time fall back to created_at, matching
+    // reservation_security_deadline_timestamp().
     $sql = "
         SELECT r.id
         FROM reservations r
         LEFT JOIN parking_transactions pt ON pt.reservation_id = r.id
         WHERE COALESCE(r.barcode_status, 'active') = 'active'
           AND (pt.actual_time_in IS NULL OR pt.actual_time_in = '0000-00-00 00:00:00')
-          AND TIMESTAMPDIFF(MINUTE, r.created_at, NOW()) >= 30
+          AND NOW() >= DATE_ADD(
+                COALESCE(
+                    TIMESTAMP(r.reservation_date, COALESCE(r.reserved_time_in, '00:00:00')),
+                    r.created_at
+                ),
+                INTERVAL ? MINUTE
+              )
     ";
 
-    $types = '';
-    $params = [];
+    $types = 'i';
+    $params = [$graceMinutes];
 
     if ($userId !== null && $userId > 0) {
         $sql .= " AND r.user_id = ? ";

@@ -1,18 +1,18 @@
 :root {
-  --bg-dark: #040404;
-  --bg-panel: rgba(13, 13, 13, 0.92);
-  --bg-soft: rgba(255, 255, 255, 0.04);
-  --border-soft: rgba(255, 255, 255, 0.12);
-  --border-strong: rgba(255, 255, 255, 0.2);
-  --text-main: #f7f4ef;
-  --text-muted: rgba(247, 244, 239, 0.72);
-  --text-faint: rgba(247, 244, 239, 0.52);
-  --shadow-soft: 0 24px 52px rgba(0, 0, 0, 0.34);
-  --success: #4fe28c;
-  --warning: #f1c451;
-  --danger: #f06a6a;
-  --ready: #9bc7ff;
-  --shell-width: min(1520px, calc(100% - 2rem));
+  --bg-dark: #E5E4E3;
+  --bg-panel: #FAFCFC;
+  --bg-soft: #F1F1F1;
+  --border-soft: #E0E0E0;
+  --border-strong: #CFCFCF;
+  --text-main: #2A2A2A;
+  --text-muted: #555555;
+  --text-faint: #888888;
+  --shadow-soft: 0 10px 25px rgba(0, 0, 0, 0.05), 0 4px 10px rgba(0, 0, 0, 0.03);
+  --success: #4CD1D6;
+  --warning: #F59E0B;
+  --danger: #4A4A4A;
+  --ready: #3B82F6;
+  --shell-width: 100%;
 }
 
 * {
@@ -27,12 +27,9 @@ body {
   margin: 0;
   min-height: 100vh;
   overflow: hidden;
-  font-family: "Montserrat", "Segoe UI", sans-serif;
+  font-family: "Inter", "Segoe UI", sans-serif;
   color: var(--text-main);
-  background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.08), transparent 24%),
-    radial-gradient(circle at bottom right, rgba(255, 255, 255, 0.04), transparent 18%),
-    linear-gradient(135deg, #060606 0%, #020202 100%);
+  background: var(--bg-dark);
 }
 
 button,
@@ -50,12 +47,10 @@ button {
 }
 
 .booth-card {
-  border: 1px solid var(--border-soft);
+  border: none;
   border-radius: 1.6rem;
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.04), transparent 24%),
-    linear-gradient(180deg, rgba(18, 18, 18, 0.84), rgba(7, 7, 7, 0.96));
-  box-shadow: var(--shadow-soft);
+  background: var(--bg-panel);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.04);
 }
 
 .booth-sidebar {
@@ -68,15 +63,10 @@ button {
   flex-direction: column;
   gap: 1rem;
   padding: 1.15rem;
+  border: none;
   border-right: 1px solid var(--border-soft);
-  border-left: 0;
-  border-top: 0;
-  border-bottom: 0;
-  border-radius: 0 1.8rem 1.8rem 0;
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.05), transparent 24%),
-    linear-gradient(180deg, rgba(18, 18, 18, 0.92), rgba(7, 7, 7, 0.98));
-  box-shadow: var(--shadow-soft);
+  background: var(--bg-panel);
+  box-shadow: 2px 0 15px rgba(0,0,0,0.03);
   overflow-y: auto;
   z-index: 20;
 }
@@ -143,9 +133,8 @@ button {
 .detail-item,
 .log-group-header {
   padding: 1rem 1.05rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 1.1rem;
-  background: rgba(255, 255, 255, 0.03);
+  border: none;
+  background: rgba(0, 0, 0, 0.02);
 }
 
 .booth-sidebar-session strong,
@@ -182,7 +171,7 @@ button {
   border: 1px solid transparent;
   border-radius: 1rem;
   background: transparent;
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--text-muted);
   text-align: left;
   cursor: pointer;
   transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
@@ -190,12 +179,16 @@ button {
 
 .booth-nav-button:hover {
   transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+  background: var(--bg-soft);
 }
 
 .booth-nav-button.active {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: linear-gradient(180deg, rgba(70, 70, 70, 0.95), rgba(32, 32, 32, 0.98));
+  color: var(--success);
+  background: rgba(76, 209, 214, 0.1);
+  border-right: 4px solid var(--success);
+  border-radius: 0.6rem;
+  font-weight: 600;
 }
 
 .booth-nav-button-danger {
@@ -433,25 +426,25 @@ button {
 .status-chip.ready,
 .table-status.ready {
   color: var(--ready);
-  background: rgba(155, 199, 255, 0.12);
+  background: rgba(59, 130, 246, 0.12);
 }
 
 .status-chip.success,
 .table-status.success {
   color: var(--success);
-  background: rgba(79, 226, 140, 0.12);
+  background: rgba(76, 209, 214, 0.15);
 }
 
 .status-chip.warning,
 .table-status.warning {
   color: var(--warning);
-  background: rgba(241, 196, 81, 0.12);
+  background: rgba(245, 158, 11, 0.15);
 }
 
 .status-chip.danger,
 .table-status.danger {
   color: var(--danger);
-  background: rgba(240, 106, 106, 0.12);
+  background: rgba(74, 74, 74, 0.12);
 }
 
 .status-copy {
@@ -508,7 +501,7 @@ button {
 .booth-table th,
 .booth-table td {
   padding: 1rem 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border-soft);
   text-align: left;
   line-height: 1.6;
 }
@@ -727,3 +720,63 @@ button {
   }
 }
 
+
+.sidebar-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  padding: 0.3rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-soft);
+}
+
+.sidebar-brand-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 0.7rem;
+}
+
+/* --- Tender controls -----------------------------------------------------
+   Cash wants an amount and shows change; a wallet payment wants a reference.
+   Only one of the two is ever visible, so the teller never reads a field that
+   does not apply to the payment in front of them. */
+.tender-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.tender-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.tender-field .field-label {
+  margin: 0;
+}
+
+.tender-field .scanner-input {
+  width: 100%;
+}
+
+#change-due-note strong {
+  color: inherit;
+}
+
+#walkin-card .scan-form {
+  gap: 0.55rem;
+}
+
+@media (max-width: 640px) {
+  .tender-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

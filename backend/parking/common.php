@@ -2,11 +2,84 @@
 
 declare(strict_types=1);
 
+// Sets the Asia/Manila timezone. Without it these endpoints ran on the
+// php.ini default while MySQL ran on system time, and every timestamp
+// they wrote or compared was hours out.
+require_once __DIR__ . '/../config/app.php';
+require_once __DIR__ . '/../utils/CorsHelper.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/system-settings.php';
 require_once __DIR__ . '/../common/reservation-security.php';
 require_once __DIR__ . '/../common/system-logs.php';
 require_once __DIR__ . '/../parking-booth/common.php';
+
+/**
+ * When the garage is open. A reservation outside these hours could never be
+ * honoured, so it is refused rather than stored.
+ *
+ * The dashboard enforces the same window client-side (PARKING_HOURS in
+ * frontend/js/user-dashboard.js) and must be changed with these.
+ */
+const PARKING_OPENING_TIME = '08:00';
+const PARKING_CLOSING_TIME = '22:00';
+
+/**
+ * Same-day booking closes an hour before the garage does, so a driver always
+ * has room to arrive and be scanned before closing.
+ */
+const PARKING_SAME_DAY_CUTOFF = '21:00';
+
+/**
+ * Minutes since midnight for an HH:MM or HH:MM:SS value, or null if it is
+ * neither.
+ */
+function parking_time_to_minutes(string $time): ?int
+{
+    if (!preg_match('/^(\d{2}):(\d{2})(?::\d{2})?$/', $time, $matches)) {
+        return null;
+    }
+
+    $hours = (int) $matches[1];
+    $minutes = (int) $matches[2];
+
+    if ($hours > 23 || $minutes > 59) {
+        return null;
+    }
+
+    return ($hours * 60) + $minutes;
+}
+
+/**
+ * Human-readable opening hours, for error messages and the dashboard.
+ */
+function parking_hours_label(): string
+{
+    return sprintf(
+        '%s to %s',
+        date('g:i A', strtotime(PARKING_OPENING_TIME)),
+        date('g:i A', strtotime(PARKING_CLOSING_TIME))
+    );
+}
+
+function parking_time_label(string $time): string
+{
+    return date('g:i A', strtotime($time));
+}
+
+/**
+ * The garage clock, read from the database so it matches the timestamps the
+ * expiry sweep compares against rather than PHP's own timezone.
+ */
+function parking_server_now(mysqli $connection): array
+{
+    $row = $connection->query("SELECT CURDATE() AS today, DATE_FORMAT(NOW(), '%H:%i') AS clock")
+        ->fetch_assoc() ?: [];
+
+    return [
+        'date' => (string) ($row['today'] ?? date('Y-m-d')),
+        'time' => (string) ($row['clock'] ?? date('H:i'))
+    ];
+}
 
 function parking_bootstrap_endpoint(string $allowedMethods = 'GET, POST'): void
 {
@@ -37,9 +110,7 @@ function parking_send_common_headers(string $allowedMethods = 'GET, POST'): void
     header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
     header('Pragma: no-cache');
     header('Expires: 0');
-    header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Methods: ' . $allowedMethods . ', OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type');
+    CorsHelper::sendHeaders($allowedMethods, true, 'Content-Type, X-CSRF-Token');
 }
 
 function parking_handle_preflight(): void
@@ -74,6 +145,25 @@ function parking_clean_text($value): string
 function parking_bool($value): int
 {
     return filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+}
+
+function parking_slot_sort_expression(string $column = 's.slot_code'): string
+{
+    $normalized = "UPPER(TRIM({$column}))";
+
+    return "
+        CASE
+            WHEN {$normalized} REGEXP '^F[0-9]+-S[0-9]+$' THEN CAST(SUBSTRING_INDEX(SUBSTRING_INDEX({$normalized}, '-S', 1), 'F', -1) AS UNSIGNED)
+            WHEN {$normalized} REGEXP '^[A-Z]+[0-9]+$' THEN 0
+            ELSE 999999
+        END ASC,
+        CASE
+            WHEN {$normalized} REGEXP '^F[0-9]+-S[0-9]+$' THEN CAST(SUBSTRING_INDEX({$normalized}, '-S', -1) AS UNSIGNED)
+            WHEN {$normalized} REGEXP '^[A-Z]+[0-9]+$' THEN CAST(REGEXP_REPLACE({$normalized}, '^[A-Z]+', '') AS UNSIGNED)
+            ELSE 999999
+        END ASC,
+        {$normalized} ASC
+    ";
 }
 
 function parking_floor_sort_order(string $floorName): int
@@ -239,6 +329,7 @@ function parking_get_floors(mysqli $connection, bool $activeOnly = true): array
             f.floor_name,
             COALESCE(NULLIF(f.floor_label, ''), f.floor_name) AS floor_label,
             f.is_active,
+            f.unavailable_reason,
             f.sort_order,
             f.created_at,
             COUNT(s.id) AS slot_count,
@@ -250,7 +341,7 @@ function parking_get_floors(mysqli $connection, bool $activeOnly = true): array
             ON s.floor_id = f.id
            AND s.is_active = 1
         " . ($activeOnly ? "WHERE f.is_active = 1" : "") . "
-        GROUP BY f.id, f.floor_name, f.floor_label, f.is_active, f.sort_order, f.created_at
+        GROUP BY f.id, f.floor_name, f.floor_label, f.is_active, f.unavailable_reason, f.sort_order, f.created_at
         ORDER BY f.sort_order ASC, f.floor_name ASC
     ";
 
@@ -263,6 +354,7 @@ function parking_get_floors(mysqli $connection, bool $activeOnly = true): array
             'floor_name' => $row['floor_name'],
             'floor_label' => $row['floor_label'],
             'is_active' => (int) $row['is_active'],
+            'unavailable_reason' => (string) ($row['unavailable_reason'] ?? ''),
             'sort_order' => (int) $row['sort_order'],
             'created_at' => $row['created_at'],
             'slot_count' => (int) ($row['slot_count'] ?? 0),
@@ -273,6 +365,63 @@ function parking_get_floors(mysqli $connection, bool $activeOnly = true): array
     }
 
     return $floors;
+}
+
+/**
+ * Why a slot cannot be booked, in the words the driver should read.
+ *
+ * A slot's own reason wins; otherwise it inherits its floor's, so taking a
+ * whole floor out of service explains every slot on it. Reserved and occupied
+ * slots are ordinary traffic, not an outage, so they carry a plain note rather
+ * than an admin reason.
+ */
+function parking_slot_unavailable_context(array $row, string $status): array
+{
+    $slotReason = trim((string) ($row['unavailable_reason'] ?? ''));
+    $floorReason = trim((string) ($row['floor_unavailable_reason'] ?? ''));
+    $floorIsActive = (int) ($row['floor_is_active'] ?? 1) === 1;
+    $slotIsActive = (int) ($row['is_active'] ?? 1) === 1;
+
+    if ($status === 'Reserved') {
+        return [
+            'unavailable_scope' => 'reserved',
+            'unavailable_reason' => 'Someone already holds this slot. It frees up if they do not arrive in time.'
+        ];
+    }
+
+    if ($status === 'Occupied') {
+        return [
+            'unavailable_scope' => 'occupied',
+            'unavailable_reason' => 'A vehicle is parked here right now. It frees up once the driver checks out.'
+        ];
+    }
+
+    if ($status !== 'Inactive') {
+        return ['unavailable_scope' => '', 'unavailable_reason' => ''];
+    }
+
+    if (!$floorIsActive) {
+        return [
+            'unavailable_scope' => 'floor',
+            'unavailable_reason' => $floorReason !== ''
+                ? $floorReason
+                : 'This floor is temporarily closed. No reason was recorded.'
+        ];
+    }
+
+    if (!$slotIsActive || $slotReason !== '') {
+        return [
+            'unavailable_scope' => 'slot',
+            'unavailable_reason' => $slotReason !== ''
+                ? $slotReason
+                : 'This slot is temporarily out of service. No reason was recorded.'
+        ];
+    }
+
+    return [
+        'unavailable_scope' => 'slot',
+        'unavailable_reason' => 'This slot is temporarily out of service. No reason was recorded.'
+    ];
 }
 
 function parking_get_slots(
@@ -295,6 +444,8 @@ function parking_get_slots(
             s.manual_status,
             s.is_active,
             f.is_active AS floor_is_active,
+            s.unavailable_reason,
+            f.unavailable_reason AS floor_unavailable_reason,
             s.created_at
         FROM parking_slots s
         INNER JOIN parking_floors f ON f.id = s.floor_id
@@ -318,7 +469,7 @@ function parking_get_slots(
         $sql .= " AND f.is_active = 1 AND s.is_active = 1 ";
     }
 
-    $sql .= " ORDER BY f.sort_order ASC, s.slot_code ASC ";
+    $sql .= " ORDER BY f.sort_order ASC, " . parking_slot_sort_expression('s.slot_code');
 
     $statement = $connection->prepare($sql);
 
@@ -333,8 +484,7 @@ function parking_get_slots(
 
     while ($row = $result->fetch_assoc()) {
         $status = parking_normalize_status((string) ($row['status'] ?? 'Available'));
-
-        $slots[] = [
+        $slots[] = array_merge([
             'id' => (int) $row['id'],
             'floor_id' => (int) $row['floor_id'],
             'floor_name' => $row['floor_name'],
@@ -347,7 +497,7 @@ function parking_get_slots(
             'is_active' => (int) $row['is_active'],
             'disabled' => in_array($status, ['Reserved', 'Occupied', 'Inactive'], true),
             'created_at' => $row['created_at']
-        ];
+        ], parking_slot_unavailable_context($row, $status));
     }
 
     return $slots;
@@ -409,6 +559,127 @@ function parking_generate_barcode(string $floorName, string $slotCode): string
     return booth_normalize_barcode("SP-{$compactFloor}-{$compactSlot}-{$seed}");
 }
 
+/**
+ * Mint a barcode that no reservation is already holding.
+ *
+ * parking_generate_barcode() seeds from random_bytes so a clash is remote, but
+ * the column carries a UNIQUE index now and a caller deserves a clean error
+ * rather than a duplicate-key exception surfacing as a 500.
+ */
+function parking_generate_unique_barcode(mysqli $connection, string $floorName, string $slotCode): string
+{
+    for ($attempt = 0; $attempt < 12; $attempt++) {
+        $candidate = parking_generate_barcode($floorName, $slotCode);
+        $lookup = booth_lookup_barcode($candidate);
+
+        if ($lookup === '') {
+            continue;
+        }
+
+        $statement = $connection->prepare("SELECT id FROM reservations WHERE barcode_lookup = ? LIMIT 1");
+        $statement->bind_param('s', $lookup);
+        $statement->execute();
+        $exists = (bool) $statement->get_result()->fetch_assoc();
+        $statement->close();
+
+        if (!$exists) {
+            return $candidate;
+        }
+    }
+
+    throw new RuntimeException('Failed to generate a unique reservation barcode.', 500);
+}
+
+function parking_generate_short_code(mysqli $connection, int $length = 6): string
+{
+    $length = max(4, min(8, $length));
+    $attempts = 0;
+
+    do {
+        // Generate a numeric short code of the requested length
+        $max = (int) pow(10, $length) - 1;
+        $min = (int) pow(10, $length - 1);
+        try {
+            $num = random_int($min, $max);
+        } catch (Throwable $e) {
+            $num = mt_rand($min, $max);
+        }
+
+        $code = (string) $num;
+        $lookup = booth_lookup_barcode($code);
+
+        $stmt = $connection->prepare("SELECT id FROM reservations WHERE short_code_lookup = ? LIMIT 1");
+        $stmt->bind_param('s', $lookup);
+        $stmt->execute();
+        $exists = (bool) $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        $attempts++;
+    } while ($exists && $attempts < 12);
+
+    if ($exists) {
+        throw new RuntimeException('Failed to generate unique short barcode code.', 500);
+    }
+
+    return $code;
+}
+
+/**
+ * A driver may hold one reservation at a time.
+ *
+ * The hold clears the moment the booth scans the barcode (which stamps
+ * actual_time_in), when the driver cancels, or when the reservation expires
+ * for a no-show. Anything still Reserved, still active and never scanned is
+ * therefore an outstanding hold that blocks a second slot.
+ */
+function parking_find_active_unscanned_reservation(mysqli $connection, int $userId): ?array
+{
+    if ($userId <= 0) {
+        return null;
+    }
+
+    $statement = $connection->prepare("
+        SELECT
+            r.id,
+            r.barcode_value,
+            r.short_code,
+            r.parking_floor,
+            r.parking_slot,
+            r.reservation_date,
+            r.reserved_time_in
+        FROM reservations r
+        LEFT JOIN parking_transactions pt ON pt.reservation_id = r.id
+        WHERE r.user_id = ?
+          AND LOWER(COALESCE(r.barcode_status, 'active')) = 'active'
+          AND UPPER(COALESCE(r.status, 'Reserved')) = 'RESERVED'
+          AND (pt.actual_time_in IS NULL OR pt.actual_time_in = '0000-00-00 00:00:00')
+        ORDER BY r.id DESC
+        LIMIT 1
+    ");
+    $statement->bind_param('i', $userId);
+    $statement->execute();
+
+    return $statement->get_result()->fetch_assoc() ?: null;
+}
+
+function parking_assert_single_active_reservation(mysqli $connection, int $userId): void
+{
+    $existing = parking_find_active_unscanned_reservation($connection, $userId);
+
+    if (!$existing) {
+        return;
+    }
+
+    throw new RuntimeException(
+        sprintf(
+            'You already have an active reservation for %s %s. Have it scanned at the parking booth, or cancel it, before reserving another slot.',
+            (string) ($existing['parking_floor'] ?? ''),
+            (string) ($existing['parking_slot'] ?? '')
+        ),
+        409
+    );
+}
+
 function parking_create_reservation(mysqli $connection, array $payload): array
 {
     $userId = (int) ($payload['user_id'] ?? 0);
@@ -416,10 +687,10 @@ function parking_create_reservation(mysqli $connection, array $payload): array
     $parkingSlot = strtoupper(parking_clean_text($payload['parking_slot'] ?? ''));
     $fullName = parking_clean_text($payload['full_name'] ?? '');
     $email = parking_clean_text($payload['email'] ?? '');
+    $vehicleId = (int) ($payload['vehicle_id'] ?? 0);
     $reservationDate = parking_clean_text($payload['reservation_date'] ?? '');
     $reservedTimeIn = parking_clean_text($payload['reserved_time_in'] ?? '');
     $reservationFee = system_settings_base_rate($connection);
-    $barcodeValue = booth_normalize_barcode((string) ($payload['barcode_value'] ?? ''));
 
     if ($userId <= 0 || $parkingFloor === '' || $parkingSlot === '' || $reservationDate === '' || $reservedTimeIn === '') {
         throw new RuntimeException('Incomplete reservation details.', 400);
@@ -427,6 +698,25 @@ function parking_create_reservation(mysqli $connection, array $payload): array
 
     reservation_security_expire_due_reservations($connection, $userId);
     reservation_security_assert_user_can_reserve($connection, $userId);
+    parking_assert_single_active_reservation($connection, $userId);
+
+    if ($vehicleId <= 0) {
+        throw new RuntimeException('Please add and select a registered vehicle first.', 422);
+    }
+
+    $vehicleStatement = $connection->prepare("
+        SELECT vehicle_id
+        FROM vehicles
+        WHERE vehicle_id = ?
+          AND user_id = ?
+        LIMIT 1
+    ");
+    $vehicleStatement->bind_param('ii', $vehicleId, $userId);
+    $vehicleStatement->execute();
+
+    if (!$vehicleStatement->get_result()->fetch_assoc()) {
+        throw new RuntimeException('Selected vehicle was not found on your account.', 422);
+    }
 
     if ($fullName === '' || $email === '') {
         $userStatement = $connection->prepare("
@@ -459,12 +749,70 @@ function parking_create_reservation(mysqli $connection, array $payload): array
         throw new RuntimeException('Please provide a valid reservation time.', 422);
     }
 
-    $barcodeValue = $barcodeValue !== '' ? $barcodeValue : parking_generate_barcode($parkingFloor, $parkingSlot);
+    $reservedMinutes = parking_time_to_minutes($reservedTimeIn);
+    $openingMinutes = parking_time_to_minutes(PARKING_OPENING_TIME);
+    $closingMinutes = parking_time_to_minutes(PARKING_CLOSING_TIME);
+
+    if ($reservedMinutes === null) {
+        throw new RuntimeException('Please provide a valid reservation time.', 422);
+    }
+
+    if ($reservedMinutes < $openingMinutes || $reservedMinutes > $closingMinutes) {
+        throw new RuntimeException(
+            sprintf('Reservations are only accepted from %s.', parking_hours_label()),
+            422
+        );
+    }
+
+    $serverNow = parking_server_now($connection);
+    $todayDate = $serverNow['date'];
+    $nowMinutes = parking_time_to_minutes($serverNow['time']) ?? 0;
+    $cutoffMinutes = parking_time_to_minutes(PARKING_SAME_DAY_CUTOFF) ?? 0;
+
+    if ($reservationDate < $todayDate) {
+        throw new RuntimeException('That date has already passed. Please choose today or a later date.', 422);
+    }
+
+    if ($reservationDate === $todayDate) {
+        // Past the cutoff there is no longer enough of the day left to arrive
+        // and be scanned, so today closes and only later dates remain.
+        if ($nowMinutes > $cutoffMinutes) {
+            throw new RuntimeException(
+                sprintf(
+                    'Reservations for today closed at %s. Please choose another day.',
+                    parking_time_label(PARKING_SAME_DAY_CUTOFF)
+                ),
+                422
+            );
+        }
+
+        // A time already gone would expire as a no-show within 30 minutes and
+        // cost the driver a warning they had no way to avoid.
+        if ($reservedMinutes <= $nowMinutes) {
+            throw new RuntimeException(
+                sprintf(
+                    'That arrival time has already passed. Please choose a time after %s today.',
+                    parking_time_label($serverNow['time'])
+                ),
+                422
+            );
+        }
+    }
+
+    // Both codes are minted here and never taken from the request. The browser
+    // used to send the barcode it had drawn, so a caller could pick any string
+    // -- including one already issued to somebody else. The booth resolves a
+    // scan with LIMIT 1, so a duplicate would have timed in, and billed, the
+    // wrong driver.
+    $barcodeValue = parking_generate_unique_barcode($connection, $parkingFloor, $parkingSlot);
     $barcodeLookup = booth_lookup_barcode($barcodeValue);
 
     if ($barcodeLookup === '') {
         throw new RuntimeException('Failed to generate a valid barcode value.', 500);
     }
+
+    $shortCode = parking_generate_short_code($connection, 6);
+    $shortCodeLookup = booth_lookup_barcode($shortCode);
 
     $connection->begin_transaction();
 
@@ -489,30 +837,17 @@ function parking_create_reservation(mysqli $connection, array $payload): array
         $userStatement->bind_param('iss', $userId, $fullName, $email);
         $userStatement->execute();
 
-        $reservationStatement = $connection->prepare("
-            INSERT INTO reservations (
-                user_id,
-                barcode_value,
-                barcode_lookup,
-                barcode_status,
-                full_name,
-                email,
-                parking_floor,
-                parking_slot,
-                reservation_date,
-                reserved_time_in,
-                reservation_fee,
-                status,
-                created_at,
-                updated_at
-            )
-            VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, 'Reserved', NOW(), NOW())
-        ");
+        parking_assert_single_active_reservation($connection, $userId);
+
+        $reservationStatement = $connection->prepare("\n            INSERT INTO reservations (\n                user_id,\n                vehicle_id,\n                barcode_value,\n                barcode_lookup,\n                short_code,\n                short_code_lookup,\n                barcode_status,\n                full_name,\n                email,\n                parking_floor,\n                parking_slot,\n                reservation_date,\n                reserved_time_in,\n                reservation_fee,\n                status,\n                created_at,\n                updated_at\n            )\n            VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, 'Reserved', NOW(), NOW())\n        ");
         $reservationStatement->bind_param(
-            'issssssssd',
+            'iissssssssssd',
             $userId,
+            $vehicleId,
             $barcodeValue,
             $barcodeLookup,
+            $shortCode,
+            $shortCodeLookup,
             $fullName,
             $email,
             $parkingFloor,
@@ -551,6 +886,7 @@ function parking_create_reservation(mysqli $connection, array $payload): array
 
         system_logs_write($connection, [
             'user_id' => $userId,
+            'vehicle_id' => $vehicleId,
             'actor_role' => 'user',
             'actor_name' => $fullName,
             'action_type' => 'USER_RESERVATION_CREATED',
@@ -603,9 +939,11 @@ function parking_get_live_reservations(mysqli $connection, int $limit = 25): arr
         SELECT
             r.id,
             r.user_id,
+            r.vehicle_id,
             COALESCE(NULLIF(TRIM(r.full_name), ''), u.full_name, 'Reservation Holder') AS full_name,
             COALESCE(NULLIF(TRIM(r.email), ''), u.email, '--') AS email,
             r.barcode_value,
+            r.short_code,
             r.parking_floor,
             r.parking_slot,
             r.reservation_date,
@@ -638,8 +976,9 @@ function parking_get_live_reservations(mysqli $connection, int $limit = 25): arr
             'user_id' => (int) $row['user_id'],
             'full_name' => $row['full_name'],
             'email' => $row['email'],
-            'barcode' => $row['barcode_value'],
-            'barcode_value' => $row['barcode_value'],
+        'barcode' => $row['barcode_value'],
+        'barcode_value' => $row['barcode_value'],
+        'short_code' => $row['short_code'] ?? null,
             'floor' => $row['parking_floor'],
             'parking_floor' => $row['parking_floor'],
             'slot' => $row['parking_slot'],
@@ -683,9 +1022,15 @@ function parking_get_user_reservations(mysqli $connection, int $userId): array
             END AS booth_status,
             COALESCE(r.barcode_status, 'active') AS barcode_status,
             COALESCE(pt.updated_at, r.updated_at, r.created_at) AS updated_at,
+            v.vehicle_type,
+            v.plate_number,
+            v.brand AS vehicle_brand,
+            v.model AS vehicle_model,
+            v.color AS vehicle_color,
             r.created_at
         FROM reservations r
         LEFT JOIN users u ON u.id = r.user_id
+        LEFT JOIN vehicles v ON v.vehicle_id = r.vehicle_id
         LEFT JOIN parking_transactions pt ON pt.reservation_id = r.id
         WHERE r.user_id = ?
         ORDER BY r.created_at DESC, r.id DESC
@@ -702,6 +1047,7 @@ function parking_get_user_reservations(mysqli $connection, int $userId): array
         $reservations[] = [
             'reservationId' => (int) $row['id'],
             'userId' => (int) $row['user_id'],
+            'vehicleId' => (int) ($row['vehicle_id'] ?? 0),
             'fullName' => $row['full_name'],
             'email' => $row['email'],
             'barcode' => $row['barcode_value'],
@@ -717,6 +1063,11 @@ function parking_get_user_reservations(mysqli $connection, int $userId): array
             'barcodeStatus' => $row['barcode_status'],
             'status' => $row['reservation_status'],
             'reservationStatus' => $row['reservation_status'],
+            'vehicleType' => $row['vehicle_type'] ?? null,
+            'plateNumber' => $row['plate_number'] ?? null,
+            'vehicleBrand' => $row['vehicle_brand'] ?? null,
+            'vehicleModel' => $row['vehicle_model'] ?? null,
+            'vehicleColor' => $row['vehicle_color'] ?? null,
             'createdAt' => $row['created_at'],
             'updatedAt' => $row['updated_at']
         ];

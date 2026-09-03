@@ -31,16 +31,44 @@ try {
     }
 
     if (strtotime((string) $user['reset_otp_expires_at']) < time()) {
+        error_log(sprintf('[otp] check-reset-otp rejected user %d: code expired', $userId));
         otp_clear_user_code($connection, $userId);
         otp_clear_reset_session();
         otp_json_response(false, 'This OTP has expired. Please request a new one.', 422);
     }
 
     if (!password_verify($otp, (string) $user['reset_otp_hash'])) {
-        otp_json_response(false, 'Incorrect OTP. Please try again.', 422);
+        // Expired and wrong codes both land here from the user's point of view,
+        // so log which it was - the two need very different fixes.
+        error_log(sprintf('[otp] check-reset-otp rejected user %d: code did not match', $userId));
+
+        $attemptsLeft = otp_register_failed_attempt();
+
+        if ($attemptsLeft <= 0) {
+            otp_clear_user_code($connection, $userId);
+            otp_clear_reset_session();
+            otp_json_response(
+                false,
+                'Too many incorrect codes. For your security this OTP has been cancelled - please request a new one.',
+                429
+            );
+        }
+
+        // Only the newest code works, and asking twice is the common way to end
+        // up typing a dead one, so say so rather than just "incorrect".
+        otp_json_response(
+            false,
+            sprintf(
+                'Incorrect OTP. If you requested more than one code, use the newest email. You have %d attempt%s left.',
+                $attemptsLeft,
+                $attemptsLeft === 1 ? '' : 's'
+            ),
+            422
+        );
     }
 
     otp_mark_user_verified($connection, $userId);
+    otp_reset_attempts();
 
     session_regenerate_id(true);
     $_SESSION['password_reset_allowed'] = true;
@@ -51,5 +79,5 @@ try {
         'expires_in' => OTP_RESET_SESSION_TTL
     ]);
 } catch (Throwable $exception) {
-    otp_json_response(false, $exception->getMessage(), 500);
+    otp_fail($exception, 'check-reset-otp');
 }

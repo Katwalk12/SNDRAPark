@@ -20,13 +20,25 @@ try {
     // SECURITY: Validate CSRF token for POST requests
     admin_require_csrf();
 
-    $settings = [
-        'system_name' => admin_clean_text(admin_input('system_name')),
-        'contact_number' => admin_clean_text(admin_input('contact_number')),
-        'gmail_address' => admin_clean_text(admin_input('gmail_address')),
-        'parking_base_rate' => (string) admin_float(admin_input('parking_base_rate')),
-        'extra_hourly_rate' => (string) admin_float(admin_input('extra_hourly_rate'))
-    ];
+    // Only keys the settings form owns are writable, and every value is run
+    // through system_settings_normalize() so a bad number cannot land in the
+    // table and take pricing or the no-show policy with it.
+    $submitted = [];
+
+    foreach (array_keys(system_settings_defaults()) as $key) {
+        $value = admin_input($key);
+
+        if ($value !== null) {
+            $submitted[$key] = is_string($value) ? trim($value) : $value;
+        }
+    }
+
+    $current = system_settings_fetch($connection);
+    $settings = [];
+
+    foreach (system_settings_normalize(array_merge($current, $submitted)) as $key => $value) {
+        $settings[$key] = (string) $value;
+    }
 
     $statement = $connection->prepare("
         INSERT INTO system_settings (setting_key, setting_value)
@@ -45,6 +57,8 @@ try {
         'status' => 'success',
         'metadata' => $settings
     ]);
+
+    system_settings_forget();
 
     admin_success('System settings saved successfully.', [
         'settings' => admin_get_settings_map($connection)

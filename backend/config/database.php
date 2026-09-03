@@ -5,7 +5,7 @@ require_once __DIR__ . '/../utils/EnvHelper.php';
 class Database
 {
     private static $connection = null;
-    private const SCHEMA_CACHE_VERSION = '20260331_2';
+    private const SCHEMA_CACHE_VERSION = '20260612_google_oauth';
     private const SCHEMA_CACHE_MAX_AGE = 2592000;
 
     public static function connection()
@@ -53,6 +53,9 @@ class Database
 
     private static function ensureSchema()
     {
+        $userIdColumnType = 'INT';
+        $vehicleIdColumnType = 'INT';
+
         self::$connection->query("
             CREATE TABLE IF NOT EXISTS users (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -61,6 +64,7 @@ class Database
                 full_name VARCHAR(150) NOT NULL,
                 birth_date DATE NULL,
                 email VARCHAR(100) NOT NULL UNIQUE,
+                google_id VARCHAR(64) NULL,
                 password_hash VARCHAR(255) NOT NULL,
                 role ENUM('user', 'admin', 'booth') NOT NULL DEFAULT 'user',
                 last_login_at DATETIME NULL,
@@ -73,9 +77,25 @@ class Database
                 reset_otp_hash VARCHAR(255) NULL,
                 reset_otp_expires_at DATETIME NULL,
                 reset_otp_verified_at DATETIME NULL,
+                vehicle_type ENUM('Motorcycle', 'Car') NULL DEFAULT NULL,
+                plate_number VARCHAR(20) NULL DEFAULT NULL,
+                vehicle_brand VARCHAR(100) NULL DEFAULT NULL,
+                vehicle_model VARCHAR(100) NULL DEFAULT NULL,
+                vehicle_color VARCHAR(50) NULL DEFAULT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ");
+
+        try {
+            $userIdColumn = self::$connection->query("SHOW COLUMNS FROM users LIKE 'id'")->fetch_assoc();
+            if (stripos((string) ($userIdColumn['Type'] ?? ''), 'unsigned') !== false) {
+                $userIdColumnType = 'INT UNSIGNED';
+                $vehicleIdColumnType = 'INT UNSIGNED';
+            }
+        } catch (Throwable $exception) {
+            $userIdColumnType = 'INT';
+            $vehicleIdColumnType = 'INT';
+        }
 
         self::$connection->query("
             CREATE TABLE IF NOT EXISTS parking_slots (
@@ -106,6 +126,35 @@ class Database
                     FOREIGN KEY (user_id) REFERENCES users(id),
                 CONSTRAINT fk_reservations_parking_slot
                     FOREIGN KEY (parking_slot_id) REFERENCES parking_slots(id)
+            )
+        ");
+
+        self::$connection->query("
+            CREATE TABLE IF NOT EXISTS booth_teller_accounts (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                teller_name VARCHAR(150) NOT NULL,
+                teller_details VARCHAR(255) NULL,
+                pin_code VARCHAR(255) NOT NULL,
+                is_active TINYINT(1) NOT NULL DEFAULT 1,
+                last_login_at DATETIME NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        ");
+
+        self::$connection->query("
+            CREATE TABLE IF NOT EXISTS vehicles (
+                vehicle_id {$vehicleIdColumnType} AUTO_INCREMENT PRIMARY KEY,
+                user_id {$userIdColumnType} NOT NULL,
+                vehicle_type ENUM('Car', 'Motorcycle') NOT NULL,
+                plate_number VARCHAR(20) NOT NULL,
+                brand VARCHAR(100) NULL,
+                model VARCHAR(100) NULL,
+                color VARCHAR(50) NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT fk_vehicles_user
+                    FOREIGN KEY (user_id) REFERENCES users(id)
+                    ON DELETE CASCADE
             )
         ");
 
@@ -185,6 +234,7 @@ class Database
         self::ensureColumn('users', 'last_name', "ALTER TABLE users ADD COLUMN last_name VARCHAR(100) NULL AFTER first_name");
         self::ensureColumn('users', 'full_name', "ALTER TABLE users ADD COLUMN full_name VARCHAR(150) NOT NULL DEFAULT '' AFTER last_name");
         self::ensureColumn('users', 'birth_date', "ALTER TABLE users ADD COLUMN birth_date DATE NULL AFTER full_name");
+        self::ensureColumn('users', 'google_id', "ALTER TABLE users ADD COLUMN google_id VARCHAR(64) NULL AFTER email");
         self::ensureColumn('users', 'password_hash', "ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NOT NULL DEFAULT '' AFTER email");
         self::ensureColumn('users', 'role', "ALTER TABLE users ADD COLUMN role ENUM('user', 'admin', 'booth') NOT NULL DEFAULT 'user' AFTER password_hash");
         self::ensureColumn('users', 'last_login_at', "ALTER TABLE users ADD COLUMN last_login_at DATETIME NULL AFTER role");
@@ -197,6 +247,13 @@ class Database
         self::ensureColumn('users', 'reset_otp_hash', "ALTER TABLE users ADD COLUMN reset_otp_hash VARCHAR(255) NULL AFTER password_hash");
         self::ensureColumn('users', 'reset_otp_expires_at', "ALTER TABLE users ADD COLUMN reset_otp_expires_at DATETIME NULL AFTER reset_otp_hash");
         self::ensureColumn('users', 'reset_otp_verified_at', "ALTER TABLE users ADD COLUMN reset_otp_verified_at DATETIME NULL AFTER reset_otp_expires_at");
+        self::ensureColumn('users', 'vehicle_type', "ALTER TABLE users ADD COLUMN vehicle_type ENUM('Motorcycle', 'Car') NULL DEFAULT NULL AFTER birth_date");
+        self::ensureColumn('users', 'plate_number', "ALTER TABLE users ADD COLUMN plate_number VARCHAR(20) NULL DEFAULT NULL AFTER vehicle_type");
+        self::ensureColumn('users', 'vehicle_brand', "ALTER TABLE users ADD COLUMN vehicle_brand VARCHAR(100) NULL DEFAULT NULL AFTER plate_number");
+        self::ensureColumn('users', 'vehicle_model', "ALTER TABLE users ADD COLUMN vehicle_model VARCHAR(100) NULL DEFAULT NULL AFTER vehicle_brand");
+        self::ensureColumn('users', 'vehicle_color', "ALTER TABLE users ADD COLUMN vehicle_color VARCHAR(50) NULL DEFAULT NULL AFTER vehicle_brand");
+        self::ensureColumn('vehicles', 'model', "ALTER TABLE vehicles ADD COLUMN model VARCHAR(100) NULL AFTER brand");
+        self::ensureColumn('reservations', 'vehicle_id', "ALTER TABLE reservations ADD COLUMN vehicle_id {$vehicleIdColumnType} NULL AFTER user_id");
         self::ensureColumn('reservations', 'barcode_value', "ALTER TABLE reservations ADD COLUMN barcode_value VARCHAR(120) NULL AFTER user_id");
         self::ensureColumn('reservations', 'barcode_status', "ALTER TABLE reservations ADD COLUMN barcode_status VARCHAR(20) NOT NULL DEFAULT 'active' AFTER barcode_value");
         self::ensureColumn('reservations', 'parking_floor', "ALTER TABLE reservations ADD COLUMN parking_floor VARCHAR(50) NULL AFTER barcode_value");
@@ -215,9 +272,25 @@ class Database
         self::ensureColumn('user_violations', 'related_reservation_id', "ALTER TABLE user_violations ADD COLUMN related_reservation_id INT NULL AFTER description");
         self::ensureColumn('user_violations', 'created_by', "ALTER TABLE user_violations ADD COLUMN created_by VARCHAR(50) NOT NULL DEFAULT 'system' AFTER related_reservation_id");
         self::ensureColumn('user_violations', 'created_at', "ALTER TABLE user_violations ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER created_by");
+        self::ensureColumn('booth_teller_accounts', 'teller_details', "ALTER TABLE booth_teller_accounts ADD COLUMN teller_details VARCHAR(255) NULL AFTER teller_name");
+        self::ensureColumn('booth_teller_accounts', 'is_active', "ALTER TABLE booth_teller_accounts ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER pin_code");
+        self::ensureColumn('booth_teller_accounts', 'last_login_at', "ALTER TABLE booth_teller_accounts ADD COLUMN last_login_at DATETIME NULL AFTER is_active");
+        self::ensureColumn('booth_teller_accounts', 'updated_at', "ALTER TABLE booth_teller_accounts ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at");
 
         self::ensureIndex('reservations', 'uq_reservations_barcode_value', "CREATE UNIQUE INDEX uq_reservations_barcode_value ON reservations (barcode_value)");
+        self::$connection->query("
+            INSERT IGNORE INTO vehicles (user_id, vehicle_type, plate_number, brand, model, color)
+            SELECT id, vehicle_type, UPPER(TRIM(plate_number)), vehicle_brand, vehicle_model, vehicle_color
+            FROM users
+            WHERE vehicle_type IN ('Car', 'Motorcycle')
+              AND plate_number IS NOT NULL
+              AND TRIM(plate_number) <> ''
+        ");
+        self::ensureIndex('vehicles', 'uq_vehicles_user_plate', "CREATE UNIQUE INDEX uq_vehicles_user_plate ON vehicles (user_id, plate_number)");
+        self::ensureIndex('users', 'idx_users_google_id', "CREATE INDEX idx_users_google_id ON users (google_id)");
+        self::ensureIndex('reservations', 'idx_reservations_vehicle_id', "CREATE INDEX idx_reservations_vehicle_id ON reservations (vehicle_id)");
         self::ensureIndex('parking_transactions', 'uq_parking_transactions_reservation_id', "CREATE UNIQUE INDEX uq_parking_transactions_reservation_id ON parking_transactions (reservation_id)");
+        self::ensureIndex('booth_teller_accounts', 'idx_booth_teller_accounts_active', "CREATE INDEX idx_booth_teller_accounts_active ON booth_teller_accounts (is_active, created_at)");
         self::ensureIndex('user_violations', 'idx_user_violations_user_created', "CREATE INDEX idx_user_violations_user_created ON user_violations (user_id, created_at)");
         self::ensureIndex('user_violations', 'idx_user_violations_type_created', "CREATE INDEX idx_user_violations_type_created ON user_violations (violation_type, created_at)");
 

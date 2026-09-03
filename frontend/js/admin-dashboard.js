@@ -17,6 +17,7 @@ const ADMIN_ENDPOINTS = {
   users: `${ADMIN_API_BASE}/get_users.php`,
   staff: `${ADMIN_API_BASE}/manage_booth_staff.php`,
   payments: `${ADMIN_API_BASE}/get_payments.php`,
+  salesReport: `${ADMIN_API_BASE}/get_sales_report.php`,
   logs: `${ADMIN_API_BASE}/get_logs.php`,
   feedback: `${ADMIN_API_BASE}/get_feedback.php`,
   replyFeedback: `${ADMIN_API_BASE}/reply_feedback.php`,
@@ -50,12 +51,17 @@ const SECTION_META = {
   staff: {
     kicker: "Staff Access",
     title: "Booth Staff",
-    description: "Manage booth staff and administrator accounts stored in MySQL."
+    description: "Create, update, and disable PIN-only booth teller accounts."
   },
   payments: {
     kicker: "Cashier Overview",
     title: "Payments",
     description: "Monitor paid and unpaid transaction records and total income."
+  },
+  sales: {
+    kicker: "Business Overview",
+    title: "Sales Report",
+    description: "Summarize collected sales per day, per month, and per year, with the breakdown behind every total."
   },
   logs: {
     kicker: "Audit Trail",
@@ -91,6 +97,8 @@ const state = {
   staff: [],
   notifications: [],
   feedback: [],
+  salesReport: { granularity: "month", data: null },
+  settingsLoaded: false,
   selectedFeedbackId: null,
   violationsHistory: null,
   entityEditor: null
@@ -114,6 +122,12 @@ const refs = {
   settingsForm: document.getElementById("settings-form"),
   notificationDate: document.getElementById("notification-date"),
   slotFloorSelect: document.getElementById("slot-floor"),
+  slotCodeInput: document.getElementById("slot-code"),
+  slotStartNumberInput: document.getElementById("slot-start-number"),
+  slotTotalInput: document.getElementById("slot-total"),
+  slotPreviewPanel: document.getElementById("slot-preview-panel"),
+  slotPreviewTitle: document.getElementById("slot-preview-title"),
+  slotPreviewCopy: document.getElementById("slot-preview-copy"),
   slotFormFloorCopy: document.getElementById("slot-form-floor-copy"),
   floorCardGrid: document.getElementById("floor-card-grid"),
   slotCardGrid: document.getElementById("slot-card-grid"),
@@ -153,6 +167,7 @@ const refs = {
   feedbackReplyStatus: document.getElementById("feedback-reply-status"),
   feedbackReplyMessage: document.getElementById("feedback-reply-message"),
   feedbackModalResolveButton: document.getElementById("feedback-modal-resolve-btn"),
+  feedbackModalApproveAppealButton: document.getElementById("feedback-modal-approve-appeal-btn"),
   notificationList: document.getElementById("notification-list"),
   logsContainer: document.getElementById("logs-groups-container"),
   dashboardActivityBody: document.getElementById("dashboard-activity-body"),
@@ -198,6 +213,9 @@ function bindEvents() {
     button.addEventListener("click", () => activateSection(button.dataset.section || "dashboard"));
   });
 
+  bindDashboardTableLinks();
+  bindSlotReasonControls();
+  bindSalesReportControls();
   refs.logoutButton?.addEventListener("click", handleLogout);
   refs.floorForm?.addEventListener("submit", handleAddFloor);
   refs.slotForm?.addEventListener("submit", handleAddSlot);
@@ -209,6 +227,9 @@ function bindEvents() {
     }
 
     clearSelectedFloor();
+  });
+  [refs.slotCodeInput, refs.slotStartNumberInput, refs.slotTotalInput].forEach((input) => {
+    input?.addEventListener("input", renderSlotCreationPreview);
   });
   refs.reservationFilterForm?.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -226,6 +247,7 @@ function bindEvents() {
   refs.entityEditorForm?.addEventListener("submit", handleEntityEditorSubmit);
   refs.feedbackReplyForm?.addEventListener("submit", submitFeedbackReply);
   refs.feedbackModalResolveButton?.addEventListener("click", handleResolveFeedbackFromModal);
+  refs.feedbackModalApproveAppealButton?.addEventListener("click", handleApproveAppeal);
 
   document.addEventListener("click", handleDocumentClick);
 
@@ -238,6 +260,19 @@ function bindEvents() {
         }
 
         modal.hidden = true;
+      }
+    });
+  });
+}
+
+function bindDashboardTableLinks() {
+  document.querySelectorAll("[data-jump-section]").forEach((link) => {
+    link.addEventListener("click", () => {
+      const target = link.dataset.jumpSection;
+      const navButton = document.querySelector(`.sidebar-link[data-section="${target}"]`);
+
+      if (navButton) {
+        navButton.click();
       }
     });
   });
@@ -280,6 +315,7 @@ function activateSection(sectionName) {
     users: loadUsers,
     staff: loadStaff,
     payments: loadPayments,
+    sales: loadSalesReport,
     logs: loadLogs,
     feedback: loadFeedback,
     notifications: loadNotifications,
@@ -311,6 +347,8 @@ async function loadDashboard() {
     const result = await fetchJson(ADMIN_ENDPOINTS.dashboard);
     const summary = result?.data?.summary || {};
     const activity = Array.isArray(result?.data?.recentActivity) ? result.data.recentActivity : [];
+    const statusMix = result?.data?.statusMix;
+    const monthlySales = result?.data?.monthlySales;
 
     setText("admin-total-users", formatCount(summary.totalUsers));
     setText("admin-total-reservations", formatCount(summary.totalReservations));
@@ -319,6 +357,11 @@ async function loadDashboard() {
     setText("admin-total-reserved-slots", formatCount(summary.totalReservedSlots));
     setText("admin-total-paid-today", formatCurrency(summary.totalPaidToday));
     setText("admin-total-unpaid", formatCount(summary.totalUnpaid));
+    renderOutcomeDonut(statusMix);
+    renderMonthlySales(monthlySales);
+    renderPeakHours(result?.data?.peakHours);
+    renderFloorDemand(result?.data?.floorDemand);
+    renderAnalyticsKpis(result?.data?.analytics);
 
     await loadLiveReservations();
 
@@ -327,7 +370,7 @@ async function loadDashboard() {
       return;
     }
 
-    refs.dashboardActivityBody.innerHTML = activity.map((record) => `
+    refs.dashboardActivityBody.innerHTML = activity.slice(0, DASHBOARD_TABLE_ROWS).map((record) => `
       <tr>
         <td>${escapeHtml(record.barcode_value || "--")}</td>
         <td>${escapeHtml(record.full_name || "--")}</td>
@@ -341,6 +384,485 @@ async function loadDashboard() {
   } catch (error) {
     showStatus(error.message || "Failed to load dashboard summary.", true);
   }
+}
+
+// --- Dashboard charts ------------------------------------------------------
+// Palette and mark specs come from the data-viz reference instance. The ring
+// order below is the one that cleared scripts/validate_palette.js against this
+// card's white surface (see the note in admin-dashboard.refine.css). Do not
+// reorder without re-running the validator.
+const OUTCOME_SERIES = [
+  { label: "Completed", color: "#1baf7a" },
+  { label: "Cancelled", color: "#eb6834" },
+  { label: "In progress", color: "#2a78d6" },
+  { label: "Expired", color: "#e34948" }
+];
+
+// The dashboard is a summary surface - the full lists live in the
+// Reservations section, reached from the "View all" link on each card.
+const DASHBOARD_TABLE_ROWS = 6;
+
+const DONUT_RADIUS = 70;
+const DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_RADIUS;
+const SURFACE_GAP = 2;
+
+function svgEl(name, attrs = {}) {
+  const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+  Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, String(value)));
+  return node;
+}
+
+function showChartTooltip(event, heading, detail) {
+  const tooltip = document.getElementById("chart-tooltip");
+
+  if (!tooltip) {
+    return;
+  }
+
+  // Category names arrive from the API, so they go in as text, never markup.
+  tooltip.textContent = "";
+  const strong = document.createElement("strong");
+  strong.textContent = heading;
+  const span = document.createElement("span");
+  span.textContent = detail;
+  tooltip.append(strong, span);
+  tooltip.hidden = false;
+
+  const box = tooltip.getBoundingClientRect();
+  const markBox = event.target.getBoundingClientRect();
+  const anchorX = typeof event.clientX === "number" && event.clientX > 0 ? event.clientX : markBox.left + markBox.width / 2;
+  const anchorY = typeof event.clientY === "number" && event.clientY > 0 ? event.clientY : markBox.top;
+
+  tooltip.style.left = Math.max(12, Math.min(window.innerWidth - box.width - 12, anchorX + 14)) + "px";
+  tooltip.style.top = Math.max(12, anchorY - box.height - 12) + "px";
+}
+
+function hideChartTooltip() {
+  const tooltip = document.getElementById("chart-tooltip");
+
+  if (tooltip) {
+    tooltip.hidden = true;
+  }
+}
+
+function bindMarkTooltip(node, heading, detail) {
+  node.addEventListener("pointermove", (event) => showChartTooltip(event, heading, detail));
+  node.addEventListener("pointerleave", hideChartTooltip);
+  node.addEventListener("focus", (event) => showChartTooltip(event, heading, detail));
+  node.addEventListener("blur", hideChartTooltip);
+}
+
+function renderOutcomeDonut(statusMix) {
+  const group = document.getElementById("donut-segments");
+  const legend = document.getElementById("donut-legend");
+  const tableBody = document.getElementById("donut-table-body");
+
+  if (!group || !legend || !tableBody) {
+    return;
+  }
+
+  const rows = Array.isArray(statusMix) ? statusMix : [];
+  const byLabel = new Map(rows.map((row) => [String(row.label), Number(row.total || 0)]));
+  const series = OUTCOME_SERIES.map((entry) => ({ ...entry, total: byLabel.get(entry.label) || 0 }));
+  const total = series.reduce((sum, entry) => sum + entry.total, 0);
+
+  group.textContent = "";
+  legend.textContent = "";
+  tableBody.textContent = "";
+  setText("donut-total", formatCount(total));
+
+  if (!total) {
+    group.append(svgEl("circle", {
+      cx: 90, cy: 90, r: DONUT_RADIUS, fill: "none", stroke: "#E5E7EB", "stroke-width": 22
+    }));
+    const empty = document.createElement("li");
+    empty.className = "legend-name";
+    empty.textContent = "No reservations recorded yet.";
+    legend.append(empty);
+    return;
+  }
+
+  let offset = 0;
+
+  series.forEach((entry) => {
+    const share = entry.total / total;
+    const arc = share * DONUT_CIRCUMFERENCE;
+
+    if (entry.total > 0) {
+      // The 2px surface gap is subtracted from the arc, never drawn as a stroke.
+      const visible = Math.max(0.5, arc - SURFACE_GAP);
+      const segment = svgEl("circle", {
+        class: "donut-segment",
+        cx: 90, cy: 90, r: DONUT_RADIUS,
+        stroke: entry.color,
+        "stroke-dasharray": visible + " " + (DONUT_CIRCUMFERENCE - visible),
+        "stroke-dashoffset": -offset,
+        tabindex: "0",
+        role: "img"
+      });
+      const readout = formatCount(entry.total) + " of " + formatCount(total) + " reservations";
+      segment.setAttribute("aria-label", entry.label + ": " + readout);
+      bindMarkTooltip(segment, entry.label, readout);
+      group.append(segment);
+    }
+
+    offset += arc;
+
+    const percent = (share * 100).toFixed(share >= 0.1 ? 0 : 1) + "%";
+    const item = document.createElement("li");
+    const swatch = document.createElement("span");
+    swatch.className = "legend-swatch";
+    swatch.style.background = entry.color;
+    const name = document.createElement("span");
+    name.className = "legend-name";
+    name.textContent = entry.label;
+    const value = document.createElement("span");
+    value.className = "legend-value";
+    value.textContent = formatCount(entry.total);
+    const shareText = document.createElement("span");
+    shareText.className = "legend-share";
+    shareText.textContent = percent;
+    item.append(swatch, name, value, shareText);
+    legend.append(item);
+
+    const row = document.createElement("tr");
+    [entry.label, formatCount(entry.total), percent].forEach((cell) => {
+      const td = document.createElement("td");
+      td.textContent = cell;
+      row.append(td);
+    });
+    tableBody.append(row);
+  });
+}
+
+function niceAxisMax(value) {
+  if (value <= 0) {
+    return 1000;
+  }
+
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  const steps = [1, 2, 2.5, 5, 10];
+  const step = steps.find((candidate) => value <= candidate * magnitude) || 10;
+
+  return step * magnitude;
+}
+
+function renderMonthlySales(monthlySales) {
+  const gridGroup = document.getElementById("sales-grid");
+  const columnGroup = document.getElementById("sales-columns");
+  const axisGroup = document.getElementById("sales-axis");
+  const tableBody = document.getElementById("sales-table-body");
+
+  if (!gridGroup || !columnGroup || !axisGroup || !tableBody) {
+    return;
+  }
+
+  [gridGroup, columnGroup, axisGroup, tableBody].forEach((node) => { node.textContent = ""; });
+
+  const months = (Array.isArray(monthlySales) ? monthlySales : []).map((month) => ({
+    label: String(month.label || ""),
+    fullLabel: String(month.fullLabel || ""),
+    revenue: Number(month.revenue || 0),
+    transactions: Number(month.transactions || 0)
+  }));
+
+  const totalRevenue = months.reduce((sum, month) => sum + month.revenue, 0);
+  setText("sales-total", formatCurrency(totalRevenue));
+
+  const deltaNode = document.getElementById("sales-delta");
+  const latest = months[months.length - 1];
+  const previous = months[months.length - 2];
+
+  if (deltaNode) {
+    if (latest && previous && previous.revenue > 0) {
+      const change = ((latest.revenue - previous.revenue) / previous.revenue) * 100;
+      deltaNode.textContent = latest.label + (change >= 0 ? " up " : " down ")
+        + Math.abs(change).toFixed(0) + "% vs " + previous.label;
+    } else {
+      deltaNode.textContent = "Last 12 months";
+    }
+  }
+
+  if (!months.length) {
+    return;
+  }
+
+  const left = 62;
+  const right = 12;
+  const top = 26;
+  const bottom = 34;
+  const width = 660;
+  const height = 260;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const band = plotWidth / months.length;
+  const columnWidth = Math.min(24, band - 10);
+  const axisMax = niceAxisMax(Math.max.apply(null, months.map((month) => month.revenue)));
+  const yFor = (value) => top + plotHeight - (value / axisMax) * plotHeight;
+
+  // Hairline solid gridlines, one step off the surface.
+  for (let tick = 0; tick <= 4; tick += 1) {
+    const value = (axisMax / 4) * tick;
+    const y = yFor(value);
+    gridGroup.append(svgEl("line", { class: "sales-gridline", x1: left, x2: width - right, y1: y, y2: y }));
+    const label = svgEl("text", { class: "sales-axis-text", x: left - 10, y: y + 4, "text-anchor": "end" });
+    label.textContent = formatCount(Math.round(value));
+    axisGroup.append(label);
+  }
+
+  const peakRevenue = Math.max.apply(null, months.map((month) => month.revenue));
+
+  months.forEach((month, index) => {
+    const centre = left + band * index + band / 2;
+    const columnTop = yFor(month.revenue);
+    const columnHeight = month.revenue > 0 ? Math.max(3, top + plotHeight - columnTop) : 0;
+    const readout = formatCurrency(month.revenue) + " from " + formatCount(month.transactions)
+      + " transaction" + (month.transactions === 1 ? "" : "s");
+
+    if (columnHeight > 0) {
+      // 4px rounded data-end, square where it meets the baseline: the rounded
+      // rect is capped off by a square one covering everything below the cap.
+      const radius = Math.min(4, columnWidth / 2, columnHeight);
+      columnGroup.append(svgEl("rect", {
+        class: "sales-column",
+        x: centre - columnWidth / 2, y: columnTop,
+        width: columnWidth, height: columnHeight, rx: radius
+      }));
+      columnGroup.append(svgEl("rect", {
+        class: "sales-column",
+        x: centre - columnWidth / 2, y: columnTop + radius,
+        width: columnWidth, height: Math.max(0, columnHeight - radius)
+      }));
+    }
+
+    // The hit target spans the whole band, not just the painted column.
+    const hit = svgEl("rect", {
+      class: "sales-hit",
+      x: left + band * index, y: top, width: band, height: plotHeight,
+      tabindex: "0", role: "img"
+    });
+    hit.setAttribute("aria-label", month.fullLabel + ": " + readout);
+    bindMarkTooltip(hit, month.fullLabel, readout);
+    columnGroup.append(hit);
+
+    const monthLabel = svgEl("text", {
+      class: "sales-axis-text", x: centre, y: height - bottom + 18, "text-anchor": "middle"
+    });
+    monthLabel.textContent = month.label;
+    axisGroup.append(monthLabel);
+
+    // Label selectively: the peak and the current month carry a value; the
+    // axis and the tooltip carry the rest.
+    const isPeak = month.revenue > 0 && month.revenue === peakRevenue;
+    const isLatest = index === months.length - 1 && month.revenue > 0;
+
+    if (isPeak || isLatest) {
+      const valueLabel = svgEl("text", {
+        class: "sales-value-label", x: centre, y: columnTop - 8, "text-anchor": "middle"
+      });
+      valueLabel.textContent = formatCurrency(month.revenue);
+      axisGroup.append(valueLabel);
+    }
+
+    const row = document.createElement("tr");
+    [month.fullLabel, formatCount(month.transactions), formatCurrency(month.revenue)].forEach((cell) => {
+      const td = document.createElement("td");
+      td.textContent = cell;
+      row.append(td);
+    });
+    tableBody.append(row);
+  });
+}
+
+function renderPeakHours(peakHours) {
+  const gridGroup = document.getElementById("hours-grid");
+  const columnGroup = document.getElementById("hours-columns");
+  const axisGroup = document.getElementById("hours-axis");
+  const tableBody = document.getElementById("hours-table-body");
+
+  if (!gridGroup || !columnGroup || !axisGroup || !tableBody) {
+    return;
+  }
+
+  [gridGroup, columnGroup, axisGroup, tableBody].forEach((node) => { node.textContent = ""; });
+
+  const hours = (Array.isArray(peakHours) ? peakHours : []).map((hour) => ({
+    label: String(hour.label || ""),
+    total: Number(hour.total || 0),
+    withinHours: Boolean(hour.withinHours)
+  }));
+
+  if (!hours.length) {
+    return;
+  }
+
+  const peak = hours.reduce((best, hour) => (hour.total > best.total ? hour : best), hours[0]);
+  setText("peak-hour-value", peak.total > 0 ? peak.label.toUpperCase() : "--");
+  setText(
+    "peak-hour-detail",
+    peak.total > 0 ? `Peak hour - ${formatCount(peak.total)} reservations` : "Peak arrival hour"
+  );
+
+  const left = 40;
+  const right = 12;
+  const top = 24;
+  const bottom = 30;
+  const width = 660;
+  const height = 220;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const band = plotWidth / hours.length;
+  const columnWidth = Math.min(24, band - 6);
+  const axisMax = niceAxisMax(Math.max.apply(null, hours.map((hour) => hour.total)));
+  const yFor = (value) => top + plotHeight - (value / axisMax) * plotHeight;
+
+  for (let tick = 0; tick <= 2; tick += 1) {
+    const value = (axisMax / 2) * tick;
+    const y = yFor(value);
+    gridGroup.append(svgEl("line", { class: "sales-gridline", x1: left, x2: width - right, y1: y, y2: y }));
+    const label = svgEl("text", { class: "sales-axis-text", x: left - 10, y: y + 4, "text-anchor": "end" });
+    label.textContent = formatCount(Math.round(value));
+    axisGroup.append(label);
+  }
+
+  hours.forEach((hour, index) => {
+    const centre = left + band * index + band / 2;
+    const columnTop = yFor(hour.total);
+    const columnHeight = hour.total > 0 ? Math.max(3, top + plotHeight - columnTop) : 0;
+    const readout = formatCount(hour.total) + " reservation" + (hour.total === 1 ? "" : "s")
+      + (hour.withinHours ? "" : " - outside opening hours");
+
+    if (columnHeight > 0) {
+      const radius = Math.min(4, columnWidth / 2, columnHeight);
+      columnGroup.append(svgEl("rect", {
+        class: "sales-column", x: centre - columnWidth / 2, y: columnTop,
+        width: columnWidth, height: columnHeight, rx: radius
+      }));
+      columnGroup.append(svgEl("rect", {
+        class: "sales-column", x: centre - columnWidth / 2, y: columnTop + radius,
+        width: columnWidth, height: Math.max(0, columnHeight - radius)
+      }));
+    }
+
+    const hit = svgEl("rect", {
+      class: "sales-hit", x: left + band * index, y: top, width: band, height: plotHeight,
+      tabindex: "0", role: "img"
+    });
+    hit.setAttribute("aria-label", hour.label + ": " + readout);
+    bindMarkTooltip(hit, hour.label, readout);
+    columnGroup.append(hit);
+
+    // A label every third hour - twenty-four would collide.
+    if (index % 3 === 0) {
+      const label = svgEl("text", {
+        class: "sales-axis-text", x: centre, y: height - bottom + 16, "text-anchor": "middle"
+      });
+      label.textContent = hour.label;
+      axisGroup.append(label);
+    }
+
+    const row = document.createElement("tr");
+    [hour.label, formatCount(hour.total), hour.withinHours ? "Yes" : "No"].forEach((cell) => {
+      const td = document.createElement("td");
+      td.textContent = cell;
+      row.append(td);
+    });
+    tableBody.append(row);
+  });
+
+  // Only the peak carries a value label; the axis and tooltip carry the rest.
+  if (peak.total > 0) {
+    const peakIndex = hours.indexOf(peak);
+    const centre = left + band * peakIndex + band / 2;
+    const valueLabel = svgEl("text", {
+      class: "sales-value-label", x: centre, y: yFor(peak.total) - 8, "text-anchor": "middle"
+    });
+    valueLabel.textContent = formatCount(peak.total);
+    axisGroup.append(valueLabel);
+  }
+}
+
+function renderFloorDemand(floorDemand) {
+  const list = document.getElementById("floor-demand-list");
+  const tableBody = document.getElementById("floor-table-body");
+
+  if (!list || !tableBody) {
+    return;
+  }
+
+  list.textContent = "";
+  tableBody.textContent = "";
+
+  const floors = (Array.isArray(floorDemand) ? floorDemand : []).map((floor) => ({
+    label: String(floor.label || "Unassigned"),
+    total: Number(floor.total || 0)
+  }));
+
+  const total = floors.reduce((sum, floor) => sum + floor.total, 0);
+
+  if (!total) {
+    const empty = document.createElement("li");
+    empty.className = "hbar-label";
+    empty.textContent = "No reservations recorded yet.";
+    list.append(empty);
+    setText("top-floor-value", "--");
+    return;
+  }
+
+  const leader = floors[0];
+  setText("top-floor-value", leader.label);
+  setText("top-floor-detail", Math.round((leader.total / total) * 100) + "% of all reservations");
+
+  floors.forEach((floor) => {
+    const share = floor.total / total;
+    const percent = Math.round(share * 100) + "%";
+    const readout = formatCount(floor.total) + " of " + formatCount(total) + " reservations";
+
+    const item = document.createElement("li");
+    item.className = "hbar-row";
+    item.tabIndex = 0;
+    item.setAttribute("role", "img");
+    item.setAttribute("aria-label", floor.label + ": " + readout);
+
+    const label = document.createElement("span");
+    label.className = "hbar-label";
+    label.textContent = floor.label;
+
+    const value = document.createElement("span");
+    value.className = "hbar-value";
+    value.textContent = formatCount(floor.total) + "  -  " + percent;
+
+    const track = document.createElement("span");
+    track.className = "hbar-track";
+    const fill = document.createElement("i");
+    fill.className = "hbar-fill";
+    fill.style.width = (share * 100).toFixed(1) + "%";
+    track.append(fill);
+
+    item.append(label, value, track);
+    bindMarkTooltip(item, floor.label, readout);
+    list.append(item);
+
+    const row = document.createElement("tr");
+    [floor.label, formatCount(floor.total), percent].forEach((cell) => {
+      const td = document.createElement("td");
+      td.textContent = cell;
+      row.append(td);
+    });
+    tableBody.append(row);
+  });
+}
+
+function renderAnalyticsKpis(analytics) {
+  const data = analytics || {};
+  const noShow = Number(data.noShowRate || 0);
+
+  setText("no-show-rate", noShow.toFixed(1) + "%");
+  setText(
+    "no-show-detail",
+    "No-show rate - " + formatCount(Number(data.expiredReservations || 0)) + " expired"
+  );
+  setText("sales-average", "Average ticket " + formatCurrency(Number(data.averageTicket || 0)));
 }
 
 function startDashboardPolling() {
@@ -395,7 +917,7 @@ function stopLogsPolling() {
 
 async function loadLiveReservations() {
   try {
-    const result = await fetchJson(`${ADMIN_ENDPOINTS.liveReservations}?limit=20`);
+    const result = await fetchJson(`${ADMIN_ENDPOINTS.liveReservations}?limit=${DASHBOARD_TABLE_ROWS}`);
     state.liveReservations = Array.isArray(result?.data?.reservations) ? result.data.reservations : [];
 
     if (!state.liveReservations.length) {
@@ -434,7 +956,7 @@ async function loadSlots() {
     const result = await fetchJson(ADMIN_ENDPOINTS.slots);
     state.slotsData = {
       floors: Array.isArray(result?.data?.floors) ? result.data.floors : [],
-      slots: Array.isArray(result?.data?.slots) ? result.data.slots : []
+      slots: Array.isArray(result?.data?.slots) ? result.data.slots.slice().sort(compareSlotRecords) : []
     };
 
     syncSlotSectionSelection();
@@ -534,16 +1056,16 @@ async function loadStaff() {
     state.staff = Array.isArray(result?.data?.staff) ? result.data.staff : [];
 
     if (!state.staff.length) {
-      refs.staffTableBody.innerHTML = `<tr><td colspan="6" class="empty-table">No staff accounts found.</td></tr>`;
+      refs.staffTableBody.innerHTML = `<tr><td colspan="6" class="empty-table">No booth teller PIN accounts found.</td></tr>`;
       return;
     }
 
     refs.staffTableBody.innerHTML = state.staff.map((staff) => `
       <tr>
-        <td><strong>${escapeHtml(staff.full_name || "--")}</strong></td>
-        <td>${escapeHtml(staff.username || "--")}</td>
-        <td>${escapeHtml(staff.email || "--")}</td>
-        <td>${renderStatusPill((staff.role || "booth").toUpperCase())}</td>
+        <td><strong>${escapeHtml(staff.teller_name || "--")}</strong></td>
+        <td>${escapeHtml(staff.teller_details || "--")}</td>
+        <td>${escapeHtml(formatDateTime(staff.last_login_at))}</td>
+        <td>${escapeHtml(formatDateTime(staff.created_at))}</td>
         <td>${renderStatusPill(Number(staff.is_active) === 1 ? "Active" : "Disabled")}</td>
         <td>
           <div class="table-inline-actions">
@@ -586,6 +1108,408 @@ async function loadPayments() {
   } catch (error) {
     showStatus(error.message || "Failed to load payments.", true);
   }
+}
+
+const SALES_GRANULARITY_COPY = {
+  day: {
+    chartTitle: "Collected per day",
+    breakdown: "Day by day",
+    sub: "Payments confirmed at the booth, grouped by the day they were settled.",
+    unit: "day",
+    fallback: "Last 30 days"
+  },
+  month: {
+    chartTitle: "Collected per month",
+    breakdown: "Month by month",
+    sub: "Payments confirmed at the booth, grouped by the month they were settled.",
+    unit: "month",
+    fallback: "Last 12 months"
+  },
+  year: {
+    chartTitle: "Collected per year",
+    breakdown: "Year by year",
+    sub: "Payments confirmed at the booth, grouped by the year they were settled.",
+    unit: "year",
+    fallback: "Last 5 years"
+  }
+};
+
+function bindSalesReportControls() {
+  document.querySelectorAll("#section-sales .segmented-option").forEach((button) => {
+    button.addEventListener("click", () => {
+      const granularity = button.dataset.granularity || "month";
+
+      if (granularity === state.salesReport.granularity) {
+        return;
+      }
+
+      state.salesReport.granularity = granularity;
+      loadSalesReport();
+    });
+  });
+
+  document.getElementById("sales-export-btn")?.addEventListener("click", exportSalesReportCsv);
+}
+
+async function loadSalesReport() {
+  const granularity = state.salesReport.granularity || "month";
+
+  document.querySelectorAll("#section-sales .segmented-option").forEach((button) => {
+    const isActive = (button.dataset.granularity || "") === granularity;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+  });
+
+  try {
+    const result = await fetchJson(`${ADMIN_ENDPOINTS.salesReport}?granularity=${encodeURIComponent(granularity)}`);
+    const data = result?.data || {};
+    const series = Array.isArray(data.series) ? data.series : [];
+    state.salesReport.data = data;
+
+    renderSalesHeadline(data.headline || {});
+    renderSalesWindowSummary(data, series);
+    renderSalesTrendChart(series);
+    renderSalesBreakdown(series);
+    renderSalesOperations(data.operations || {}, series);
+  } catch (error) {
+    // The global status bar only paints on the slots section, so the failure
+    // is reported where the reader is actually looking.
+    const body = document.getElementById("sales-breakdown-body");
+
+    if (body) {
+      body.innerHTML = `<tr><td colspan="6" class="empty-table">${escapeHtml(error.message || "Failed to load the sales report.")}</td></tr>`;
+    }
+
+    showStatus(error.message || "Failed to load the sales report.", true);
+  }
+}
+
+function renderSalesHeadline(headline) {
+  const today = headline.today || {};
+  const month = headline.month || {};
+  const year = headline.year || {};
+  const lifetime = headline.lifetime || {};
+  const outstanding = headline.outstanding || {};
+
+  setText("sales-today-total", formatCurrency(today.revenue));
+  setText("sales-today-detail", `${pluralCount(today.transactions, "transaction")} today, `
+    + `${formatCurrency(today.previousRevenue)} yesterday.`);
+
+  setText("sales-month-label", `Sales in ${month.label || "this month"}`);
+  setText("sales-month-total", formatCurrency(month.revenue));
+  setText("sales-month-detail", `${pluralCount(month.transactions, "transaction")} month to date, `
+    + `${formatCurrency(month.previousRevenue)} last month.`);
+
+  setText("sales-year-label", `Sales in ${year.label || "this year"}`);
+  setText("sales-year-total", formatCurrency(year.revenue));
+  setText("sales-year-detail", `${pluralCount(year.transactions, "transaction")} year to date, `
+    + `${formatCurrency(year.previousRevenue)} last year.`);
+
+  setText("sales-lifetime-total", formatCurrency(lifetime.revenue));
+  setText("sales-lifetime-detail", `${pluralCount(lifetime.transactions, "paid transaction")} on record, `
+    + `average ticket ${formatCurrency(lifetime.averageTicket)}.`);
+
+  setText("sales-outstanding-total", formatCurrency(outstanding.amount));
+  setText("sales-outstanding-detail", `${pluralCount(outstanding.count, "exited transaction")} still waiting for payment.`);
+}
+
+function renderSalesWindowSummary(data, series) {
+  const copy = SALES_GRANULARITY_COPY[String(data.granularity || "month")] || SALES_GRANULARITY_COPY.month;
+  const windowData = data.window || {};
+  const range = data.range || {};
+
+  setText("sales-report-title", copy.chartTitle);
+  setText("sales-report-sub", copy.sub);
+  setText("sales-breakdown-title", copy.breakdown);
+  setText("sales-report-total", formatCurrency(windowData.revenue));
+
+  const firstLabel = series[0]?.fullLabel || "";
+  const lastLabel = series[series.length - 1]?.fullLabel || "";
+  setText("sales-report-range", firstLabel && lastLabel ? `${firstLabel} - ${lastLabel}` : copy.fallback);
+
+  const growth = windowData.growthPercent;
+  const trendNode = document.getElementById("sales-report-trend");
+
+  if (trendNode) {
+    if (growth === null || growth === undefined) {
+      trendNode.textContent = `${pluralCount(windowData.transactions, "transaction")}, average ticket `
+        + formatCurrency(windowData.averageTicket);
+      trendNode.className = "";
+    } else {
+      const isUp = Number(growth) >= 0;
+      trendNode.textContent = `${isUp ? "Up" : "Down"} ${Math.abs(Number(growth)).toFixed(1)}% vs the previous `
+        + `${series.length} ${copy.unit}s`;
+      trendNode.className = isUp ? "sales-change-up" : "sales-change-down";
+    }
+  }
+
+  setText("sales-breakdown-count", pluralCount(series.length, copy.unit));
+
+  const best = windowData.bestPeriod;
+  setText("sales-breakdown-best", best && Number(best.revenue) > 0
+    ? `Best ${copy.unit}: ${best.fullLabel} - ${formatCurrency(best.revenue)}`
+    : `Best ${copy.unit}: --`);
+
+  const chartTitle = document.getElementById("sales-report-chart-title");
+
+  if (chartTitle) {
+    chartTitle.textContent = `Sales ${copy.chartTitle.toLowerCase()}, ${range.start || ""} to ${range.end || ""}`;
+  }
+}
+
+function renderSalesTrendChart(series) {
+  const gridGroup = document.getElementById("sales-report-grid");
+  const columnGroup = document.getElementById("sales-report-columns");
+  const axisGroup = document.getElementById("sales-report-axis");
+
+  if (!gridGroup || !columnGroup || !axisGroup) {
+    return;
+  }
+
+  [gridGroup, columnGroup, axisGroup].forEach((node) => { node.textContent = ""; });
+
+  if (!series.length) {
+    return;
+  }
+
+  const left = 78;
+  const right = 12;
+  const top = 26;
+  const bottom = 34;
+  const width = 660;
+  const height = 260;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const band = plotWidth / series.length;
+  const columnWidth = Math.max(4, Math.min(26, band - 8));
+  const revenues = series.map((entry) => Number(entry.revenue || 0));
+  const peakRevenue = Math.max.apply(null, revenues);
+  const axisMax = niceAxisMax(peakRevenue);
+  const yFor = (value) => top + plotHeight - (value / axisMax) * plotHeight;
+
+  // A daily window carries thirty bands, so the axis is thinned to at most a
+  // dozen written labels; the tooltip and the breakdown table carry the rest.
+  const labelStride = Math.ceil(series.length / 12);
+
+  for (let tick = 0; tick <= 4; tick += 1) {
+    const value = (axisMax / 4) * tick;
+    const y = yFor(value);
+    gridGroup.append(svgEl("line", { class: "sales-gridline", x1: left, x2: width - right, y1: y, y2: y }));
+    const label = svgEl("text", { class: "sales-axis-text", x: left - 10, y: y + 4, "text-anchor": "end" });
+    label.textContent = Math.round(value).toLocaleString("en-PH");
+    axisGroup.append(label);
+  }
+
+  series.forEach((entry, index) => {
+    const revenue = Number(entry.revenue || 0);
+    const transactions = Number(entry.transactions || 0);
+    const centre = left + band * index + band / 2;
+    const columnTop = yFor(revenue);
+    const columnHeight = revenue > 0 ? Math.max(3, top + plotHeight - columnTop) : 0;
+    const readout = `${formatCurrency(revenue)} from ${pluralCount(transactions, "transaction")}`;
+
+    if (columnHeight > 0) {
+      // 4px rounded data-end, square where it meets the baseline.
+      const radius = Math.min(4, columnWidth / 2, columnHeight);
+      columnGroup.append(svgEl("rect", {
+        class: "sales-column",
+        x: centre - columnWidth / 2, y: columnTop,
+        width: columnWidth, height: columnHeight, rx: radius
+      }));
+      columnGroup.append(svgEl("rect", {
+        class: "sales-column",
+        x: centre - columnWidth / 2, y: columnTop + radius,
+        width: columnWidth, height: Math.max(0, columnHeight - radius)
+      }));
+    }
+
+    // The hit target spans the whole band, not just the painted column.
+    const hit = svgEl("rect", {
+      class: "sales-hit",
+      x: left + band * index, y: top, width: band, height: plotHeight,
+      tabindex: "0", role: "img"
+    });
+    hit.setAttribute("aria-label", `${entry.fullLabel}: ${readout}`);
+    bindMarkTooltip(hit, entry.fullLabel, readout);
+    columnGroup.append(hit);
+
+    if (index % labelStride === 0 || index === series.length - 1) {
+      const axisLabel = svgEl("text", {
+        class: "sales-axis-text", x: centre, y: height - bottom + 18, "text-anchor": "middle"
+      });
+      axisLabel.textContent = entry.label;
+      axisGroup.append(axisLabel);
+    }
+
+    // Only the peak carries a printed value, so the plot does not turn into a
+    // wall of numbers.
+    if (revenue > 0 && revenue === peakRevenue) {
+      const valueLabel = svgEl("text", {
+        class: "sales-value-label", x: centre, y: columnTop - 8, "text-anchor": "middle"
+      });
+      valueLabel.textContent = formatCurrency(revenue);
+      axisGroup.append(valueLabel);
+    }
+  });
+}
+
+function renderSalesOperations(operations, series) {
+  const firstLabel = series[0]?.fullLabel || "";
+  const lastLabel = series[series.length - 1]?.fullLabel || "";
+  setText("ops-window-chip", firstLabel && lastLabel ? `${firstLabel} - ${lastLabel}` : "This window");
+
+  const completed = Number(operations.completedStays || 0);
+
+  setText("ops-average-dwell", `${Number(operations.averageDwellHours || 0).toFixed(1)} h`);
+  setText("ops-dwell-detail", `${pluralCount(completed, "completed stay")}, longest `
+    + `${Number(operations.longestDwellHours || 0).toFixed(1)} h.`);
+
+  setText("ops-slot-coverage", `${Number(operations.slotCoveragePercent || 0).toFixed(1)}%`);
+  setText("ops-coverage-detail", `${formatCount(operations.slotsUsed)} of `
+    + `${formatCount(operations.activeSlots)} active slots earned money.`);
+
+  setText("ops-turns", Number(operations.turnsPerSlot || 0).toFixed(2));
+  setText("ops-turns-detail", "Completed stays per slot that was used.");
+
+  setText("ops-walkin-share", `${Number(operations.walkInSharePercent || 0).toFixed(1)}%`);
+  setText("ops-walkin-detail", `${pluralCount(operations.walkInCount, "walk-in ticket")} issued at the booth.`);
+
+  setText("ops-noshow-rate", `${Number(operations.noShowRatePercent || 0).toFixed(1)}%`);
+  setText("ops-noshow-detail", `${pluralCount(operations.noShowCount, "booking")} expired without a scan.`);
+
+  renderSalesOpsTable("ops-floor-body", operations.revenueByFloor, "No sales in this window.");
+  renderSalesOpsTable("ops-method-body", operations.paymentMethods, "No payments in this window.");
+}
+
+function renderSalesOpsTable(bodyId, rows, emptyMessage) {
+  const body = document.getElementById(bodyId);
+
+  if (!body) {
+    return;
+  }
+
+  const entries = Array.isArray(rows) ? rows : [];
+
+  if (!entries.length) {
+    body.innerHTML = `<tr><td colspan="3" class="empty-table">${escapeHtml(emptyMessage)}</td></tr>`;
+    return;
+  }
+
+  body.innerHTML = entries.map((entry) => `
+    <tr>
+      <td>${escapeHtml(entry.label || "--")}</td>
+      <td>${escapeHtml(formatCount(entry.transactions))}</td>
+      <td>${escapeHtml(formatCurrency(entry.revenue))}</td>
+    </tr>
+  `).join("");
+}
+
+function renderSalesBreakdown(series) {
+  const body = document.getElementById("sales-breakdown-body");
+
+  if (!body) {
+    return;
+  }
+
+  const totalRevenue = series.reduce((sum, entry) => sum + Number(entry.revenue || 0), 0);
+  const totalTransactions = series.reduce((sum, entry) => sum + Number(entry.transactions || 0), 0);
+
+  if (!totalTransactions) {
+    body.innerHTML = `<tr><td colspan="6" class="empty-table">No sales recorded for this period.</td></tr>`;
+    return;
+  }
+
+  // Newest first: the current period is the one an owner checks first.
+  const rows = series.map((entry, index) => {
+    const revenue = Number(entry.revenue || 0);
+    const previous = index > 0 ? Number(series[index - 1].revenue || 0) : null;
+    const share = totalRevenue > 0 ? (revenue / totalRevenue) * 100 : 0;
+
+    return `
+      <tr>
+        <td>${escapeHtml(entry.fullLabel)}</td>
+        <td>${escapeHtml(formatCount(entry.transactions))}</td>
+        <td>${escapeHtml(formatCurrency(revenue))}</td>
+        <td>${escapeHtml(formatCurrency(entry.averageTicket))}</td>
+        <td>${escapeHtml(share.toFixed(1))}%</td>
+        <td>${formatSalesChange(revenue, previous)}</td>
+      </tr>
+    `;
+  }).reverse();
+
+  rows.push(`
+    <tr class="sales-total-row">
+      <td>Total</td>
+      <td>${escapeHtml(formatCount(totalTransactions))}</td>
+      <td>${escapeHtml(formatCurrency(totalRevenue))}</td>
+      <td>${escapeHtml(formatCurrency(totalRevenue / totalTransactions))}</td>
+      <td>100.0%</td>
+      <td>--</td>
+    </tr>
+  `);
+
+  body.innerHTML = rows.join("");
+}
+
+function formatSalesChange(revenue, previous) {
+  if (previous === null) {
+    return "--";
+  }
+
+  if (previous === 0) {
+    return revenue > 0 ? `<span class="sales-change-up">New</span>` : "--";
+  }
+
+  const delta = ((revenue - previous) / previous) * 100;
+  const tone = delta >= 0 ? "sales-change-up" : "sales-change-down";
+  // A jump off a nearly empty period turns into a five-digit percentage that
+  // reads as noise, so past ten-fold the change is written as a multiple.
+  const text = Math.abs(delta) >= 1000
+    ? `${(revenue / previous).toFixed(0)}x`
+    : `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}%`;
+
+  return `<span class="${tone}">${text}</span>`;
+}
+
+function exportSalesReportCsv() {
+  const data = state.salesReport.data;
+  const series = Array.isArray(data?.series) ? data.series : [];
+
+  if (!series.length) {
+    showStatus("There is no sales data to export yet.", true);
+    return;
+  }
+
+  const escapeCell = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+  const lines = [["Period", "Transactions", "Sales", "Average Ticket"].join(",")];
+
+  series.forEach((entry) => {
+    lines.push([
+      escapeCell(entry.fullLabel),
+      Number(entry.transactions || 0),
+      Number(entry.revenue || 0).toFixed(2),
+      Number(entry.averageTicket || 0).toFixed(2)
+    ].join(","));
+  });
+
+  const totalRevenue = series.reduce((sum, entry) => sum + Number(entry.revenue || 0), 0);
+  const totalTransactions = series.reduce((sum, entry) => sum + Number(entry.transactions || 0), 0);
+  lines.push([escapeCell("Total"), totalTransactions, totalRevenue.toFixed(2), ""].join(","));
+
+  const blob = new Blob([lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `sndra-park-sales-per-${String(data.granularity || "month")}-${toDateInputValue(new Date())}.csv`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function pluralCount(value, noun) {
+  const count = Number(value || 0);
+  return `${formatCount(count)} ${noun}${count === 1 ? "" : "s"}`;
 }
 
 async function loadLogs() {
@@ -686,7 +1610,10 @@ function renderFeedbackTable() {
 
   refs.feedbackTableBody.innerHTML = state.feedback.map((item) => `
     <tr>
-      <td class="feedback-cell-email"><strong>${escapeHtml(item.email || "--")}</strong></td>
+      <td class="feedback-cell-email">
+        <strong>${escapeHtml(item.email || "--")}</strong>
+        ${String(item.category || "General") === "Appeal" ? `<span class="feedback-category-tag">Account appeal</span>` : ""}
+      </td>
       <td class="feedback-cell-message">
         <span class="feedback-message-preview" title="${escapeHtml(item.concern_message || item.message || "--")}">${escapeHtml(getFeedbackPreview(item.concern_message || item.message || "--"))}</span>
       </td>
@@ -796,7 +1723,44 @@ function renderFeedbackModal(record) {
     refs.feedbackReplyMessage.value = replyText || "";
   }
 
+  if (refs.feedbackModalApproveAppealButton) {
+    const isAppeal = String(record.category || "General") === "Appeal";
+    refs.feedbackModalApproveAppealButton.hidden = !isAppeal || status === "Resolved";
+  }
+
   setFeedbackModalStatus("");
+}
+
+async function handleApproveAppeal() {
+  const feedbackId = Number(state.selectedFeedbackId || 0);
+
+  if (feedbackId <= 0) {
+    setFeedbackModalStatus("Select an appeal first.", true);
+    return;
+  }
+
+  if (!window.confirm("Unlock this account and clear its warnings?")) {
+    return;
+  }
+
+  try {
+    const result = await postJson(ADMIN_ENDPOINTS.feedback, {
+      action: "approve_appeal",
+      message_id: feedbackId
+    });
+
+    state.feedback = Array.isArray(result?.data?.messages) ? result.data.messages : state.feedback;
+    renderFeedbackTable();
+    setFeedbackModalStatus(result?.message || "Appeal approved. The account is unlocked.", false);
+
+    const updated = getFeedbackRecordById(feedbackId);
+
+    if (updated) {
+      renderFeedbackModal(updated);
+    }
+  } catch (error) {
+    setFeedbackModalStatus(error.message || "Failed to approve the appeal.", true);
+  }
 }
 
 async function submitFeedbackReply(event) {
@@ -887,14 +1851,47 @@ async function loadSettings() {
   try {
     const result = await fetchJson(ADMIN_ENDPOINTS.settings);
     const settings = result?.data?.settings || {};
-    setFormValue(refs.settingsForm, "system_name", settings.system_name || "");
-    setFormValue(refs.settingsForm, "contact_number", settings.contact_number || "");
-    setFormValue(refs.settingsForm, "gmail_address", settings.gmail_address || "");
-    setFormValue(refs.settingsForm, "parking_base_rate", settings.parking_base_rate || "20");
-    setFormValue(refs.settingsForm, "extra_hourly_rate", settings.extra_hourly_rate || "10");
+
+    // The backend answers with the normalized settings map, defaults filled
+    // in, so every named control in the form can be populated by key.
+    Array.from(refs.settingsForm?.elements || []).forEach((field) => {
+      const key = field.name;
+
+      if (key && Object.prototype.hasOwnProperty.call(settings, key)) {
+        setFormValue(refs.settingsForm, key, String(settings[key]));
+      }
+    });
+
+    state.settingsLoaded = true;
+    setSettingsFormMessage("");
   } catch (error) {
+    // Leave the flag false. The form posts every field it holds, so saving an
+    // unloaded form would write the markup's placeholder values over the real
+    // ones -- which is how a base rate silently doubles.
+    state.settingsLoaded = false;
+    setSettingsFormMessage(
+      "Settings could not be loaded, so saving is disabled. Reload the page or sign in again.",
+      true
+    );
     showStatus(error.message || "Failed to load settings.", true);
   }
+}
+
+function setSettingsFormMessage(message, isError = false) {
+  const node = document.getElementById("settings-form-status");
+  const submitButton = refs.settingsForm?.querySelector("button[type=\"submit\"]");
+
+  if (submitButton) {
+    submitButton.disabled = !state.settingsLoaded;
+  }
+
+  if (!node) {
+    return;
+  }
+
+  node.textContent = message || "";
+  node.hidden = !message;
+  node.className = `admin-status${message ? (isError ? " is-error" : " is-success") : ""}`;
 }
 
 function renderFloorOptions() {
@@ -969,6 +1966,7 @@ function renderSlotManagementWorkspace() {
   renderFloorCards();
   renderSlotCards();
   renderSlotEditor();
+  renderSlotCreationPreview();
 }
 
 function renderSlotWorkspaceSummary() {
@@ -986,11 +1984,106 @@ function renderSlotWorkspaceSummary() {
 }
 
 function getSlotsForSelectedFloor() {
-  if (state.selectedFloorId) {
-    return state.slotsData.slots.filter((slot) => Number(slot.floor_id || 0) === Number(state.selectedFloorId));
+  const slots = state.selectedFloorId
+    ? state.slotsData.slots.filter((slot) => Number(slot.floor_id || 0) === Number(state.selectedFloorId))
+    : state.slotsData.slots.filter((slot) => slot.floor_name === state.selectedFloor);
+
+  return slots.slice().sort(compareSlotRecords);
+}
+
+function getSlotSortParts(slotCode) {
+  const code = String(slotCode || "").trim().toUpperCase();
+  const standardMatch = code.match(/^F(\d+)-S(\d+)$/);
+  if (standardMatch) {
+    return [Number(standardMatch[1]), Number(standardMatch[2]), code];
   }
 
-  return state.slotsData.slots.filter((slot) => slot.floor_name === state.selectedFloor);
+  const legacyMatch = code.match(/^([A-Z]+)(\d+)$/);
+  if (legacyMatch) {
+    return [0, Number(legacyMatch[2]), code];
+  }
+
+  const numberMatch = code.match(/(\d+)(?!.*\d)/);
+  return [999999, numberMatch ? Number(numberMatch[1]) : 999999, code];
+}
+
+function compareSlotCodes(leftCode, rightCode) {
+  const left = getSlotSortParts(leftCode);
+  const right = getSlotSortParts(rightCode);
+
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] < right[index]) return -1;
+    if (left[index] > right[index]) return 1;
+  }
+
+  return 0;
+}
+
+function compareSlotRecords(left, right) {
+  const floorSort = Number(left.floor_id || 0) - Number(right.floor_id || 0);
+  return floorSort || compareSlotCodes(left.slot_code, right.slot_code);
+}
+
+function getSelectedFloorNumber() {
+  const floor = getSelectedFloorRecord();
+  const source = String(floor?.floor_label || floor?.floor_name || "").toUpperCase();
+  const floorMatch = source.match(/(?:FLOOR|F)\s*(\d+)/);
+  if (floorMatch) {
+    return Math.max(1, Number(floorMatch[1]));
+  }
+
+  const numberMatch = source.match(/(\d+)/);
+  if (numberMatch) {
+    return Math.max(1, Number(numberMatch[1]));
+  }
+
+  return Math.max(1, Number(floor?.id || 1));
+}
+
+function buildStandardSlotCode(slotNumber) {
+  return `F${getSelectedFloorNumber()}-S${slotNumber}`;
+}
+
+function buildSlotPreviewCodes() {
+  const singleCode = String(refs.slotCodeInput?.value || "").trim().toUpperCase().replace(/\s+/g, "");
+  const totalSlots = Math.max(0, Number(refs.slotTotalInput?.value || 0));
+  const startNumber = Math.max(1, Number(refs.slotStartNumberInput?.value || 1));
+
+  if (totalSlots > 0) {
+    return Array.from({ length: Math.min(totalSlots, 100) }, (_, index) => buildStandardSlotCode(startNumber + index));
+  }
+
+  return singleCode ? [singleCode] : [];
+}
+
+function renderSlotCreationPreview() {
+  if (!refs.slotPreviewPanel) {
+    return;
+  }
+
+  const selectedFloorLabel = getSelectedFloorLabel();
+  const codes = selectedFloorLabel ? buildSlotPreviewCodes() : [];
+
+  refs.slotPreviewPanel.hidden = !selectedFloorLabel && codes.length === 0;
+
+  if (!selectedFloorLabel) {
+    refs.slotPreviewTitle.textContent = "Select a floor first";
+    refs.slotPreviewCopy.textContent = "Choose a floor before adding or generating slots.";
+    return;
+  }
+
+  if (!codes.length) {
+    refs.slotPreviewTitle.textContent = `Ready for ${selectedFloorLabel}`;
+    refs.slotPreviewCopy.textContent = "Enter a single slot code or an auto-generate count to preview the result.";
+    return;
+  }
+
+  const previewCodes = codes.length > 8
+    ? `${codes.slice(0, 4).join(", ")} ... ${codes.slice(-2).join(", ")}`
+    : codes.join(", ");
+
+  refs.slotPreviewTitle.textContent = `${codes.length} slot${codes.length === 1 ? "" : "s"} for ${selectedFloorLabel}`;
+  refs.slotPreviewCopy.textContent = previewCodes;
 }
 
 function getSelectedSlotRecord() {
@@ -1075,6 +2168,7 @@ function renderFloorCards() {
     toggleButton.dataset.adminAction = "floor-toggle";
     toggleButton.dataset.id = String(floor.id || "");
     toggleButton.dataset.active = Number(floor.is_active) === 1 ? "0" : "1";
+    toggleButton.dataset.floorLabel = String(floor.floor_label || floor.floor_name || "this floor");
     toggleButton.textContent = Number(floor.is_active) === 1 ? "Set Inactive" : "Set Active";
 
     article.append(deleteButton, cardButton, toggleButton);
@@ -1218,6 +2312,14 @@ function renderSlotEditor() {
   refs.slotEditorManualStatus.value = selectedSlot.manual_status || "Auto";
   refs.slotEditorActive.value = Number(selectedSlot.is_active) === 1 ? "1" : "0";
 
+  const reasonField = document.getElementById("slot-editor-reason");
+
+  if (reasonField) {
+    reasonField.value = selectedSlot.unavailable_reason || "";
+  }
+
+  syncSlotReasonField();
+
   if (refs.slotEditorSubcopy) {
     refs.slotEditorSubcopy.textContent = `Updating ${selectedSlot.slot_code || "selected slot"} on ${selectedFloorLabel}.`;
   }
@@ -1280,22 +2382,53 @@ async function handleAddSlot(event) {
   const formData = new FormData(refs.slotForm);
   const targetFloorId = Number(formData.get("floor_id") || state.selectedFloorId || 0);
   const targetFloor = getFloorRecordById(targetFloorId);
+  const slotCode = String(formData.get("slot_code") || "").trim().toUpperCase().replace(/\s+/g, "");
+  const totalSlots = Math.max(0, Number(formData.get("total_slots") || 0));
+  const startNumber = Math.max(1, Number(formData.get("start_number") || 1));
 
   if (!targetFloorId || !targetFloor) {
     showStatus("Select a floor card before adding a slot.", true);
     return;
   }
 
+  if (totalSlots <= 0 && !slotCode) {
+    showStatus("Enter a slot code or an auto-generate count.", true);
+    return;
+  }
+
+  if (totalSlots > 100) {
+    showStatus("Generate up to 100 slots at a time.", true);
+    return;
+  }
+
   try {
-    await postJson(ADMIN_ENDPOINTS.slots, {
-      action: "add_slot",
-      floor_id: targetFloorId,
-      slot_code: String(formData.get("slot_code") || "").trim().toUpperCase()
-    });
+    let successMessage = "Parking slot added successfully.";
+
+    if (totalSlots > 0) {
+      const result = await postJson(ADMIN_ENDPOINTS.slots, {
+        action: "generate_slots",
+        floor_id: targetFloorId,
+        total_slots: totalSlots,
+        start_number: startNumber
+      });
+      const skipped = Array.isArray(result?.data?.skippedSlots) ? result.data.skippedSlots : [];
+      successMessage = skipped.length
+        ? `Generated slots. Skipped existing: ${skipped.slice(0, 6).join(", ")}${skipped.length > 6 ? "..." : ""}.`
+        : "Parking slots generated successfully.";
+    } else {
+      await postJson(ADMIN_ENDPOINTS.slots, {
+        action: "add_slot",
+        floor_id: targetFloorId,
+        slot_code: slotCode
+      });
+    }
+
     refs.slotForm.reset();
+    if (refs.slotStartNumberInput) refs.slotStartNumberInput.value = "1";
+    if (refs.slotTotalInput) refs.slotTotalInput.value = "0";
     await loadSlots();
     setSelectedFloor(targetFloorId);
-    showStatus("Parking slot added successfully.");
+    showStatus(successMessage);
     await loadDashboard();
   } catch (error) {
     showStatus(error.message || "Failed to add slot.", true);
@@ -1309,14 +2442,12 @@ async function handleCreateStaff(event) {
   try {
     await postJson(ADMIN_ENDPOINTS.staff, {
       action: "create",
-      full_name: String(formData.get("full_name") || "").trim(),
-      username: String(formData.get("username") || "").trim(),
-      email: String(formData.get("email") || "").trim(),
-      password: String(formData.get("password") || "").trim(),
-      role: String(formData.get("role") || "booth")
+      teller_name: String(formData.get("teller_name") || "").trim(),
+      teller_details: String(formData.get("teller_details") || "").trim(),
+      pin: String(formData.get("pin") || "").replace(/\D+/g, "")
     });
     refs.staffForm.reset();
-    showStatus("Staff account created successfully.");
+    showStatus("Booth teller PIN account created successfully.");
     loadStaff();
   } catch (error) {
     showStatus(error.message || "Failed to create staff account.", true);
@@ -1346,6 +2477,15 @@ async function handleCreateNotification(event) {
 
 async function handleSaveSettings(event) {
   event.preventDefault();
+
+  if (!state.settingsLoaded) {
+    setSettingsFormMessage(
+      "Settings have not loaded yet, so there is nothing safe to save. Reload the page first.",
+      true
+    );
+    return;
+  }
+
   const formData = new FormData(refs.settingsForm);
 
   try {
@@ -1353,6 +2493,7 @@ async function handleSaveSettings(event) {
     if (typeof window.setSndraSystemSettings === "function") {
       window.setSndraSystemSettings(result?.data?.settings || {});
     }
+    setSettingsFormMessage("System settings saved.", false);
     showStatus("System settings saved successfully.");
     loadSettings();
   } catch (error) {
@@ -1409,14 +2550,16 @@ async function handleDocumentClick(event) {
   }
 
   if (action === "floor-toggle") {
-    await postJson(ADMIN_ENDPOINTS.slots, {
-      action: "update_floor",
-      floor_id: id,
-      is_active: button.dataset.active === "1"
-    }).then(() => {
-      showStatus("Floor status updated successfully.");
-      return Promise.all([loadSlots(), loadDashboard()]);
-    }).catch((error) => showStatus(error.message || "Failed to update floor status.", true));
+    const makingActive = button.dataset.active === "1";
+
+    // Reopening needs no explanation; closing does, because drivers are shown
+    // that text when they tap a slot on the floor.
+    if (makingActive) {
+      await submitFloorState(id, true, "");
+    } else {
+      openFloorReasonModal(id, button.dataset.floorLabel || "this floor");
+    }
+
     return;
   }
 
@@ -1478,9 +2621,9 @@ async function handleDocumentClick(event) {
   }
 
   if (action === "staff-delete") {
-    await confirmAndRun("Delete this staff account?", async () => {
+    await confirmAndRun("Delete this booth teller PIN account?", async () => {
       await postJson(ADMIN_ENDPOINTS.staff, { action: "delete", staff_id: id });
-      showStatus("Staff account deleted successfully.");
+      showStatus("Booth teller PIN account deleted successfully.");
       loadStaff();
     });
     return;
@@ -1533,6 +2676,112 @@ async function handleDocumentClick(event) {
   }
 }
 
+let pendingFloorClosure = null;
+
+async function submitFloorState(floorId, isActive, reason) {
+  try {
+    await postJson(ADMIN_ENDPOINTS.slots, {
+      action: "update_floor",
+      floor_id: floorId,
+      is_active: isActive,
+      unavailable_reason: reason
+    });
+    showStatus("Floor status updated successfully.");
+    await Promise.all([loadSlots(), loadDashboard()]);
+    return true;
+  } catch (error) {
+    showStatus(error.message || "Failed to update floor status.", true);
+    return false;
+  }
+}
+
+function openFloorReasonModal(floorId, floorLabel) {
+  const modal = document.getElementById("floor-reason-modal");
+  const input = document.getElementById("floor-reason-input");
+  const title = document.getElementById("floor-reason-title");
+  const error = document.getElementById("floor-reason-error");
+
+  if (!modal || !input) {
+    return;
+  }
+
+  pendingFloorClosure = floorId;
+  input.value = "";
+
+  if (error) {
+    error.textContent = "";
+  }
+
+  if (title) {
+    title.textContent = `Why is ${floorLabel} unavailable?`;
+  }
+
+  modal.classList.add("is-open");
+  modal.setAttribute("aria-hidden", "false");
+  input.focus();
+}
+
+function closeFloorReasonModal() {
+  const modal = document.getElementById("floor-reason-modal");
+  pendingFloorClosure = null;
+  modal?.classList.remove("is-open");
+  modal?.setAttribute("aria-hidden", "true");
+}
+
+async function confirmFloorClosure() {
+  const input = document.getElementById("floor-reason-input");
+  const error = document.getElementById("floor-reason-error");
+  const reason = input?.value.trim() || "";
+
+  if (!reason) {
+    if (error) {
+      error.textContent = "Please write the reason drivers will see.";
+    }
+    input?.focus();
+    return;
+  }
+
+  const floorId = pendingFloorClosure;
+  closeFloorReasonModal();
+
+  if (floorId) {
+    await submitFloorState(floorId, false, reason);
+  }
+}
+
+/** The reason field only matters while the slot is out of service. */
+function syncSlotReasonField() {
+  const group = document.getElementById("slot-editor-reason-group");
+  const field = document.getElementById("slot-editor-reason");
+
+  if (!group || !field) {
+    return;
+  }
+
+  const outOfService = refs.slotEditorActive?.value === "0"
+    || refs.slotEditorManualStatus?.value === "Inactive";
+
+  group.hidden = !outOfService;
+  field.required = outOfService;
+}
+
+function bindSlotReasonControls() {
+  refs.slotEditorActive?.addEventListener("change", syncSlotReasonField);
+  refs.slotEditorManualStatus?.addEventListener("change", syncSlotReasonField);
+
+  document.querySelectorAll("[data-close-floor-reason]").forEach((button) => {
+    button.addEventListener("click", closeFloorReasonModal);
+  });
+
+  document.getElementById("floor-reason-confirm")?.addEventListener("click", confirmFloorClosure);
+
+  document.getElementById("floor-reason-modal")?.addEventListener("click", (event) => {
+    if (event.target === document.getElementById("floor-reason-modal")) {
+      closeFloorReasonModal();
+    }
+  });
+}
+
 async function handleSlotEditorSubmit(event) {
   event.preventDefault();
   const slotId = Number(refs.slotEditorId?.value || 0);
@@ -1548,7 +2797,8 @@ async function handleSlotEditorSubmit(event) {
       slot_id: slotId,
       slot_code: refs.slotEditorCode?.value?.trim() || "",
       manual_status: refs.slotEditorManualStatus?.value || "Auto",
-      is_active: refs.slotEditorActive?.value === "1"
+      is_active: refs.slotEditorActive?.value === "1",
+      unavailable_reason: document.getElementById("slot-editor-reason")?.value.trim() || ""
     });
     showStatus("Slot updated successfully.");
     await loadSlots();
@@ -1681,7 +2931,7 @@ function closeReservationModal() {
 function openEntityEditor(type, record) {
   state.entityEditor = { type, record };
   refs.entityEditorKicker.textContent = type === "user" ? "Edit User" : "Edit Staff";
-  refs.entityEditorTitle.textContent = type === "user" ? "Update user account" : "Update staff account";
+  refs.entityEditorTitle.textContent = type === "user" ? "Update user account" : "Update teller PIN account";
 
   if (type === "user") {
     refs.entityEditorForm.innerHTML = `
@@ -1712,23 +2962,12 @@ function openEntityEditor(type, record) {
   } else {
     refs.entityEditorForm.innerHTML = `
       <div class="field-group">
-        <label for="editor-staff-name">Name</label>
-        <input id="editor-staff-name" name="full_name" type="text" value="${escapeHtml(record.full_name || "")}">
+        <label for="editor-staff-name">Teller Name</label>
+        <input id="editor-staff-name" name="teller_name" type="text" value="${escapeHtml(record.teller_name || "")}">
       </div>
       <div class="field-group">
-        <label for="editor-staff-username">Username</label>
-        <input id="editor-staff-username" name="username" type="text" value="${escapeHtml(record.username || "")}">
-      </div>
-      <div class="field-group">
-        <label for="editor-staff-email">Email</label>
-        <input id="editor-staff-email" name="email" type="email" value="${escapeHtml(record.email || "")}">
-      </div>
-      <div class="field-group">
-        <label for="editor-staff-role">Role</label>
-        <select id="editor-staff-role" name="role">
-          <option value="booth" ${record.role === "booth" ? "selected" : ""}>Booth</option>
-          <option value="admin" ${record.role === "admin" ? "selected" : ""}>Admin</option>
-        </select>
+        <label for="editor-staff-details">Details</label>
+        <input id="editor-staff-details" name="teller_details" type="text" value="${escapeHtml(record.teller_details || "")}" placeholder="Booth assignment or note">
       </div>
       <div class="field-group">
         <label for="editor-staff-active">Status</label>
@@ -1738,12 +2977,12 @@ function openEntityEditor(type, record) {
         </select>
       </div>
       <div class="field-group">
-        <label for="editor-staff-password">New Password</label>
-        <input id="editor-staff-password" name="password" type="text" placeholder="Leave blank to keep current password">
+        <label for="editor-staff-pin">New PIN</label>
+        <input id="editor-staff-pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="4 digits - blank keeps current PIN">
       </div>
       <div class="editor-actions">
         <button class="secondary-btn" type="button" id="editor-cancel-btn">Cancel</button>
-        <button class="primary-btn" type="submit">Save Staff</button>
+        <button class="primary-btn" type="submit">Save Teller</button>
       </div>
     `;
   }
@@ -1893,14 +3132,12 @@ async function handleEntityEditorSubmit(event) {
     await postJson(ADMIN_ENDPOINTS.staff, {
       action: "update",
       staff_id: state.entityEditor.record.id,
-      full_name: String(formData.get("full_name") || "").trim(),
-      username: String(formData.get("username") || "").trim(),
-      email: String(formData.get("email") || "").trim(),
-      role: String(formData.get("role") || "booth"),
+      teller_name: String(formData.get("teller_name") || "").trim(),
+      teller_details: String(formData.get("teller_details") || "").trim(),
       is_active: String(formData.get("is_active") || "1") === "1",
-      password: String(formData.get("password") || "").trim()
+      pin: String(formData.get("pin") || "").replace(/\D+/g, "")
     });
-    showStatus("Staff account updated successfully.");
+    showStatus("Booth teller PIN account updated successfully.");
     closeEntityEditor();
     loadStaff();
   } catch (error) {
@@ -2144,7 +3381,7 @@ function mapStatusTone(status) {
     return "success";
   }
 
-  if (["reserved", "pending", "unpaid", "barcode_expired", "first_warning", "second_warning"].includes(value)) {
+  if (["reserved", "pending", "unpaid", "barcode_expired", "first_warning", "second_warning", "third_warning", "fourth_warning"].includes(value)) {
     return "warning";
   }
 

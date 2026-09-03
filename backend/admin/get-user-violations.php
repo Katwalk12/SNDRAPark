@@ -44,7 +44,7 @@ try {
     }
 
     $allowedFilters = [
-        'warnings' => ['first_warning', 'second_warning', 'warning_reset'],
+        'warnings' => ['first_warning', 'second_warning', 'third_warning', 'fourth_warning', 'warning_reset'],
         'locks' => ['account_locked'],
         'unlocks' => ['account_unlocked', 'admin_unlock'],
         'expired' => ['barcode_expired']

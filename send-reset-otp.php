@@ -15,6 +15,9 @@ try {
         otp_json_response(false, 'Please enter a valid email address.', 422);
     }
 
+    // Stop reset codes from being used to spam an inbox.
+    otp_guard_request_rate($email);
+
     $connection = otp_db();
     $user = otp_find_user_by_email($connection, $email);
 
@@ -30,7 +33,7 @@ try {
     otp_store_user_code($connection, $userId, $otpHash, $expiresAt);
 
     try {
-        otp_send_reset_email($connection, $email, $otp);
+        otp_send_reset_email($email, $otp);
     } catch (Throwable $mailException) {
         otp_clear_user_code($connection, $userId);
 
@@ -42,10 +45,11 @@ try {
     $_SESSION['password_reset_email'] = (string) $user['email'];
     $_SESSION['password_reset_allowed'] = false;
     $_SESSION['password_reset_verified_at'] = null;
+    otp_reset_attempts();
 
     otp_json_response(true, 'OTP sent successfully. Please check your email.', 200, [
         'redirect' => './verify-reset-otp.php'
     ]);
 } catch (Throwable $exception) {
-    otp_json_response(false, $exception->getMessage(), 500);
+    otp_fail($exception, 'send-reset-otp');
 }

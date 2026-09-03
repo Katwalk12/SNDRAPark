@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../utils/PasswordPolicy.php';
 require_once __DIR__ . '/AuditLogger.php';
 
 class ValidationMiddleware
@@ -8,8 +9,6 @@ class ValidationMiddleware
     // Security settings
     private const MAX_STRING_LENGTH = 1000;
     private const MAX_EMAIL_LENGTH = 150;
-    private const MAX_PASSWORD_LENGTH = 128;
-    private const MIN_PASSWORD_LENGTH = 8;
 
     /**
      * Validate required fields
@@ -65,56 +64,17 @@ class ValidationMiddleware
     }
 
     /**
-     * Validate password strength and security
+     * Validate password strength and security.
+     *
+     * The rules themselves live in PasswordPolicy so registration, password change
+     * and the forgot-password reset flow all enforce exactly the same policy.
+     *
+     * @param array $context Optional user details (first_name, last_name, email, birth_date)
+     *                       used to reject easily guessed passwords.
      */
-    public static function validatePassword(string $password, bool $required = true): string
+    public static function validatePassword(string $password, bool $required = true, array $context = []): string
     {
-        if ($required && empty($password)) {
-            throw new InvalidArgumentException('Password is required.', 422);
-        }
-
-        if (empty($password)) {
-            return '';
-        }
-
-        // Check length
-        if (strlen($password) < self::MIN_PASSWORD_LENGTH) {
-            throw new InvalidArgumentException('Password must be at least ' . self::MIN_PASSWORD_LENGTH . ' characters long.', 422);
-        }
-
-        if (strlen($password) > self::MAX_PASSWORD_LENGTH) {
-            throw new InvalidArgumentException('Password is too long.', 422);
-        }
-
-        // Get password requirements from settings
-        $requirements = self::getPasswordRequirements();
-
-        // Check for uppercase letters
-        if ($requirements['require_uppercase'] && !preg_match('/[A-Z]/', $password)) {
-            throw new InvalidArgumentException('Password must contain at least one uppercase letter.', 422);
-        }
-
-        // Check for lowercase letters
-        if ($requirements['require_lowercase'] && !preg_match('/[a-z]/', $password)) {
-            throw new InvalidArgumentException('Password must contain at least one lowercase letter.', 422);
-        }
-
-        // Check for numbers
-        if ($requirements['require_numbers'] && !preg_match('/[0-9]/', $password)) {
-            throw new InvalidArgumentException('Password must contain at least one number.', 422);
-        }
-
-        // Check for special characters
-        if ($requirements['require_special_chars'] && !preg_match('/[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?]/', $password)) {
-            throw new InvalidArgumentException('Password must contain at least one special character.', 422);
-        }
-
-        // Check for common weak passwords
-        if (self::isCommonPassword($password)) {
-            throw new InvalidArgumentException('Password is too common. Please choose a stronger password.', 422);
-        }
-
-        return $password;
+        return PasswordPolicy::validate($password, $context, $required);
     }
 
     /**
@@ -194,6 +154,10 @@ class ValidationMiddleware
             // Check if person is not too old (reasonable limit)
             $age = $today->diff($dateTime)->y;
             if ($age > 150) {
+                $isLocalhost = in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1']) || ($_SERVER['SERVER_NAME'] ?? '') === 'localhost';
+                if ($isLocalhost) {
+                    throw new InvalidArgumentException("{$fieldName} is not valid. Age {$age} calculated from '{$date}' is too high.", 422);
+                }
                 throw new InvalidArgumentException("{$fieldName} is not valid.", 422);
             }
         }
@@ -252,11 +216,10 @@ class ValidationMiddleware
      */
     public static function validateUserRegistration(array $data): array
     {
-        self::validateRequired($data, ['email', 'password']);
+        self::validateRequired($data, ['email', 'password', 'vehicleType', 'plateNumber']);
 
         $validated = [
-            'email' => self::validateEmail($data['email']),
-            'password' => self::validatePassword($data['password'])
+            'email' => self::validateEmail($data['email'])
         ];
 
         if (isset($data['firstName'])) {
@@ -269,6 +232,43 @@ class ValidationMiddleware
 
         if (isset($data['birthDate'])) {
             $validated['birth_date'] = self::validateDate($data['birthDate'], 'Birth date');
+        }
+
+        // Validated last so the password can be checked against the name, email and birth date.
+        $validated['password'] = self::validatePassword($data['password'], true, [
+            'first_name' => $validated['first_name'] ?? null,
+            'last_name'  => $validated['last_name'] ?? null,
+            'email'      => $validated['email'],
+            'birth_date' => $validated['birth_date'] ?? null,
+        ]);
+
+        // Validate vehicle type
+        $vehicleType = trim((string) ($data['vehicleType'] ?? ''));
+        if (!in_array($vehicleType, ['Motorcycle', 'Car'], true)) {
+            throw new InvalidArgumentException('Vehicle type must be Motorcycle or Car.', 422);
+        }
+        $validated['vehicle_type'] = $vehicleType;
+
+        // Validate plate number
+        $plateNumber = strtoupper(trim((string) ($data['plateNumber'] ?? '')));
+        if ($plateNumber === '') {
+            throw new InvalidArgumentException('Plate number is required.', 422);
+        }
+        if (!preg_match('/^[A-Z0-9\-]{1,20}$/', $plateNumber)) {
+            throw new InvalidArgumentException('Plate number must be alphanumeric (hyphens allowed, max 20 chars).', 422);
+        }
+        $validated['plate_number'] = $plateNumber;
+
+        $optionalVehicleFields = [
+            'vehicleBrand' => ['vehicle_brand', 'Vehicle brand', 100],
+            'vehicleModel' => ['vehicle_model', 'Vehicle model', 100],
+            'vehicleColor' => ['vehicle_color', 'Vehicle color', 50],
+        ];
+
+        foreach ($optionalVehicleFields as $requestKey => [$validatedKey, $label, $maxLength]) {
+            if (isset($data[$requestKey]) && trim((string) $data[$requestKey]) !== '') {
+                $validated[$validatedKey] = self::validateString((string) $data[$requestKey], $label, 1, $maxLength);
+            }
         }
 
         return $validated;
@@ -302,17 +302,46 @@ class ValidationMiddleware
     }
 
     /**
+     * Fields that must keep their exact value. Credentials are hashed or compared,
+     * never rendered, so HTML-escaping them would silently rewrite any password
+     * containing & < > " ' and break the login/reset flows against each other.
+     */
+    private const RAW_INPUT_KEYS = [
+        'password',
+        'new_password',
+        'newpassword',
+        'current_password',
+        'currentpassword',
+        'confirm_password',
+        'confirmpassword',
+        'password_confirmation',
+        'otp',
+        'pin',
+    ];
+
+    /**
      * Sanitize input data to prevent XSS
      */
-    public static function sanitizeInput($data)
+    public static function sanitizeInput($data, ?string $key = null)
     {
         if (is_array($data)) {
-            return array_map([self::class, 'sanitizeInput'], $data);
+            $sanitized = [];
+
+            foreach ($data as $itemKey => $value) {
+                $sanitized[$itemKey] = self::sanitizeInput($value, is_string($itemKey) ? $itemKey : $key);
+            }
+
+            return $sanitized;
         }
 
         if (is_string($data)) {
             // Remove null bytes
             $data = str_replace("\0", '', $data);
+
+            if ($key !== null && in_array(strtolower($key), self::RAW_INPUT_KEYS, true)) {
+                return $data;
+            }
+
             // Convert special characters to HTML entities
             $data = htmlspecialchars($data, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         }
@@ -371,55 +400,10 @@ class ValidationMiddleware
     }
 
     /**
-     * Check if password is in common password list
+     * Password rules for the UI (delegated to PasswordPolicy).
      */
-    private static function isCommonPassword(string $password): bool
+    public static function passwordRules(): array
     {
-        $commonPasswords = [
-            'password', '123456', '123456789', 'qwerty', 'abc123', 'password123',
-            'admin', 'letmein', 'welcome', 'monkey', '1234567890', 'password1',
-            'qwerty123', 'admin123', 'root', 'user', 'guest'
-        ];
-
-        return in_array(strtolower($password), $commonPasswords);
-    }
-
-    /**
-     * Get password requirements from settings
-     */
-    private static function getPasswordRequirements(): array
-    {
-        try {
-            $connection = Database::connection();
-            $result = $connection->query("
-                SELECT setting_key, setting_value
-                FROM security_settings
-                WHERE setting_key LIKE 'password_require_%'
-            ");
-
-            $requirements = [
-                'require_uppercase' => true,
-                'require_lowercase' => true,
-                'require_numbers' => true,
-                'require_special_chars' => false,
-            ];
-
-            while ($row = $result->fetch_assoc()) {
-                $key = str_replace('password_require_', '', $row['setting_key']);
-                if (array_key_exists($key, $requirements)) {
-                    $requirements[$key] = in_array(strtolower($row['setting_value']), ['true', '1', 'yes', 'on']);
-                }
-            }
-
-            return $requirements;
-        } catch (Exception $e) {
-            // Return defaults on error
-            return [
-                'require_uppercase' => true,
-                'require_lowercase' => true,
-                'require_numbers' => true,
-                'require_special_chars' => false,
-            ];
-        }
+        return PasswordPolicy::describe();
     }
 }

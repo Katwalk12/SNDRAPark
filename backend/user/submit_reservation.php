@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../parking/common.php';
+require_once __DIR__ . '/../common/reservation-notifier.php';
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
@@ -26,7 +27,7 @@ try {
     $connection = booth_db();
     $reservation = parking_create_reservation($connection, [
         'user_id' => $userId,
-        'barcode_value' => $payload['barcodeValue'] ?? $payload['barcode_value'] ?? $payload['barcode'] ?? '',
+        'vehicle_id' => $payload['vehicleId'] ?? $payload['vehicle_id'] ?? null,
         'parking_floor' => $payload['parkingFloor'] ?? $payload['parking_floor'] ?? '',
         'parking_slot' => $payload['parkingSlot'] ?? $payload['parking_slot'] ?? '',
         'full_name' => $payload['fullName'] ?? $payload['full_name'] ?? '',
@@ -35,6 +36,15 @@ try {
         'reserved_time_in' => $payload['reservedTimeIn'] ?? $payload['reserved_time_in'] ?? '',
         'reservation_fee' => $payload['reservationFee'] ?? $payload['reservation_fee'] ?? null
     ]);
+
+    // Best effort: a driver who is about to be held to a grace period should
+    // be told what they booked and what code to present. A mail failure must
+    // never fail the booking itself.
+    $createdReservationId = (int) ($reservation['reservation_id'] ?? $reservation['reservationId'] ?? 0);
+
+    if ($createdReservationId > 0) {
+        reservation_notifier_send_confirmation($connection, $createdReservationId);
+    }
 
     booth_success('Reservation created successfully.', $reservation, 201);
 } catch (Throwable $exception) {
@@ -49,8 +59,11 @@ try {
         'status' => $status
     ]);
 
+    // 409 used to be flattened to a single "slot taken" line, which hid every
+    // other conflict the creation path reports. The messages it throws are
+    // already written for the driver, so pass them through.
     booth_error(
-        $status === 409 ? 'This parking slot is no longer available.' : $exception->getMessage(),
+        $exception->getMessage(),
         $status,
         $status >= 500 ? ['details' => $exception->getMessage()] : []
     );

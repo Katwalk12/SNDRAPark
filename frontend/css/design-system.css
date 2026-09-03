@@ -1,0 +1,316 @@
+/* ==========================================================================
+   SNDRA Park — Design System
+   Shared tokens + primitives. Load this FIRST on every page, before the
+   page-specific stylesheet, so pages can consume the tokens and override
+   the primitives where they genuinely need to.
+
+   Scale rationale: the app previously used ~20 arbitrary font sizes and 10
+   competing :root blocks. Everything here is one restrained ramp so screens
+   read as one product rather than several.
+   ========================================================================== */
+
+:root {
+  /* --- Neutrals: one ink ramp for text, borders and surfaces -------------- */
+  --ds-ink-950: #0B0F19;
+  --ds-ink-900: #111827;
+  --ds-ink-800: #1F2937;
+  --ds-ink-700: #374151;
+  --ds-ink-600: #4B5563;
+  --ds-ink-500: #6B7280;
+  --ds-ink-400: #9CA3AF;
+  --ds-ink-300: #D1D5DB;
+  --ds-ink-200: #E5E7EB;
+  --ds-ink-100: #F3F4F6;
+  --ds-ink-50:  #F9FAFB;
+  --ds-white:   #FFFFFF;
+
+  /* --- Semantic surfaces -------------------------------------------------- */
+  --ds-bg:            var(--ds-ink-50);
+  --ds-surface:       var(--ds-white);
+  --ds-surface-muted: var(--ds-ink-100);
+  --ds-border:        var(--ds-ink-200);
+  --ds-border-strong: var(--ds-ink-300);
+
+  /* --- Text -------------------------------------------------------------- */
+  --ds-text:       var(--ds-ink-900);
+  --ds-text-muted: var(--ds-ink-500);
+  --ds-text-faint: var(--ds-ink-400);
+  --ds-text-invert: var(--ds-white);
+
+  /* --- Brand + status ----------------------------------------------------- */
+  --ds-brand:        var(--ds-ink-900);   /* primary actions read as ink */
+  --ds-brand-hover:  var(--ds-ink-800);
+  --ds-accent:       #0D9488;             /* selected / active only */
+  --ds-accent-soft:  #CCFBF1;
+
+  --ds-success: #047857;
+  --ds-success-soft: #D1FAE5;
+  --ds-warning: #B45309;
+  --ds-warning-soft: #FEF3C7;
+  --ds-danger:  #B91C1C;
+  --ds-danger-soft: #FEE2E2;
+  --ds-neutral-soft: var(--ds-ink-100);
+
+  /* --- Type ramp (8 steps, no more ad-hoc sizes) -------------------------- */
+  --ds-font: "Montserrat", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --ds-text-2xs: 0.6875rem;
+  --ds-text-xs:  0.75rem;
+  --ds-text-sm:  0.8125rem;
+  --ds-text-md:  0.875rem;
+  --ds-text-lg:  1rem;
+  --ds-text-xl:  1.25rem;
+  --ds-text-2xl: 1.625rem;
+  --ds-text-3xl: 2.125rem;
+
+  --ds-leading-tight: 1.25;
+  --ds-leading:       1.5;
+  --ds-leading-loose: 1.65;
+
+  --ds-tracking-caps: 0.08em;
+
+  /* --- Spacing (4px base) ------------------------------------------------- */
+  --ds-space-1: 0.25rem;
+  --ds-space-2: 0.5rem;
+  --ds-space-3: 0.75rem;
+  --ds-space-4: 1rem;
+  --ds-space-5: 1.25rem;
+  --ds-space-6: 1.5rem;
+  --ds-space-8: 2rem;
+  --ds-space-10: 2.5rem;
+  --ds-space-12: 3rem;
+
+  /* --- Radius ------------------------------------------------------------- */
+  --ds-radius-sm:   6px;
+  --ds-radius-md:   10px;
+  --ds-radius-lg:   14px;
+  --ds-radius-xl:   18px;
+  --ds-radius-full: 999px;
+
+  /* --- Elevation: flat, single-layer. No neumorphic dual-insets. ---------- */
+  --ds-shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --ds-shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --ds-shadow-md: 0 4px 8px -2px rgba(16, 24, 40, 0.08), 0 2px 4px -2px rgba(16, 24, 40, 0.04);
+  --ds-shadow-lg: 0 12px 16px -4px rgba(16, 24, 40, 0.08), 0 4px 6px -2px rgba(16, 24, 40, 0.03);
+
+  /* --- Motion ------------------------------------------------------------- */
+  --ds-duration-fast: 120ms;
+  --ds-duration:      180ms;
+  --ds-duration-slow: 260ms;
+  --ds-ease: cubic-bezier(0.2, 0, 0.2, 1);
+  --ds-transition: var(--ds-duration) var(--ds-ease);
+
+  /* --- Status tones for the slot map -------------------------------------
+     Kept more saturated than the badge colours above: this map is scanned at
+     a glance across ~20 tiles, so the states need to separate instantly. */
+  --status-available:   #16A34A;
+  --status-reserved:    #CA8A04;
+  --status-occupied:    #DC2626;
+  --status-unavailable: #6B7280;
+
+  /* --- Compatibility aliases ---------------------------------------------
+     Names the page stylesheets already reference. --status-* previously came
+     from soft-ui.css; --border-soft, --shadow-soft and --color-primary were
+     referenced but never defined anywhere, so those borders and shadows were
+     silently falling back to initial values. */
+  --border-soft:   var(--ds-border);
+  --shadow-soft:   var(--ds-shadow-sm);
+  --color-primary: var(--ds-brand);
+
+  /* --- Focus: one visible ring everywhere, for keyboard navigation -------- */
+  --ds-focus-ring: 0 0 0 3px rgba(13, 148, 136, 0.35);
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+/* Interactive elements share one timing so the whole UI feels like one system.
+   Deliberately scoped to a list rather than `*` — a global transition makes
+   layout-driven changes (tables repainting, live polling) visibly lag. */
+a,
+button,
+input,
+select,
+textarea,
+summary,
+[role="button"],
+[role="tab"] {
+  transition:
+    background-color var(--ds-transition),
+    border-color var(--ds-transition),
+    color var(--ds-transition),
+    box-shadow var(--ds-transition),
+    transform var(--ds-duration-fast) var(--ds-ease);
+}
+
+/* One consistent, visible focus ring. :focus-visible keeps it off for mouse
+   users while keeping keyboard navigation obvious. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  box-shadow: var(--ds-focus-ring);
+  border-radius: var(--ds-radius-sm);
+}
+
+/* Respect the OS "reduce motion" setting — required for accessibility, and
+   these dashboards poll and re-render often. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
+   Primitives — low specificity so page CSS can still win where it must.
+   ========================================================================== */
+
+/* Section label above a heading ("PARKING DASHBOARD") */
+.ds-kicker {
+  margin: 0;
+  font-size: var(--ds-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--ds-tracking-caps);
+  text-transform: uppercase;
+  color: var(--ds-text-faint);
+}
+
+.ds-page-title {
+  margin: var(--ds-space-1) 0 0;
+  font-size: var(--ds-text-2xl);
+  line-height: var(--ds-leading-tight);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ds-text);
+}
+
+.ds-page-subtitle {
+  margin: var(--ds-space-2) 0 0;
+  max-width: 62ch;
+  font-size: var(--ds-text-md);
+  line-height: var(--ds-leading);
+  color: var(--ds-text-muted);
+}
+
+.ds-card {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-shadow-xs);
+}
+
+/* --- Status badge: never wraps mid-word (the admin table did exactly that) */
+.ds-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--ds-radius-full);
+  font-size: var(--ds-text-2xs);
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  background: var(--ds-neutral-soft);
+  color: var(--ds-ink-700);
+}
+
+.ds-badge--success { background: var(--ds-success-soft); color: var(--ds-success); }
+.ds-badge--warning { background: var(--ds-warning-soft); color: var(--ds-warning); }
+.ds-badge--danger  { background: var(--ds-danger-soft);  color: var(--ds-danger); }
+
+/* --- Buttons ------------------------------------------------------------- */
+.ds-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  padding: 0.625rem 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-md);
+  font-family: inherit;
+  font-size: var(--ds-text-md);
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.ds-btn--primary {
+  background: var(--ds-brand);
+  color: var(--ds-text-invert);
+}
+.ds-btn--primary:hover { background: var(--ds-brand-hover); }
+
+.ds-btn--secondary {
+  background: var(--ds-surface);
+  border-color: var(--ds-border-strong);
+  color: var(--ds-text);
+}
+.ds-btn--secondary:hover {
+  background: var(--ds-surface-muted);
+  border-color: var(--ds-ink-400);
+}
+
+.ds-btn:active { transform: translateY(1px); }
+
+.ds-btn[disabled],
+.ds-btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* --- Table --------------------------------------------------------------- */
+.ds-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ds-text-md);
+}
+
+.ds-table th {
+  padding: var(--ds-space-3) var(--ds-space-4);
+  text-align: left;
+  font-size: var(--ds-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--ds-tracking-caps);
+  text-transform: uppercase;
+  color: var(--ds-text-faint);
+  border-bottom: 1px solid var(--ds-border);
+  white-space: nowrap;
+}
+
+.ds-table td {
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border-bottom: 1px solid var(--ds-border);
+  color: var(--ds-ink-700);
+  vertical-align: middle;
+}
+
+.ds-table tbody tr { transition: background-color var(--ds-transition); }
+.ds-table tbody tr:hover { background: var(--ds-ink-50); }
+
+/* Wide tables scroll inside their own container rather than pushing the page */
+.ds-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* --- Empty state --------------------------------------------------------- */
+.ds-empty {
+  display: grid;
+  place-items: center;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-10) var(--ds-space-6);
+  text-align: center;
+  color: var(--ds-text-muted);
+  font-size: var(--ds-text-md);
+}

@@ -1,0 +1,99 @@
+/* ==========================================================================
+   Staff auth pages — shared design-system refinement layer
+   Used by admin-login and booth-login. Each had its own :root palette and
+   type sizes; this puts them on the shared ramp without touching their
+   (deliberately different) background treatments. The member login and
+   signup screens were rebuilt on auth.css and no longer load this file.
+   ========================================================================== */
+
+/* --- 1. Typography -------------------------------------------------------
+   These headings ran to display sizes borrowed from the landing page. An auth
+   screen is a form — the heading should label it, not dominate it. */
+
+.auth-copy h1,
+.auth-copy h2,
+.staff-auth-panel h1,
+.staff-auth-panel h2 {
+  font-size: clamp(1.75rem, 3vw, 2.125rem);
+  line-height: var(--ds-leading-tight);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.auth-subtitle,
+.auth-copy p:not(.section-kicker) {
+  font-size: var(--ds-text-md);
+  line-height: var(--ds-leading);
+  max-width: 52ch;
+}
+
+.section-kicker {
+  font-size: var(--ds-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--ds-tracking-caps);
+  text-transform: uppercase;
+}
+
+/* --- 2. Inputs -----------------------------------------------------------
+   One field treatment and one focus ring across all four screens. */
+
+.auth-input,
+.pin-input,
+.staff-auth-form input,
+.staff-auth-form select {
+  min-height: 46px;
+  border-radius: var(--ds-radius-md);
+  font-size: var(--ds-text-md);
+  transition:
+    border-color var(--ds-transition),
+    box-shadow var(--ds-transition),
+    background-color var(--ds-transition);
+}
+
+.auth-input:focus,
+.pin-input:focus,
+.staff-auth-form input:focus {
+  border-color: var(--ds-accent);
+  box-shadow: var(--ds-focus-ring);
+  outline: none;
+}
+
+.field-helper { font-size: var(--ds-text-2xs); }
+.field-error  { font-size: var(--ds-text-2xs); color: var(--ds-danger); }
+
+/* --- 3. Buttons ---------------------------------------------------------- */
+
+.action-btn,
+.staff-auth-form button[type="submit"] {
+  min-height: 46px;
+  border-radius: var(--ds-radius-md);
+  font-size: var(--ds-text-md);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.action-btn:active,
+.staff-auth-form button[type="submit"]:active { transform: translateY(1px); }
+
+/* --- 4. PIN keypad (booth) ----------------------------------------------
+   Touch targets on a till-side screen: bigger hit area, clear press feedback. */
+
+.pin-key {
+  min-height: 52px;
+  border-radius: var(--ds-radius-md);
+  font-size: var(--ds-text-lg);
+  font-weight: 600;
+  transition: background-color var(--ds-transition), transform var(--ds-duration-fast) var(--ds-ease);
+}
+
+.pin-key:hover  { background: var(--ds-ink-100); }
+.pin-key:active { transform: scale(0.97); }
+
+/* --- 5. Back link -------------------------------------------------------- */
+
+.back-home,
+.back-link {
+  font-size: var(--ds-text-md);
+  border-radius: var(--ds-radius-full);
+  transition: background-color var(--ds-transition), color var(--ds-transition);
+}

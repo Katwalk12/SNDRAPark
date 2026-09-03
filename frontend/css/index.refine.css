@@ -1,0 +1,205 @@
+/* ==========================================================================
+   Landing page — design-system refinement layer
+   Loaded after index.css and components.css.
+
+   Note: unlike the consoles, the display-sized hero here is correct. This is a
+   marketing page, so the type ramp is applied above the hero, not to it.
+   ========================================================================== */
+
+/* --- 1. Nav ---------------------------------------------------------------
+   .nav-link-solid resolved to ink text on an ink background — invisible.
+   soft-ui had been forcing the label white. */
+
+.nav-link-solid {
+  background: var(--ds-brand);
+  border-color: var(--ds-brand);
+  color: var(--ds-text-invert) !important;
+}
+
+.nav-link-solid:hover {
+  background: var(--ds-brand-hover);
+  border-color: var(--ds-brand-hover);
+}
+
+.nav-link {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-surface);
+  color: var(--ds-ink-700);
+  font-size: var(--ds-text-md);
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.nav-link:hover {
+  background: var(--ds-ink-100);
+  border-color: var(--ds-border-strong);
+  color: var(--ds-text);
+}
+
+/* --- 2. Section typography (below the hero) ------------------------------ */
+
+.section-kicker {
+  font-size: var(--ds-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--ds-tracking-caps);
+  text-transform: uppercase;
+  color: var(--ds-text-faint);
+}
+
+.about-section h2,
+.contact-section h2,
+.soft-preview-copy h2 {
+  font-size: var(--ds-text-2xl);
+  line-height: var(--ds-leading-tight);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ds-text);
+}
+
+.section-copy,
+.about-card p,
+.soft-preview-copy p {
+  font-size: var(--ds-text-md);
+  line-height: var(--ds-leading);
+  color: var(--ds-text-muted);
+}
+
+/* --- 3. Cards ------------------------------------------------------------ */
+
+.landing-stat-card,
+.about-card,
+.about-main-card,
+.about-side-card,
+.contact-info-card,
+.soft-monitor-panel,
+.soft-chart-card {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-xs);
+}
+
+/* --- 4. Hero kicker ------------------------------------------------------
+   ink-500 only reaches 4.63:1 on pure white, so it failed AA as soon as the
+   photo became visible behind it. ink-600 clears it with margin. */
+
+.slide-content .slide-kicker {
+  color: var(--ds-ink-600);
+}
+
+/* Narrow layout: the copy sits over the photo, so it carries its own backing.
+   The fade is in px so it always finishes inside the top padding, whatever
+   height the text ends up being. */
+@media (max-width: 760px) {
+  .slide-content {
+    padding: 2.75rem 1rem 1.25rem;
+    background:
+      linear-gradient(180deg,
+        rgba(250, 250, 250, 0) 0,
+        rgba(250, 250, 250, 0.88) 26px,
+        rgba(250, 250, 250, 0.97) 58px,
+        rgba(250, 250, 250, 0.99) 100%);
+  }
+}
+
+/* --- 5. Availability preview slots --------------------------------------- */
+
+.soft-preview-slot {
+  border-radius: var(--ds-radius-md);
+  border: 1px solid color-mix(in srgb, var(--slot-border, var(--ds-border)) 60%, transparent);
+  font-size: var(--ds-text-xs);
+  font-weight: 600;
+}
+
+.soft-preview-legend span {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-text-muted);
+}
+
+/* --- 6. Footer ----------------------------------------------------------- */
+
+.corporate-footer,
+.site-footer {
+  border-top: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+}
+
+.corporate-footer h3 { font-size: var(--ds-text-lg); font-weight: 600; color: var(--ds-text); }
+.corporate-footer p,
+.corporate-footer a { font-size: var(--ds-text-md); color: var(--ds-text-muted); }
+.corporate-footer a:hover { color: var(--ds-text); }
+
+/* --- 7. Sign Up button ----------------------------------------------------
+   index.css `.site-nav a:hover` (0,2,1) outranks `.nav-link-solid:hover`
+   (0,2,0) regardless of load order, so hovering the solid button dropped its
+   ink background to a 6% tint while `color: #FFF !important` kept the label
+   white - an invisible label. Re-qualify so the solid button wins. */
+
+.site-nav .nav-link-solid:hover {
+  background: var(--ds-brand-hover);
+  border-color: var(--ds-brand-hover);
+  color: var(--ds-text-invert);
+}
+
+/* --- 8. Minimalist pass ---------------------------------------------------
+   One surface treatment: hairline borders, no shadows, no nested card chrome,
+   no decorative overlays, no hover micro-motion. */
+
+/* the hero carried a repeating radial-gradient scanline over the photo */
+.carousel::before {
+  display: none;
+}
+
+.carousel,
+.landing-stat-card,
+.about-main-card,
+.about-side-card,
+.contact-info-card,
+.soft-availability-preview,
+.footer-grid,
+.footer-social-icons-section {
+  box-shadow: none;
+}
+
+/* a calm single surface instead of grey-on-grey */
+.about-main-card,
+.about-side-card {
+  background: var(--ds-surface);
+}
+
+/* these sit inside an already-bordered card - drop the second and third box */
+.about-flow-panel,
+.about-flow-step,
+.about-advantage-item {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.about-flow-panel {
+  padding-inline: 0;
+  border-top: 1px solid var(--ds-border);
+  border-radius: 0;
+}
+
+.about-flow-step {
+  padding-inline: 0;
+}
+
+/* decorative lift on hover */
+.site-nav a:hover,
+.about-flow-step:hover,
+.about-advantage-item:hover,
+.about-side-card:hover,
+.landing-stat-card:hover,
+.contact-info-card:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* the About headline was set at display scale and competed with the hero */
+.about-title {
+  font-size: clamp(1.6rem, 2.6vw, 2.25rem);
+  line-height: 1.18;
+}

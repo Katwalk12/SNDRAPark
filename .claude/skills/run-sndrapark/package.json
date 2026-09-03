@@ -1,0 +1,9 @@
+{
+  "name": "run-sndrapark",
+  "private": true,
+  "type": "module",
+  "description": "Agent driver for the SNDRA Park app (see SKILL.md)",
+  "dependencies": {
+    "playwright": "^1.61.1"
+  }
+}

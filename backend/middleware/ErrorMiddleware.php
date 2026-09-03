@@ -79,14 +79,20 @@ class ErrorMiddleware
      */
     private static function getSafeMessage(int $code, Throwable $exception): string
     {
-        // For validation errors (422), keep the original message as it's user-safe
-        if ($code === 422) {
+        // Client errors already carry a message written for the user (validation,
+        // "Invalid username or password.", lockout notices). Show it as-is, without
+        // any debugging decoration.
+        $userFacingCodes = [400, 401, 403, 404, 405, 409, 413, 415, 422, 423, 429];
+
+        if (in_array($code, $userFacingCodes, true)) {
             return $exception->getMessage();
         }
 
-        // For authentication/authorization errors, keep specific messages
-        if (in_array($code, [401, 403])) {
-            return $exception->getMessage();
+        // Unexpected failures: be more descriptive on localhost to help debugging
+        $isLocalhost = in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1']) || ($_SERVER['SERVER_NAME'] ?? '') === 'localhost';
+
+        if ($isLocalhost) {
+            return $exception->getMessage() . " in " . basename($exception->getFile()) . ":" . $exception->getLine();
         }
 
         // For all other errors, use generic safe messages

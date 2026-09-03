@@ -31,62 +31,91 @@ try {
     admin_require_method('POST');
 
     $connection = admin_db();
-    $email = strtolower(admin_clean_text(admin_input('email')));
-    $password = admin_clean_text(admin_input('password'));
+    $pin = preg_replace('/\D+/', '', admin_clean_text(admin_input('pin')));
 
-    if ($email === '' || $password === '') {
+    if ($pin === '') {
         booth_login_json_response([
             'success' => false,
-            'message' => 'Email and password are required.'
+            'message' => 'PIN code is required.'
         ], 422);
     }
 
-    RateLimiter::enforce('login', $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1', $email);
-
-    $statement = $connection->prepare("
-        SELECT id, full_name, username, email, password_hash, role, is_active
-        FROM staff_accounts
-        WHERE email = ?
-        LIMIT 1
-    ");
-    $statement->bind_param('s', $email);
-    $statement->execute();
-    $staff = $statement->get_result()->fetch_assoc();
-
-    if (!$staff || (string) ($staff['role'] ?? '') !== 'booth' || (int) ($staff['is_active'] ?? 0) !== 1) {
+    if (strlen($pin) !== BOOTH_PIN_LENGTH) {
         booth_login_json_response([
             'success' => false,
-            'message' => 'Invalid booth teller credentials.'
-        ], 401);
-    }
-
-    if (!admin_staff_password_verify($password, (string) $staff['password_hash'])) {
-        booth_login_json_response([
-            'success' => false,
-            'message' => 'Invalid booth teller credentials.'
-        ], 401);
+            'message' => 'PIN code must be exactly ' . BOOTH_PIN_LENGTH . ' digits.'
+        ], 422);
     }
 
     if (session_status() !== PHP_SESSION_ACTIVE) {
         session_start();
     }
 
+    $ipAddress = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+    RateLimiter::enforce('login', $ipAddress, 'booth-pin');
+
+    $attemptKey = 'booth_pin_failed_attempts';
+    $lockKey = 'booth_pin_locked_until';
+    $now = time();
+
+    if (!empty($_SESSION[$lockKey]) && (int) $_SESSION[$lockKey] > $now) {
+        $seconds = max(1, (int) $_SESSION[$lockKey] - $now);
+        booth_login_json_response([
+            'success' => false,
+            'message' => 'Too many incorrect PIN attempts. Try again in ' . ceil($seconds / 60) . ' minute(s).'
+        ], 429);
+    }
+
+    $statement = $connection->prepare("
+        SELECT id, teller_name, teller_details, pin_code, is_active
+        FROM booth_teller_accounts
+        WHERE is_active = 1
+        ORDER BY created_at DESC
+    ");
+    $statement->execute();
+    $result = $statement->get_result();
+    $teller = null;
+
+    while ($row = $result->fetch_assoc()) {
+        if (password_verify($pin, (string) ($row['pin_code'] ?? ''))) {
+            $teller = $row;
+            break;
+        }
+    }
+
+    if (!$teller) {
+        $_SESSION[$attemptKey] = ((int) ($_SESSION[$attemptKey] ?? 0)) + 1;
+        if ((int) $_SESSION[$attemptKey] >= 5) {
+            $_SESSION[$lockKey] = $now + 300;
+            $_SESSION[$attemptKey] = 0;
+        }
+        booth_login_json_response([
+            'success' => false,
+            'message' => 'Incorrect PIN code.'
+        ], 401);
+    }
+
+    $_SESSION[$attemptKey] = 0;
+    unset($_SESSION[$lockKey]);
+
     session_regenerate_id(true);
 
-    $staffId = (int) $staff['id'];
-    $fullName = (string) ($staff['full_name'] ?? 'Booth Teller');
-    $staffEmail = (string) ($staff['email'] ?? $email);
+    $tellerId = (int) $teller['id'];
+    $tellerName = (string) ($teller['teller_name'] ?? 'Booth Teller');
+    $tellerDetails = (string) ($teller['teller_details'] ?? '');
 
     $_SESSION['sndra_admin'] = [
-        'id' => $staffId,
+        'id' => $tellerId,
         'role' => 'booth',
-        'fullName' => $fullName,
-        'email' => $staffEmail
+        'accountType' => 'booth_teller_pin',
+        'fullName' => $tellerName,
+        'email' => '',
+        'details' => $tellerDetails
     ];
     $_SESSION['_admin_last_activity'] = time();
 
-    $updateStatement = $connection->prepare("UPDATE staff_accounts SET last_login_at = NOW() WHERE id = ?");
-    $updateStatement->bind_param('i', $staffId);
+    $updateStatement = $connection->prepare("UPDATE booth_teller_accounts SET last_login_at = NOW() WHERE id = ?");
+    $updateStatement->bind_param('i', $tellerId);
     $updateStatement->execute();
 
     booth_login_json_response([
@@ -95,10 +124,11 @@ try {
         'redirect' => 'parking-booth.html',
         'role' => 'booth',
         'data' => [
-            'id' => $staffId,
+            'id' => $tellerId,
             'role' => 'booth',
-            'fullName' => $fullName,
-            'email' => $staffEmail,
+            'fullName' => $tellerName,
+            'details' => $tellerDetails,
+            'email' => '',
             'token' => session_id()
         ]
     ]);

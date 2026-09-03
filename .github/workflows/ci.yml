@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mysqli, mbstring
+
+      - name: Lint every PHP file
+        run: |
+          # PHPMailer ships its own vendored sources; only lint what we write.
+          find . -name '*.php' \
+            -not -path './backend/PHPMailer-master/*' \
+            -not -path './vendor/*' \
+            -print0 | xargs -0 -n1 -P4 php -l
+
+      - name: Reject content before the opening PHP tag
+        run: |
+          # A stray space before <?php once took admin login down entirely:
+          # the echoed whitespace made declare(strict_types=1) illegal.
+          fail=0
+          while IFS= read -r -d '' file; do
+            case "$file" in ./backend/PHPMailer-master/*|./vendor/*) continue ;; esac
+            if [ "$(head -c 5 "$file")" != "<?php" ]; then
+              echo "::error file=$file::file must start with <?php, no leading whitespace or BOM"
+              fail=1
+            fi
+          done < <(find . -name '*.php' -print0)
+          exit $fail
+
+      - name: Unit tests
+        run: php tests/run.php
+
+      - name: Check JavaScript parses
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: |
+          for file in frontend/js/*.js assets/js/*.js; do
+            node --check "$file"
+          done
+
+      - name: Ensure .env is not committed
+        run: |
+          if git ls-files --error-unmatch .env >/dev/null 2>&1; then
+            echo "::error::.env is tracked by git. Remove it with: git rm --cached .env"
+            exit 1
+          fi

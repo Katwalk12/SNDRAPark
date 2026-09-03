@@ -126,7 +126,8 @@ if (!function_exists('admin_feedback_fetch_record')) {
                 " . admin_feedback_datetime_expression($columns, ['submitted_at', 'created_at'], 'date_submitted') . ",
                 " . (admin_feedback_has_column($columns, 'status') ? "COALESCE(NULLIF(status, ''), 'Pending')" : "'Pending'") . " AS status,
                 " . admin_feedback_text_expression($columns, ['admin_reply'], 'admin_reply') . ",
-                " . admin_feedback_datetime_expression($columns, ['replied_at', 'resolved_at'], 'replied_at') . "
+                " . admin_feedback_datetime_expression($columns, ['replied_at', 'resolved_at'], 'replied_at') . ",
+                " . (admin_feedback_has_column($columns, 'category') ? "COALESCE(NULLIF(category, ''), 'General')" : "'General'") . " AS category
             FROM feedback_messages
             WHERE id = ?
             LIMIT 1
@@ -167,7 +168,8 @@ if (!function_exists('admin_feedback_payload')) {
                 " . admin_feedback_datetime_expression($columns, ['submitted_at', 'created_at'], 'date_submitted') . ",
                 " . (admin_feedback_has_column($columns, 'status') ? "COALESCE(NULLIF(status, ''), 'Pending')" : "'Pending'") . " AS status,
                 " . admin_feedback_text_expression($columns, ['admin_reply'], 'admin_reply') . ",
-                " . admin_feedback_datetime_expression($columns, ['replied_at', 'resolved_at'], 'replied_at') . "
+                " . admin_feedback_datetime_expression($columns, ['replied_at', 'resolved_at'], 'replied_at') . ",
+                " . (admin_feedback_has_column($columns, 'category') ? "COALESCE(NULLIF(category, ''), 'General')" : "'General'") . " AS category
             FROM feedback_messages
             ORDER BY {$orderBy}
         ");

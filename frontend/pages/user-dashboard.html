@@ -4,6 +4,26 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SNDRA Park | User Dashboard</title>
+  <link rel="icon" type="image/png" href="../../assets/images/favicon.png">
+  <link rel="apple-touch-icon" href="../../assets/images/favicon.png">
+  <link rel="manifest" href="../../manifest.webmanifest">
+  <meta name="theme-color" content="#0D9488">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="SNDRA Park">
+  <script>
+    // Registered from the page rather than a bundler: the worker caches the
+    // dashboard shell and the last reservations response, so a driver can open
+    // their barcode at the gate with no signal.
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        const base = window.__SNDRA_PROJECT_BASE_PATH || "";
+        navigator.serviceWorker.register(`${base}/sw.js`, { scope: `${base}/` }).catch(() => {
+          // An unregistered worker only costs offline support; the app still works.
+        });
+      });
+    }
+  </script>
   <script>
     (function () {
       const pathName = String(window.location.pathname || "");
@@ -22,8 +42,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="../../assets/css/notifications.css?v=20260331-5">
-  <link rel="stylesheet" href="../css/user-dashboard.css?v=20260401-3">
+  <link rel="stylesheet" href="../css/design-system.css?v=20260824-ds1">
+  <link rel="stylesheet" href="../../assets/css/notifications.css?v=20260505-1">
+  <link rel="stylesheet" href="../css/user-dashboard.css?v=20260901-nav2">
+  <link rel="stylesheet" href="../css/components.css?v=20260824-ds1">
+  <link rel="stylesheet" href="../css/user-dashboard.refine.css?v=20260830-attrib1">
 </head>
 <body>
   <div class="dashboard-shell">
@@ -108,31 +131,8 @@
             <section class="hero-shell hero-shell-compact dashboard-hero-shell">
               <div class="hero-copy">
                 <p class="section-kicker">Parking Dashboard</p>
-                <h2>Choose a slot like you are looking at the actual parking floor.</h2>
-                <p class="section-copy">Pick a floor, check the live slot colors, and reserve the space that fits your arrival time in just a few taps.</p>
-              </div>
-              <div class="hero-quick-grid">
-                <article class="hero-quick-card">
-                  <span class="hero-quick-icon"><i class="bi bi-calendar-check-fill" aria-hidden="true"></i></span>
-                  <div>
-                    <p class="metric-label">Saved Bookings</p>
-                    <strong class="metric-value" id="hero-reservation-count">0</strong>
-                  </div>
-                </article>
-                <article class="hero-quick-card">
-                  <span class="hero-quick-icon"><i class="bi bi-layers-fill" aria-hidden="true"></i></span>
-                  <div>
-                    <p class="metric-label">Selected Floor</p>
-                    <strong class="metric-value metric-value-compact" id="hero-selected-floor">None yet</strong>
-                  </div>
-                </article>
-                <article class="hero-quick-card">
-                  <span class="hero-quick-icon"><i class="bi bi-p-circle-fill" aria-hidden="true"></i></span>
-                  <div>
-                    <p class="metric-label">Available Slots</p>
-                    <strong class="metric-value" id="hero-available-count">0</strong>
-                  </div>
-                </article>
+                <h2>Reserve a parking slot</h2>
+                <p class="section-copy">Select a floor to see live slot availability, then choose an open space and set your arrival time.</p>
               </div>
             </section>
 
@@ -140,8 +140,9 @@
               <div class="account-warning-copy">
                 <p class="section-kicker" id="account-warning-kicker">Account Notice</p>
                 <h3 id="account-warning-title">Reservation warning active</h3>
-                <p id="account-warning-message">Another expired reservation within 24 hours will lock your account for 6 days.</p>
+                <p id="account-warning-message">A reservation expired because you did not arrive on time, and the slot was released.</p>
               </div>
+              <button class="account-warning-dismiss" id="account-warning-dismiss" type="button" aria-label="Dismiss this notice">&times;</button>
             </section>
 
             <section class="monitor-stage monitor-stage-wide">
@@ -170,21 +171,16 @@
                     <p class="monitor-screen-meta" id="monitor-screen-meta">Choose a floor to view current slot availability.</p>
                   </div>
                   <div class="floor-grid floor-grid-inline monitor-floor-grid" id="floor-grid" aria-label="Parking floor options"></div>
+                  <div class="monitor-stats">
+                    <article class="monitor-stat is-available"><span>Available</span><strong id="monitor-available-count">0</strong><span>Open Slots</span></article>
+                    <article class="monitor-stat is-reserved"><span>Reserved</span><strong id="monitor-reserved-count">0</strong><span>Hold Area</span></article>
+                    <article class="monitor-stat is-occupied"><span>Occupied</span><strong id="monitor-occupied-count">0</strong><span>Parked</span></article>
+                    <article class="monitor-stat is-saved"><span>Saved</span><strong id="hero-reservation-count">0</strong><span>Bookings</span></article>
+                  </div>
                 </div>
 
                 <div class="monitor-screen parking-lot-screen">
                   <div class="monitor-screen-glare"></div>
-                  <div class="monitor-screen-header">
-                    <div class="monitor-map-copy">
-                      <p class="monitor-screen-label"><i class="bi bi-car-front-fill" aria-hidden="true"></i> Live Slot Map</p>
-                      <p class="monitor-screen-meta">Green means open, amber means reserved, and red means currently in use.</p>
-                    </div>
-                    <div class="monitor-stats">
-                      <article class="monitor-stat is-available"><span>Available</span><strong id="monitor-available-count">0</strong><span>Open Slots</span></article>
-                      <article class="monitor-stat is-reserved"><span>Reserved</span><strong id="monitor-reserved-count">0</strong><span>Hold Area</span></article>
-                      <article class="monitor-stat is-occupied"><span>Occupied</span><strong id="monitor-occupied-count">0</strong><span>Parked</span></article>
-                    </div>
-                  </div>
 
                   <div class="monitor-nav">
                     <button class="monitor-nav-button" id="monitor-prev-page" type="button" aria-label="Show previous parking slots"><i class="bi bi-arrow-left" aria-hidden="true"></i></button>
@@ -198,8 +194,6 @@
                   <div class="monitor-viewport parking-lot-viewport">
                     <div class="monitor-grid-overlay"></div>
                     <div class="monitor-center-lane"></div>
-                    <div class="monitor-lane-arrow lane-arrow-left" aria-hidden="true"><i class="bi bi-arrow-right-circle-fill"></i></div>
-                    <div class="monitor-lane-arrow lane-arrow-right" aria-hidden="true"><i class="bi bi-arrow-left-circle-fill"></i></div>
                     <span class="monitor-lane-label lane-label-top">Entry Lane</span>
                     <span class="monitor-lane-label lane-label-bottom">Exit Lane</span>
                     <div class="slots-grid monitor-slots-grid" id="slots-grid" aria-live="polite"></div>
@@ -249,12 +243,93 @@
             <div class="section-heading-copy">
               <p class="section-kicker">About SNDRA Park</p>
               <h2 class="section-title">Clearer parking decisions before you even arrive</h2>
-              <p class="section-copy">SNDRA Park helps drivers check floor availability, reserve a slot in advance, and keep booking details ready for a smoother parking experience.</p>
+              <p class="section-copy">Reserve a parking slot before you arrive, while booth staff keep clearer realtime visibility across the facility. Online booking, live slot monitoring, and booth-side transaction support run as one workflow.</p>
             </div>
-            <div class="about-grid">
-              <article class="about-card"><span class="metric-label">1. Choose</span><h3><i class="bi bi-layers-half" aria-hidden="true"></i> Pick a floor fast</h3><p>Browse parking floors using clean labels and simple availability summaries.</p></article>
-              <article class="about-card"><span class="metric-label">2. Reserve</span><h3><i class="bi bi-p-circle-fill" aria-hidden="true"></i> Tap an open slot</h3><p>Green parking cards are ready to reserve, so users do not need to decode long status text.</p></article>
-              <article class="about-card"><span class="metric-label">3. Present</span><h3><i class="bi bi-upc-scan" aria-hidden="true"></i> Show the barcode</h3><p>Your reservation summary keeps the barcode and booking details ready for booth validation.</p></article>
+
+            <div class="about-layout">
+              <div class="about-main-column">
+                <div class="about-flow-panel">
+                  <div class="about-flow-heading">
+                    <p class="section-kicker">How Parking Reservation Works</p>
+                    <h3>From slot search to booth entry in a clearer, more organized process.</h3>
+                  </div>
+
+                  <div class="about-flow-grid">
+                    <article class="about-flow-step">
+                      <span class="about-flow-badge">01</span>
+                      <h4>Check available parking slots</h4>
+                      <p>Drivers can review floor availability and view live slot status before leaving for the parking area.</p>
+                    </article>
+
+                    <article class="about-flow-step">
+                      <span class="about-flow-badge">02</span>
+                      <h4>Reserve before arriving</h4>
+                      <p>A selected slot can be reserved in advance, giving users better confidence before entering the facility.</p>
+                    </article>
+
+                    <article class="about-flow-step">
+                      <span class="about-flow-badge">03</span>
+                      <h4>Track realtime slot visibility</h4>
+                      <p>Live updates help users and booth staff stay aligned on current slot conditions and reservation activity.</p>
+                    </article>
+
+                    <article class="about-flow-step">
+                      <span class="about-flow-badge">04</span>
+                      <h4>Support faster booth management</h4>
+                      <p>The parking booth can manage entry, exit, and payment more efficiently with a clearer reservation and slot record.</p>
+                    </article>
+                  </div>
+                </div>
+
+                <p class="about-conclusion">By connecting drivers, reservation data, realtime slot monitoring, and booth-side operations in one system, the platform supports a smarter, more efficient, and more convenient parking experience for both motorists and parking management.</p>
+              </div>
+
+              <div class="about-side-column">
+                <article class="about-side-card">
+                  <p class="section-kicker">Why Use It</p>
+                  <h3>Advantages of smart parking reservation</h3>
+
+                  <div class="about-advantage-list">
+                    <article class="about-advantage-item">
+                      <span class="about-advantage-icon"><i class="fas fa-clock" aria-hidden="true"></i></span>
+                      <div>
+                        <h4>Convenience and time-saving</h4>
+                        <p>Drivers spend less time searching for a space and can prepare for parking before arriving on site.</p>
+                      </div>
+                    </article>
+
+                    <article class="about-advantage-item">
+                      <span class="about-advantage-icon"><i class="fas fa-tower-broadcast" aria-hidden="true"></i></span>
+                      <div>
+                        <h4>Realtime slot visibility</h4>
+                        <p>Live parking status improves decision-making and gives users a clearer picture of slot availability.</p>
+                      </div>
+                    </article>
+
+                    <article class="about-advantage-item">
+                      <span class="about-advantage-icon"><i class="fas fa-road" aria-hidden="true"></i></span>
+                      <div>
+                        <h4>Reduced congestion and fuel use</h4>
+                        <p>Less circling means reduced traffic pressure inside the parking area and less wasted fuel for drivers.</p>
+                      </div>
+                    </article>
+
+                    <article class="about-advantage-item">
+                      <span class="about-advantage-icon"><i class="fas fa-receipt" aria-hidden="true"></i></span>
+                      <div>
+                        <h4>Faster entry and transaction flow</h4>
+                        <p>Booth staff can verify reservations, process movement, and handle payment in a more organized way.</p>
+                      </div>
+                    </article>
+                  </div>
+                </article>
+
+                <article class="about-side-card about-side-card-accent">
+                  <p class="section-kicker">Operational Value</p>
+                  <h3>Smarter management for busy parking environments</h3>
+                  <p>Beyond convenience for drivers, the system also helps parking administrators maintain better slot allocation, cleaner reservation records, and a more consistent user experience across peak hours.</p>
+                </article>
+              </div>
             </div>
           </div>
         </section>
@@ -287,8 +362,10 @@
                     <div class="field-group floating-field"><input id="profile-email" name="email" type="email" placeholder=" " autocomplete="email"><label for="profile-email">Email</label></div>
                     <div class="field-group floating-field always-float"><input id="profile-birthday" name="birthday" type="date" placeholder=" "><label for="profile-birthday">Birthday</label></div>
                     <div class="field-group floating-field"><input id="profile-phone" name="phone" type="tel" placeholder=" " autocomplete="tel"><label for="profile-phone">Contact Number</label></div>
-                    <div class="field-group floating-field"><input id="profile-vehicle" name="vehicleType" type="text" placeholder=" "><label for="profile-vehicle">Vehicle Type</label></div>
-                    <div class="field-group floating-field"><input id="profile-plate" name="plateNumber" type="text" placeholder=" "><label for="profile-plate">Plate Number</label></div>
+                    <div class="field-group floating-field always-float"><select id="profile-vehicle" name="vehicleType"><option value="" disabled selected></option><option value="Motorcycle">Motorcycle</option><option value="Car">Car</option></select><label for="profile-vehicle">Vehicle Type</label></div>
+                    <div class="field-group floating-field"><input id="profile-plate" name="plateNumber" type="text" placeholder=" " style="text-transform:uppercase"><label for="profile-plate">Plate Number</label></div>
+                    <div class="field-group floating-field"><input id="profile-brand" name="vehicleBrand" type="text" placeholder=" "><label for="profile-brand">Brand/Model (optional)</label></div>
+                    <div class="field-group floating-field"><input id="profile-color" name="vehicleColor" type="text" placeholder=" "><label for="profile-color">Color (optional)</label></div>
                     <div class="field-group field-group-wide floating-field textarea-field"><textarea id="profile-address" name="address" rows="4" placeholder=" "></textarea><label for="profile-address">Address</label></div>
                     <div class="field-group field-group-wide floating-field"><input id="profile-password" name="password" type="password" placeholder=" " autocomplete="new-password"><label for="profile-password">Password</label></div>
                   </div>
@@ -297,6 +374,21 @@
                 </form>
               </section>
             </div>
+            <section class="my-vehicles-panel" aria-labelledby="my-vehicles-title">
+              <div class="my-vehicles-header">
+                <div>
+                  <p class="section-kicker">Vehicle Management</p>
+                  <h2 class="section-title" id="my-vehicles-title">My Vehicles</h2>
+                  <p class="section-copy">Registered vehicles linked to your parking reservations.</p>
+                </div>
+                <button class="action-btn action-btn-primary add-vehicle-btn" id="add-vehicle-btn" type="button">
+                  <i class="bi bi-plus-circle-fill" aria-hidden="true"></i>
+                  <span>Add Vehicle</span>
+                </button>
+              </div>
+              <p class="section-inline-status" id="vehicle-list-status" aria-live="polite"></p>
+              <div class="vehicle-card-grid" id="vehicle-card-grid" aria-live="polite"></div>
+            </section>
           </div>
         </section>
 
@@ -308,7 +400,7 @@
               <p class="section-copy">Use the support cards for quick contact info or send a message directly from the dashboard.</p>
             </div>
             <div class="developer-grid support-grid">
-              <article class="developer-card support-card"><div class="support-icon"><i class="bi bi-envelope-paper-fill" aria-hidden="true"></i></div><h3>Email Support</h3><p data-system-setting="gmail_address">sndrapark.emulator@gmail.com</p></article>
+              <article class="developer-card support-card"><div class="support-icon"><i class="bi bi-envelope-paper-fill" aria-hidden="true"></i></div><h3>Email Support</h3><p data-system-setting="gmail_address">sndraparksupport@gmail.com</p></article>
               <article class="developer-card support-card"><div class="support-icon"><i class="bi bi-telephone-fill" aria-hidden="true"></i></div><h3>Phone Support</h3><p data-system-setting="contact_number">+63 917 555 0142</p></article>
               <article class="developer-card support-card"><div class="support-icon"><i class="bi bi-geo-alt-fill" aria-hidden="true"></i></div><h3>Location</h3><p>SM City Grand Central, Caloocan</p></article>
             </div>
@@ -331,10 +423,11 @@
               <div class="footer-copy">
                 <strong data-system-setting="system_name">SNDRA Park</strong>
                 <p>Live parking reservations and account access for everyday drivers.</p>
+                <p class="footer-attribution" data-attribution="programiz">Developed by <strong>Programiz</strong></p>
               </div>
               <div class="footer-icons" aria-label="Contact links">
                 <a class="footer-icon-link" href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook"><i class="bi bi-facebook" aria-hidden="true"></i></a>
-                <a class="footer-icon-link" href="mailto:sndrapark.emulator@gmail.com" aria-label="Email" data-system-setting="gmail_address" data-system-setting-attr="href" data-system-setting-link="mailto" data-system-setting-target="attribute"><i class="bi bi-envelope-fill" aria-hidden="true"></i></a>
+                <a class="footer-icon-link" href="mailto:sndraparksupport@gmail.com" aria-label="Email" data-system-setting="gmail_address" data-system-setting-attr="href" data-system-setting-link="mailto" data-system-setting-target="attribute"><i class="bi bi-envelope-fill" aria-hidden="true"></i></a>
                 <a class="footer-icon-link" href="tel:+639175550142" aria-label="Phone" data-system-setting="contact_number" data-system-setting-attr="href" data-system-setting-link="tel" data-system-setting-target="attribute"><i class="bi bi-telephone-fill" aria-hidden="true"></i></a>
                 <a class="footer-icon-link" href="./user-dashboard.html#contact-us" aria-label="Contact"><i class="bi bi-headset" aria-hidden="true"></i></a>
                 <a class="footer-icon-link" href="./user-dashboard.html#contact-us" aria-label="Location"><i class="bi bi-geo-alt-fill" aria-hidden="true"></i></a>
@@ -362,7 +455,8 @@
           <div class="field-group floating-field"><input id="reservation-name" name="fullName" type="text" placeholder=" " autocomplete="name"><label for="reservation-name">Full Name</label><p class="field-error" data-error-for="fullName"></p></div>
           <div class="field-group floating-field"><input id="reservation-email" name="email" type="email" placeholder=" " autocomplete="email"><label for="reservation-email">Email</label><p class="field-error" data-error-for="email"></p></div>
           <div class="field-group floating-field always-float"><input id="reservation-date" name="reservationDate" type="date" placeholder=" "><label for="reservation-date">Date of Reservation</label><p class="field-helper">Past dates are not allowed.</p><p class="field-error" data-error-for="reservationDate"></p></div>
-          <div class="field-group floating-field always-float"><input id="reservation-time-in" name="timeIn" type="time" placeholder=" "><label for="reservation-time-in">Time In</label><p class="field-helper">Choose your preferred arrival time.</p><p class="field-error" data-error-for="timeIn"></p></div>
+          <div class="field-group floating-field always-float"><input id="reservation-time-in" name="timeIn" type="time" placeholder=" " min="08:00" max="22:00"><label for="reservation-time-in">Time In</label><p class="field-helper">Choose your arrival time. Open 8:00 AM to 10:00 PM.</p><p class="field-error" data-error-for="timeIn"></p></div>
+          <div class="field-group floating-field always-float"><select id="reservation-vehicle" name="vehicleId" data-validate="required"><option value="" disabled selected>Loading vehicles...</option></select><label for="reservation-vehicle">Select Vehicle</label><p class="field-helper">Choose a registered vehicle before reserving.</p><p class="field-error" data-error-for="vehicleId"></p></div>
           <div class="field-group floating-field has-value"><input id="reservation-time-out" name="timeOut" type="text" placeholder=" " readonly value="Will be recorded at the parking booth"><label for="reservation-time-out">Time Out</label><p class="field-helper">Time out will be recorded at the parking booth.</p><p class="field-error" data-error-for="timeOut"></p></div>
           <div class="field-group floating-field has-value"><input id="reservation-total" name="totalPayment" type="text" placeholder=" " readonly value="PHP 20.00" data-system-setting="parking_base_rate" data-system-setting-format="currency" data-system-setting-target="value"><label for="reservation-total">Estimated Base Rate</label><p class="field-helper">Final payment is still based on actual parking duration.</p><p class="field-error" data-error-for="totalPayment"></p></div>
         </div>
@@ -370,6 +464,55 @@
         <div class="modal-actions">
           <button class="action-btn action-btn-secondary" type="button" data-close-modal><i class="bi bi-arrow-left-circle" aria-hidden="true"></i><span>Cancel</span></button>
           <button class="action-btn action-btn-primary" type="submit"><i class="bi bi-check2-circle" aria-hidden="true"></i><span>Submit Reservation</span></button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="modal-backdrop" id="vehicle-modal" aria-hidden="true">
+    <div class="modal-card modal-card-confirm vehicle-modal-card">
+      <div class="modal-header">
+        <div>
+          <p class="section-kicker">Vehicle Information</p>
+          <h2 class="section-title">Add Vehicle</h2>
+        </div>
+        <button class="modal-close" type="button" data-close-vehicle-modal aria-label="Close add vehicle form">&times;</button>
+      </div>
+      <form id="vehicle-form" class="modal-form" novalidate>
+        <div class="form-grid vehicle-modal-grid">
+          <div class="field-group floating-field always-float">
+            <select id="vehicle-type" name="vehicleType">
+              <option value="" disabled selected></option>
+              <option value="Car">Car / Kotse</option>
+              <option value="Motorcycle">Motorcycle / Motor</option>
+            </select>
+            <label for="vehicle-type">Vehicle Type</label>
+            <p class="field-error" data-vehicle-error-for="vehicleType"></p>
+          </div>
+          <div class="field-group floating-field">
+            <input id="vehicle-plate" name="plateNumber" type="text" placeholder=" " style="text-transform:uppercase">
+            <label for="vehicle-plate">Plate Number</label>
+            <p class="field-error" data-vehicle-error-for="plateNumber"></p>
+          </div>
+          <div class="field-group floating-field">
+            <input id="vehicle-brand" name="brand" type="text" placeholder=" ">
+            <label for="vehicle-brand">Vehicle Brand</label>
+            <p class="field-error" data-vehicle-error-for="brand"></p>
+          </div>
+          <div class="field-group floating-field">
+            <input id="vehicle-model" name="model" type="text" placeholder=" ">
+            <label for="vehicle-model">Vehicle Model</label>
+            <p class="field-error" data-vehicle-error-for="model"></p>
+          </div>
+          <div class="field-group field-group-wide floating-field">
+            <input id="vehicle-color" name="color" type="text" placeholder=" ">
+            <label for="vehicle-color">Vehicle Color</label>
+            <p class="field-error" data-vehicle-error-for="color"></p>
+          </div>
+        </div>
+        <p class="form-status" id="vehicle-form-status" aria-live="polite"></p>
+        <div class="modal-actions">
+          <button class="action-btn action-btn-secondary" type="button" data-close-vehicle-modal><i class="bi bi-x-circle" aria-hidden="true"></i><span>Cancel</span></button>
+          <button class="action-btn action-btn-primary" type="submit"><i class="bi bi-check2-circle" aria-hidden="true"></i><span>Save Vehicle</span></button>
         </div>
       </form>
     </div>
@@ -388,12 +531,19 @@
           <div><p class="summary-brand-label" data-system-setting="system_name">SNDRA Park</p><h3>Reservation Details</h3></div>
           <span class="summary-code" id="summary-code-text"></span>
         </div>
-        <div class="barcode-block"><canvas id="barcode-canvas" width="420" height="120" aria-label="Reservation barcode"></canvas><p class="barcode-caption" id="barcode-caption"></p></div>
+        <div class="barcode-block">
+          <div class="barcode-container" role="img" aria-label="Reservation barcode">
+            <svg id="barcode-svg" width="420" height="150" preserveAspectRatio="xMidYMid meet"></svg>
+            <canvas id="barcode-canvas" width="420" height="150" aria-hidden="true" style="display:none"></canvas>
+          </div>
+          <p class="barcode-caption" id="barcode-caption"></p>
+        </div>
         <div class="summary-grid">
           <div class="summary-item"><span>Full Name</span><strong id="summary-full-name"></strong></div>
           <div class="summary-item"><span>Email</span><strong id="summary-email"></strong></div>
           <div class="summary-item"><span>Parking Floor</span><strong id="summary-floor"></strong></div>
           <div class="summary-item"><span>Parking Slot</span><strong id="summary-slot"></strong></div>
+          <div class="summary-item"><span>Vehicle</span><strong id="summary-vehicle"></strong></div>
           <div class="summary-item"><span>Date of Reservation</span><strong id="summary-date"></strong></div>
           <div class="summary-item"><span>Time In</span><strong id="summary-time-in"></strong></div>
           <div class="summary-item"><span>Time Out</span><strong id="summary-time-out"></strong></div>
@@ -424,6 +574,43 @@
       </div>
     </div>
   </div>
+  <div class="modal-backdrop" id="slot-unavailable-modal" aria-hidden="true">
+    <div class="modal-card modal-card-confirm">
+      <div class="modal-header">
+        <div>
+          <p class="section-kicker" id="slot-unavailable-kicker">Slot Unavailable</p>
+          <h2 class="section-title" id="slot-unavailable-title">This slot cannot be booked</h2>
+        </div>
+        <button class="modal-close" type="button" data-close-slot-unavailable aria-label="Close notice">&times;</button>
+      </div>
+      <div class="confirm-copy">
+        <p id="slot-unavailable-reason">No reason was recorded for this slot.</p>
+        <p class="slot-unavailable-hint" id="slot-unavailable-hint">Pick any green slot to reserve instead.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="action-btn action-btn-secondary" type="button" data-close-slot-unavailable><i class="bi bi-check-circle" aria-hidden="true"></i><span>Got it</span></button>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop" id="active-hold-modal" aria-hidden="true">
+    <div class="modal-card modal-card-confirm">
+      <div class="modal-header">
+        <div>
+          <p class="section-kicker">Active Reservation</p>
+          <h2 class="section-title">One reservation at a time</h2>
+        </div>
+        <button class="modal-close" type="button" data-close-active-hold aria-label="Close notice">&times;</button>
+      </div>
+      <div class="confirm-copy">
+        <p id="active-hold-message">You already have a parking slot reserved.</p>
+        <p id="active-hold-hint">Present its barcode at the parking booth, or cancel it from History, before reserving another slot.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="action-btn action-btn-secondary" type="button" data-close-active-hold><i class="bi bi-check-circle" aria-hidden="true"></i><span>Got it</span></button>
+        <button class="action-btn action-btn-primary" type="button" id="active-hold-view-btn"><i class="bi bi-clock-history" aria-hidden="true"></i><span>View My Reservation</span></button>
+      </div>
+    </div>
+  </div>
   <div class="modal-backdrop" id="cancel-reservation-modal" aria-hidden="true">
     <div class="modal-card modal-card-confirm">
       <div class="modal-header">
@@ -441,11 +628,12 @@
     </div>
   </div>
 
-  <script src="../../assets/js/runtime-config.js"></script>
-  <script src="../../assets/js/system-settings.js?v=20260331-6"></script>
+  <script src="../../assets/js/runtime-config.js?v=20260830-attrib1"></script>
+  <script src="../../assets/js/system-settings.js?v=20260829-title1"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <script src="../../assets/js/notifications.js?v=20260331-6"></script>
-  <script src="../js/user-dashboard.js?v=20260401-1"></script>
+  <script src="../../assets/js/session-guard.js"></script>
+  <script src="../js/user-dashboard.js?v=20260901-nav1"></script>
 </body>
 </html>

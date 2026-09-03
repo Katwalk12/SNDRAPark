@@ -1,15 +1,19 @@
 :root {
-  --panel-bg: rgba(7, 7, 7, 0.64);
-  --panel-fade: rgba(3, 3, 3, 0.9);
-  --text-color: #f8f8f8;
-  --muted-text: rgba(255, 255, 255, 0.7);
-  --border-color: rgba(255, 255, 255, 0.18);
-  --soft-border: rgba(255, 255, 255, 0.1);
-  --shadow-color: rgba(0, 0, 0, 0.42);
-  --available: #4fe28c;
-  --reserved: #f1c451;
-  --occupied: #f06a6a;
-  --inactive: #7b8594;
+  --panel-bg: #F3F4F6;
+  --bg-main: #F3F4F6;
+  --bg-sidebar: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --panel-fade: rgba(243, 244, 246, 0.9);
+  --text-color: #2A2A2A;
+  --muted-text: #6B7280;
+  --border-color: #D1D5DB;
+  --soft-border: #E5E7EB;
+  --shadow-color: rgba(0, 0, 0, 0.05);
+  --accent: #0D9488;
+  --available: #10B981;
+  --reserved: #F59E0B;
+  --occupied: #EF4444;
+  --inactive: #9CA3AF;
   --shell-width: min(1240px, calc(100% - 1.5rem));
 }
 
@@ -25,10 +29,7 @@ body {
   margin: 0;
   min-height: 100vh;
   font-family: "Montserrat", "Segoe UI", sans-serif;
-  background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.08), transparent 26%),
-    radial-gradient(circle at bottom right, rgba(255, 255, 255, 0.03), transparent 22%),
-    linear-gradient(135deg, #050505 0%, #020202 100%);
+  background: #F9FAFB;
   color: var(--text-color);
 }
 
@@ -116,13 +117,10 @@ button {
   gap: 0.85rem;
   min-height: calc(100vh - 8rem);
   padding: 1rem 0.9rem 1.2rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-left: 0;
-  border-radius: 0 1.45rem 1.45rem 0;
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.05), transparent 24%),
-    linear-gradient(180deg, rgba(18, 18, 18, 0.94), rgba(7, 7, 7, 0.98));
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.24);
+  border: none;
+  border-radius: 1.45rem;
+  background: var(--bg-sidebar);
+  box-shadow: 0 4px 20px var(--shadow-color);
 }
 
 .sidebar-profile {
@@ -130,15 +128,11 @@ button {
   grid-template-columns: minmax(0, 1fr);
 
   justify-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: none;
   border-radius: 1.2rem;
-  background:
-    radial-gradient(circle at top center, rgba(255, 255, 255, 0.08), transparent 34%),
-    linear-gradient(180deg, rgba(28, 28, 28, 0.9), rgba(10, 10, 10, 0.98));
-  box-shadow:
-    0 12px 26px rgba(0, 0, 0, 0.22),
-    0 0 12px rgba(255, 255, 255, 0.04);
-    height: 13vh;
+  background: var(--bg-card);
+  box-shadow: 0 2px 8px var(--shadow-color);
+  height: 14vh;
 }
 
 .profile-copy {
@@ -164,7 +158,7 @@ button {
   font-weight: 600;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.54);
+  color: var(--muted-text);
 }
 
 .profile-name {
@@ -180,13 +174,13 @@ button {
 .profile-meta {
   margin: 0.15rem 0 0;
   font-size: 0.82rem;
-  color: rgba(255, 255, 255, 0.68);
+  color: var(--muted-text);
   overflow-wrap: anywhere;
 }
 
 .sidebar-divider {
   height: 1px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.04));
+  background: var(--soft-border);
 }
 
 .brand-mark {
@@ -194,9 +188,10 @@ button {
   height: 2.9rem;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.56);
-  background: rgba(255, 255, 255, 0.03);
-  box-shadow: 0 16px 34px var(--shadow-color);
+  border: none;
+  background: var(--accent);
+  color: #FFFFFF;
+  box-shadow: 0 8px 24px rgba(77, 208, 209, 0.3);
   font-family: "Montserrat", "Segoe UI", sans-serif;
   font-size: 1.7rem;
   font-weight: 700;
@@ -227,7 +222,7 @@ button {
   pointer-events: auto;
 
   width: 100%;
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--text-color);
   border-radius: 0.95rem;
   font-size: 0.9rem;
   transition: color 0.2s ease, background-color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
@@ -278,15 +273,18 @@ button {
 
 .sidebar-link:hover,
 .nav-action:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.04);
+  color: var(--accent);
+  background: rgba(77, 208, 209, 0.06);
 }
 
 .sidebar-link.is-active,
 .sidebar-link.active {
-  color: #ffffff;
-  background: linear-gradient(180deg, rgba(66, 66, 66, 0.92), rgba(37, 37, 37, 0.96));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 18px rgba(0, 0, 0, 0.16);
+  color: var(--accent);
+  background: #E0F2FE;
+  border-radius: 0.6rem;
+  border: none;
+  box-shadow: none;
+  font-weight: 600;
 }
 
 .nav-action {
@@ -347,12 +345,10 @@ button {
   grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.72fr);
   gap: 1rem;
   padding: clamp(1.5rem, 4vw, 2.4rem);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--soft-border);
   border-radius: 2rem;
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.05), transparent 24%),
-    linear-gradient(180deg, rgba(18, 18, 18, 0.5), rgba(7, 7, 7, 0.82));
-  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.3);
+  background: var(--bg-card);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.02);
   overflow: hidden;
 }
 
@@ -402,7 +398,7 @@ button {
 .slot-panel-copy,
 .hero-card li,
 .note-card p {
-  color: rgba(255, 255, 255, 0.74);
+  color: var(--text-color);
   font-size: 0.96rem;
   line-height: 1.7;
 }
@@ -411,10 +407,10 @@ button {
   position: relative;
   z-index: 2;
   padding: 1.4rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--soft-border);
   border-radius: 1.6rem;
-  background: rgba(255, 255, 255, 0.03);
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.24);
+  background: var(--bg-sidebar);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.03);
 }
 
 .hero-card-label,
@@ -432,7 +428,7 @@ button {
   padding-left: 1.2rem;
 }
 
-.hero-steps li + li {
+.hero-steps li+li {
   margin-top: 0.65rem;
 }
 
@@ -500,7 +496,7 @@ button {
 
 .section-utility-btn {
   padding: 0.68rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--soft-border);
   border-radius: 999px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
@@ -541,12 +537,10 @@ button {
   display: grid;
   gap: 0.45rem;
   padding: 1.1rem 1.2rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--soft-border);
   border-radius: 1.35rem;
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.04), transparent 26%),
-    linear-gradient(180deg, rgba(18, 18, 18, 0.82), rgba(7, 7, 7, 0.94));
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.24);
+  background: var(--bg-card);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.02);
 }
 
 .account-warning-banner.is-warning {
@@ -572,7 +566,7 @@ button {
 
 .account-warning-copy p:last-child {
   margin: 0;
-  color: rgba(255, 255, 255, 0.76);
+  color: var(--text-color);
   line-height: 1.7;
 }
 
@@ -597,14 +591,12 @@ button {
 .floor-card {
   position: relative;
   padding: 1.1rem 0.9rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border-soft);
   border-radius: 1.35rem;
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.04), transparent 26%),
-    linear-gradient(180deg, rgba(18, 18, 18, 0.54), rgba(7, 7, 7, 0.82));
-  color: #ffffff;
+  background: #FFFFFF;
+  color: var(--text-color);
   cursor: pointer;
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.24);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.03);
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
@@ -614,11 +606,9 @@ button {
 }
 
 .floor-card.is-selected {
-  border-color: rgba(255, 255, 255, 0.38);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 24px 40px rgba(0, 0, 0, 0.28);
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.08), transparent 28%),
-    linear-gradient(180deg, rgba(42, 42, 42, 0.66), rgba(9, 9, 9, 0.9));
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 12px 24px rgba(0, 0, 0, 0.05);
+  background: var(--bg-main);
 }
 
 .floor-card strong {
@@ -644,9 +634,9 @@ button {
   align-items: center;
   gap: 0.45rem;
   padding: 0.58rem 0.9rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--soft-border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.03);
+  background: #FFFFFF;
   color: var(--muted-text);
 }
 
@@ -697,25 +687,18 @@ button {
 .monitor-frame,
 .modal-card,
 .summary-sheet {
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border-soft);
   border-radius: 1.7rem;
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.04), transparent 26%),
-    linear-gradient(180deg, rgba(18, 18, 18, 0.54), rgba(7, 7, 7, 0.82));
-  box-shadow: 0 20px 42px rgba(0, 0, 0, 0.28);
+  background: #FFFFFF;
+  box-shadow: var(--shadow-soft);
 }
 
 .monitor-frame {
   position: relative;
   padding: 1rem 1rem 0;
   border-radius: 2rem 2rem 1.4rem 1.4rem;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.01)),
-    linear-gradient(180deg, rgba(26, 26, 26, 0.96), rgba(8, 8, 8, 0.98));
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.04),
-    0 0 42px rgba(255, 255, 255, 0.06),
-    0 30px 56px rgba(0, 0, 0, 0.34);
+  background: var(--bg-sidebar);
+  box-shadow: 0 14px 45px rgba(0, 0, 0, 0.04);
 }
 
 .monitor-frame-accent {
@@ -783,6 +766,7 @@ button {
 }
 
 @keyframes monitorPulse {
+
   0%,
   100% {
     opacity: 1;
@@ -800,7 +784,7 @@ button {
   font-size: 0.76rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--muted-text);
 }
 
 .monitor-floor-name {
@@ -808,12 +792,12 @@ button {
   font-size: clamp(1.7rem, 3.4vw, 2.55rem);
   font-family: "Montserrat", "Segoe UI", sans-serif;
   line-height: 0.95;
-  color: #ffffff;
+  color: var(--text-color);
 }
 
 .monitor-subtitle {
   margin: 0;
-  color: rgba(255, 255, 255, 0.52);
+  color: var(--muted-text);
   font-size: 0.72rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -821,16 +805,13 @@ button {
 
 .monitor-chip {
   padding: 0.48rem 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--soft-border);
   border-radius: 999px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
-    rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.72);
+  background: var(--bg-card);
+  color: var(--text-color);
   font-size: 0.76rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .monitor-clock-panel {
@@ -841,7 +822,7 @@ button {
 }
 
 .monitor-clock-label {
-  color: rgba(255, 255, 255, 0.48);
+  color: var(--muted-text);
   font-size: 0.68rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -856,11 +837,9 @@ button {
 .monitor-screen {
   position: relative;
   padding: 1.15rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border-soft);
   border-radius: 1.55rem;
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.08), transparent 24%),
-    linear-gradient(180deg, rgba(6, 6, 6, 0.98), rgba(18, 18, 18, 0.92));
+  background: #FFFFFF;
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.03),
     inset 0 0 34px rgba(255, 255, 255, 0.03),
@@ -875,12 +854,9 @@ button {
   gap: 0.95rem;
   margin-bottom: 1.05rem;
   padding: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--soft-border);
   border-radius: 1.2rem;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
-    rgba(255, 255, 255, 0.02);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  background: var(--bg-card);
 }
 
 .monitor-floor-selector-copy {
@@ -890,7 +866,7 @@ button {
 
 .monitor-floor-selector-copy .monitor-screen-label {
   margin: 0.5px, 0, 0.45rem;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--text-color);
   font-size: 0.78rem;
   letter-spacing: 0.16em;
 
@@ -909,9 +885,7 @@ button {
   min-height: 84px;
   padding: 0.85rem 0.7rem;
   border-radius: 1.1rem;
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.06), transparent 26%),
-    linear-gradient(180deg, rgba(20, 20, 20, 0.78), rgba(7, 7, 7, 0.92));
+  background: #FFFFFF;
 }
 
 .floor-grid.floor-grid-inline.monitor-floor-grid .floor-card strong {
@@ -1002,7 +976,7 @@ button {
 
 .monitor-screen-label {
   margin: 0 0 0.45rem;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--text-color);
   font-size: 0.78rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -1010,7 +984,7 @@ button {
 
 .monitor-screen-meta {
   margin: 0;
-  color: rgba(255, 255, 255, 0.52);
+  color: var(--muted-text);
   font-size: 0.8rem;
   letter-spacing: 0.06em;
   line-height: 1.6;
@@ -1036,12 +1010,10 @@ button {
   height: 3rem;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--soft-border);
   border-radius: 999px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
-    rgba(255, 255, 255, 0.04);
-  color: #ffffff;
+  background: var(--bg-card);
+  color: var(--text-color);
   cursor: pointer;
   transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease, opacity 0.2s ease;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -1070,13 +1042,13 @@ button {
   flex: 1;
   min-width: 0;
   padding: 0.72rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--soft-border);
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-main);
 }
 
 .monitor-page-label {
-  color: rgba(255, 255, 255, 0.52);
+  color: var(--muted-text);
   font-size: 0.68rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -1091,11 +1063,9 @@ button {
   display: grid;
   gap: 0.18rem;
   padding: 0.85rem 0.95rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--soft-border);
   border-radius: 1rem;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
-    rgba(255, 255, 255, 0.03);
+  background: var(--bg-card);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
@@ -1104,7 +1074,7 @@ button {
 }
 
 .monitor-stat span:last-child {
-  color: rgba(255, 255, 255, 0.68);
+  color: var(--muted-text);
   font-size: 0.74rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1125,11 +1095,9 @@ button {
 .monitor-viewport {
   position: relative;
   padding: 2.6rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--soft-border);
   border-radius: 1.35rem;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0)),
-    linear-gradient(180deg, rgba(10, 10, 10, 0.9), rgba(18, 18, 18, 0.94));
+  background: var(--bg-main);
   overflow: hidden;
 }
 
@@ -1153,11 +1121,9 @@ button {
   height: 3px;
   border-radius: 999px;
   background:
-    repeating-linear-gradient(
-      90deg,
+    repeating-linear-gradient(90deg,
       rgba(255, 255, 255, 0.6) 0 42px,
-      transparent 42px 68px
-    );
+      transparent 42px 68px);
   opacity: 0.22;
   pointer-events: none;
 }
@@ -1179,11 +1145,9 @@ button {
   transform: translateX(-50%);
   border-radius: 999px;
   background:
-    repeating-linear-gradient(
-      180deg,
+    repeating-linear-gradient(180deg,
       rgba(255, 255, 255, 0.28) 0 16px,
-      transparent 16px 34px
-    );
+      transparent 16px 34px);
   opacity: 0.3;
   pointer-events: none;
 }
@@ -1193,10 +1157,10 @@ button {
   left: 50%;
   transform: translateX(-50%);
   padding: 0.28rem 0.7rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--soft-border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.54);
+  background: #FFFFFF;
+  color: var(--text-color);
   font-size: 0.68rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -1228,7 +1192,7 @@ button {
   align-items: center;
 }
 
-.parking-row + .parking-row {
+.parking-row+.parking-row {
   margin-top: 1.1rem;
 }
 
@@ -1236,12 +1200,10 @@ button {
   display: grid;
   place-items: center;
   min-height: 140px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--soft-border);
   border-radius: 1rem;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
-    rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.8);
+  background: var(--bg-card);
+  color: var(--text-color);
   font-size: 0.82rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -1259,7 +1221,7 @@ button {
 
 .parking-row-label span {
   margin-top: 0.35rem;
-  color: rgba(255, 255, 255, 0.52);
+  color: var(--muted-text);
   font-size: 0.64rem;
   letter-spacing: 0.16em;
 }
@@ -1298,13 +1260,11 @@ button {
   position: relative;
   padding: 1rem 0.8rem 0.75rem;
   border-radius: 1.2rem 1.2rem 0.85rem 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.08)),
-    linear-gradient(180deg, rgba(24, 24, 24, 0.76), rgba(7, 7, 7, 0.9));
+  border: 1px solid var(--soft-border);
+  background: #FFFFFF;
   min-height: 138px;
   text-align: left;
-  color: #ffffff;
+  color: var(--text-color);
   overflow: hidden;
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
@@ -1313,7 +1273,7 @@ button {
   content: "";
   position: absolute;
   inset: 0.7rem;
-  border: 2px solid rgba(255, 255, 255, 0.12);
+  border: 2px solid var(--soft-border);
   border-bottom-width: 3px;
   border-radius: 0.9rem 0.9rem 0.55rem 0.55rem;
   pointer-events: none;
@@ -1327,7 +1287,7 @@ button {
   width: 18px;
   height: 18px;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.12), transparent 70%);
+  background: radial-gradient(circle, var(--soft-border), transparent 70%);
   opacity: 0.5;
   pointer-events: none;
 }
@@ -1338,8 +1298,8 @@ button {
 
 .slot-card.is-clickable:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.28);
-  box-shadow: 0 20px 34px rgba(0, 0, 0, 0.24), 0 0 18px rgba(255, 255, 255, 0.06);
+  border-color: var(--accent);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.04), 0 0 0 1px var(--accent);
 }
 
 .slot-card:disabled {
@@ -1354,8 +1314,8 @@ button {
   gap: 0.45rem;
   padding: 0.38rem 0.62rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.8);
+  background: var(--bg-card);
+  color: var(--text-color);
   font-size: 0.7rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1417,12 +1377,12 @@ button {
   display: grid;
   place-items: center;
   min-height: 280px;
-  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border: 1px dashed var(--border-color);
   border-radius: 1.4rem;
   color: var(--muted-text);
   text-align: center;
   padding: 1.5rem;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--bg-main);
 }
 
 .reservation-empty-state {
@@ -1437,7 +1397,7 @@ button {
 
 .reservation-empty-state p {
   margin: 0.45rem 0 0;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--muted-text);
 }
 
 .monitor-base {
@@ -1450,7 +1410,7 @@ button {
   width: 70px;
   height: 18px;
   border-radius: 0 0 18px 18px;
-  background: linear-gradient(180deg, rgba(52, 52, 52, 0.9), rgba(20, 20, 20, 0.96));
+  background: var(--border-color);
 }
 
 .monitor-stand {
@@ -1458,8 +1418,8 @@ button {
   height: 14px;
   margin-top: 0.45rem;
   border-radius: 999px;
-  background: linear-gradient(180deg, rgba(74, 74, 74, 0.92), rgba(18, 18, 18, 0.98));
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.26);
+  background: #FFFFFF;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.06);
 }
 
 .monitor-footer {
@@ -1473,7 +1433,7 @@ button {
 }
 
 .monitor-footer-copy {
-  color: rgba(255, 255, 255, 0.56);
+  color: var(--muted-text);
   font-size: 0.72rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -1507,11 +1467,29 @@ button {
 
 .modal-backdrop.is-open {
   display: flex;
+  animation: modalBackdropFade 0.18s ease both;
 }
 
 .modal-card {
   width: min(100%, 860px);
   padding: 1.4rem;
+  animation: modalCardRise 0.2s ease both;
+}
+
+@keyframes modalBackdropFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalCardRise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .modal-card-summary {
@@ -1537,17 +1515,17 @@ button {
 .modal-close {
   width: 2.8rem;
   height: 2.8rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--soft-border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.03);
-  color: #ffffff;
+  background: var(--bg-card);
+  color: var(--text-color);
   cursor: pointer;
   transition: transform 0.2s ease, background-color 0.2s ease;
 }
 
 .modal-close:hover {
   transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-main);
 }
 
 .reservation-form {
@@ -1568,36 +1546,35 @@ button {
 .field-group label {
   display: block;
   margin-bottom: 0.45rem;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-color);
   font-size: 0.9rem;
 }
 
 .field-group input {
   width: 100%;
   padding: 0.92rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid var(--border-color);
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.02);
-  color: #ffffff;
+  background: var(--bg-card);
+  color: var(--text-color);
   outline: none;
   transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .field-group input:focus {
-  border-color: rgba(255, 255, 255, 0.42);
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.05);
+  border-color: var(--accent);
+  background: var(--bg-main);
+  box-shadow: 0 0 0 4px rgba(77, 208, 209, 0.1);
 }
 
 .field-group input[readonly] {
-  color: rgba(255, 255, 255, 0.8);
-  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted-text);
+  background: var(--bg-main);
   cursor: default;
 }
 
 .field-group input[type="date"]::-webkit-calendar-picker-indicator,
 .field-group input[type="time"]::-webkit-calendar-picker-indicator {
-  filter: invert(1) brightness(1.5) contrast(1.1);
   cursor: pointer;
 }
 
@@ -1613,7 +1590,7 @@ button {
 
 .field-helper {
   margin: 0.42rem 0 0;
-  color: rgba(255, 255, 255, 0.56);
+  color: var(--muted-text);
   font-size: 0.76rem;
   line-height: 1.5;
 }
@@ -1644,7 +1621,7 @@ button {
 .action-btn {
   padding: 0.92rem 1.3rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--soft-border);
   cursor: pointer;
   transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
 }
@@ -1654,13 +1631,15 @@ button {
 }
 
 .action-btn-secondary {
-  background: rgba(255, 255, 255, 0.03);
-  color: #ffffff;
+  background: var(--bg-main);
+  color: var(--text-color);
 }
 
 .action-btn-primary {
-  background: linear-gradient(180deg, rgba(66, 66, 66, 0.92), rgba(37, 37, 37, 0.96));
+  border-color: transparent;
+  background: var(--accent);
   color: #ffffff;
+  box-shadow: 0 8px 24px rgba(77, 208, 209, 0.3);
 }
 
 .action-btn-danger {
@@ -1673,7 +1652,7 @@ button {
   display: grid;
   gap: 0.7rem;
   margin-bottom: 1.2rem;
-  color: rgba(255, 255, 255, 0.76);
+  color: var(--text-color);
   line-height: 1.75;
 }
 
@@ -1699,9 +1678,9 @@ button {
 
 .summary-code {
   padding: 0.55rem 0.8rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--soft-border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-main);
   color: var(--muted-text);
   font-size: 0.82rem;
 }
@@ -1720,6 +1699,36 @@ button {
   background: #ffffff;
 }
 
+.barcode-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #ffffff;
+  padding: 20px;
+}
+
+.barcode-container svg {
+  width: auto !important;
+  height: 150px !important;
+  max-width: none !important;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  shape-rendering: crispEdges;
+}
+
+.barcode-container canvas {
+  width: 420px !important;
+  height: 150px !important;
+}
+
+/* Ensure no CSS transforms/filters affect scanning */
+.barcode-block, .barcode-container, .barcode-container svg, .barcode-container canvas {
+  transform: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+  backface-visibility: visible !important;
+}
+
 .barcode-caption {
   margin: 0.75rem 0 0;
   text-align: center;
@@ -1735,9 +1744,9 @@ button {
 
 .summary-item {
   padding: 0.95rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--soft-border);
   border-radius: 1.2rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-main);
 }
 
 .summary-item span,
@@ -1757,9 +1766,9 @@ button {
 .note-card {
   margin-top: 1rem;
   padding: 1rem 1.05rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--soft-border);
   border-radius: 1.2rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-main);
 }
 
 .note-card p {
@@ -1774,7 +1783,7 @@ button {
 
   .dashboard-sidebar {
     width: auto;
-    border-left: 1px solid rgba(255, 255, 255, 0.12);
+    border: 1px solid var(--soft-border);
     border-radius: 2rem;
     margin: 0 1rem 1rem;
   }
@@ -1798,7 +1807,7 @@ button {
 
   .logout-link {
     margin-top: 0;
-    
+
   }
 
   .floor-grid {
@@ -1829,6 +1838,7 @@ button {
 }
 
 @media (max-width: 860px) {
+
   .hero-shell,
   .section-heading,
   .section-heading-split,
@@ -1928,6 +1938,7 @@ button {
 }
 
 @media (max-width: 460px) {
+
   .floor-grid,
   .parking-row-track {
     grid-template-columns: 1fr;
@@ -1950,16 +1961,20 @@ button {
 .records-summary-card,
 .reservation-record-card,
 .about-card,
-.profile-preview-card,
-.profile-form-panel,
 .contact-footer-card,
 .control-panel-card {
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: none;
   border-radius: 1.5rem;
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.04), transparent 26%),
-    linear-gradient(180deg, rgba(17, 17, 17, 0.82), rgba(6, 6, 6, 0.96));
-  box-shadow: 0 20px 42px rgba(0, 0, 0, 0.28);
+  background: #FFFFFF;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+}
+
+.profile-preview-card,
+.profile-form-panel {
+  border: 1px solid var(--soft-border);
+  border-radius: 1.5rem;
+  background: var(--bg-card);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
 }
 
 .records-summary-card {
@@ -1974,7 +1989,7 @@ button {
 .overview-card span,
 .records-summary-card span {
   display: block;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--muted-text);
   font-size: 0.76rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -1992,7 +2007,7 @@ button {
 .developer-card-back p,
 .contact-footer-card p {
   margin: 0.6rem 0 0;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--muted-text);
   line-height: 1.65;
 }
 
@@ -2103,10 +2118,20 @@ button {
 
 .reservation-access-clear-btn {
   position: absolute;
-  top: 1.1rem;
-  right: 1.1rem;
+  top: 1.25rem;
+  right: 1.25rem;
   z-index: 1;
   width: auto;
+  color: #222121;
+  background: #FCFCFC;
+  border: 1px solid #D1D5DB;
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .reservation-log-status {
@@ -2130,8 +2155,8 @@ button {
 
 .reservation-record-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(255, 255, 255, 0.24);
-  box-shadow: 0 24px 40px rgba(0, 0, 0, 0.3), 0 0 18px rgba(255, 255, 255, 0.06);
+  border-color: var(--accent);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--accent);
 }
 
 .reservation-record-head {
@@ -2149,17 +2174,17 @@ button {
 
 .reservation-record-card p {
   margin: 0;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--muted-text);
 }
 
 .reservation-record-chip {
   display: inline-flex;
   align-items: center;
   padding: 0.46rem 0.82rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--soft-border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.7);
+  background: var(--bg-main);
+  color: var(--text-color);
   font-size: 0.72rem;
 }
 
@@ -2167,7 +2192,7 @@ button {
   display: grid;
   gap: 0.45rem;
   margin-top: 1rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted-text);
   font-size: 0.86rem;
 }
 
@@ -2186,28 +2211,28 @@ button {
 }
 
 .reservation-status-pill.is-pending {
-  background: rgba(93, 108, 255, 0.18);
-  color: #dce3ff;
-  border: 1px solid rgba(142, 154, 255, 0.28);
+  background: #4B5563;
+  color: #FFFFFF;
+  border: none;
 }
 
 .reservation-status-pill.is-active {
-  background: rgba(255, 171, 61, 0.16);
-  color: #ffe3b8;
-  border: 1px solid rgba(255, 196, 107, 0.26);
+  background: #D97706;
+  color: #FFFFFF;
+  border: none;
 }
 
 .reservation-status-pill.is-success {
-  background: rgba(71, 186, 128, 0.18);
-  color: #d9ffec;
-  border: 1px solid rgba(112, 221, 163, 0.28);
+  background: #10B981;
+  color: #FFFFFF;
+  border: none;
 }
 
 .reservation-status-pill.is-expired,
 .reservation-status-pill.is-cancelled {
-  background: rgba(168, 73, 73, 0.2);
-  color: #ffd9d9;
-  border: 1px solid rgba(255, 139, 139, 0.26);
+  background: #4B5563;
+  color: #FFFFFF;
+  border: none;
 }
 
 .reservation-record-footer {
@@ -2224,7 +2249,7 @@ button {
 }
 
 .reservation-record-footer span {
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--muted-text);
   font-size: 0.84rem;
 }
 
@@ -2263,7 +2288,7 @@ button {
 
 .about-card p,
 .contact-list {
-  color: rgba(255, 255, 255, 0.68);
+  color: var(--muted-text);
   line-height: 1.7;
 }
 
@@ -2306,7 +2331,7 @@ button {
 .profile-preview-copy p {
   margin: 0;
   font-size: 1rem;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--muted-text);
 }
 
 .profile-preview-info {
@@ -2319,9 +2344,9 @@ button {
 
 .profile-preview-info div {
   padding: 1rem 1.1rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--soft-border);
   border-radius: 1.1rem;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--bg-card);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
@@ -2329,7 +2354,7 @@ button {
   font-size: 0.78rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.52);
+  color: var(--muted-text);
 }
 
 .profile-preview-info strong {
@@ -2345,19 +2370,19 @@ button {
 .field-group textarea {
   width: 100%;
   padding: 0.92rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid var(--border-color);
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.02);
-  color: #ffffff;
+  background: var(--bg-card);
+  color: var(--text-color);
   outline: none;
   resize: vertical;
   transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .field-group textarea:focus {
-  border-color: rgba(255, 255, 255, 0.42);
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.05);
+  border-color: var(--accent);
+  background: var(--bg-main);
+  box-shadow: 0 0 0 4px rgba(77, 208, 209, 0.1);
 }
 
 .developer-grid {
@@ -2392,13 +2417,11 @@ button {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--soft-border);
   border-radius: 1.55rem;
   backface-visibility: hidden;
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.05), transparent 24%),
-    linear-gradient(180deg, rgba(18, 18, 18, 0.78), rgba(6, 6, 6, 0.96));
-  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.28);
+  background: var(--bg-card);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.04);
 }
 
 .developer-card-front img {
@@ -2448,7 +2471,7 @@ button {
 
 .developer-role {
   margin: 0.4rem 0 0;
-  color: rgba(255, 255, 255, 0.76);
+  color: var(--muted-text);
 }
 
 .contact-footer {
@@ -2544,6 +2567,7 @@ button {
 }
 
 @media (max-width: 1080px) {
+
   .dashboard-control-grid,
   .profile-layout,
   .contact-footer {
@@ -2587,6 +2611,7 @@ button {
 }
 
 @media (max-width: 860px) {
+
   .overview-metrics,
   .records-summary,
   .about-grid,
@@ -2603,6 +2628,19 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .my-vehicles-header {
+    display: grid;
+  }
+
+  .add-vehicle-btn {
+    width: 100%;
+  }
+
+  .vehicle-detail-grid,
+  .vehicle-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
   .section-heading-copy,
   .section-heading-tools {
     justify-items: start;
@@ -2615,6 +2653,7 @@ button {
 }
 
 @media (max-width: 640px) {
+
   .floor-grid,
   .developer-grid,
   .contact-footer,
@@ -2679,23 +2718,21 @@ button {
   padding: 1rem 1rem 0 0;
 }
 
-.page-shell > aside {
+.page-shell>aside {
   position: sticky;
   top: 6.4rem;
   display: grid;
   gap: 0.85rem;
   min-height: calc(100vh - 8rem);
   padding: 1rem 0.9rem 1.2rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--soft-border);
   border-left: 0;
   border-radius: 0 1.45rem 1.45rem 0;
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.05), transparent 24%),
-    linear-gradient(180deg, rgba(18, 18, 18, 0.94), rgba(7, 7, 7, 0.98));
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.24);
+  background: var(--bg-sidebar);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.04);
 }
 
-.page-shell > main {
+.page-shell>main {
   min-width: 0;
   padding-bottom: 3.2rem;
 }
@@ -2709,18 +2746,14 @@ button {
 .stat-card,
 .contact-info-card,
 .detail-item {
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--soft-border);
   border-radius: 1.5rem;
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.04), transparent 26%),
-    linear-gradient(180deg, rgba(17, 17, 17, 0.82), rgba(6, 6, 6, 0.96));
-  box-shadow: 0 20px 42px rgba(0, 0, 0, 0.28);
+  background: var(--bg-card);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.04);
 }
 
 .premium-card-strong {
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.06), transparent 26%),
-    linear-gradient(180deg, rgba(18, 18, 18, 0.88), rgba(7, 7, 7, 0.98));
+  background: var(--bg-main);
 }
 
 .section-title {
@@ -2728,12 +2761,12 @@ button {
   font-family: "Montserrat", "Segoe UI", sans-serif;
   font-size: clamp(1.65rem, 3vw, 2.35rem);
   line-height: 1;
-  color: #ffffff;
+  color: var(--text-color);
 }
 
 .metric-label {
   display: block;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--muted-text);
   font-size: 0.76rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -2743,12 +2776,12 @@ button {
   display: block;
   margin-top: 0.55rem;
   font-size: clamp(1.2rem, 2.4vw, 1.8rem);
-  color: #ffffff;
+  color: var(--text-color);
 }
 
 .metric-copy,
 .section-copy {
-  color: rgba(255, 255, 255, 0.68);
+  color: var(--muted-text);
   line-height: 1.7;
 }
 
@@ -2768,8 +2801,11 @@ button {
   height: 1.1rem;
 }
 
-.nav-link-danger {
-  color: #ffe0e0;
+.nav-link-danger,
+.danger-text,
+.danger-icon {
+  color: #EF4444 !important;
+  font-weight: 600;
 }
 
 .profile-form-grid {
@@ -2791,7 +2827,7 @@ button {
   font-size: 0.78rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.52);
+  color: var(--muted-text);
 }
 
 .detail-item strong {
@@ -2800,19 +2836,19 @@ button {
   font-size: 1rem;
 }
 
-.space-y-6 > * + * {
+.space-y-6>*+* {
   margin-top: 1.5rem;
 }
 
-.space-y-4 > * + * {
+.space-y-4>*+* {
   margin-top: 1rem;
 }
 
-.space-y-3 > * + * {
+.space-y-3>*+* {
   margin-top: 0.75rem;
 }
 
-.space-y-2 > * + * {
+.space-y-2>*+* {
   margin-top: 0.5rem;
 }
 
@@ -2996,7 +3032,7 @@ button {
     padding: 1.25rem 0 0;
   }
 
-  .page-shell > aside {
+  .page-shell>aside {
     position: static;
     min-height: auto;
     border-left: 1px solid rgba(255, 255, 255, 0.12);
@@ -3004,12 +3040,13 @@ button {
     margin: 0 1rem 1rem;
   }
 
-  .page-shell > main {
+  .page-shell>main {
     padding: 0 1rem 4rem;
   }
 }
 
 @media (max-width: 860px) {
+
   .profile-form-grid,
   .xl\:grid-cols-\[340px_minmax\(0\2c 1fr\)\],
   .xl\:grid-cols-\[1fr_340px\] {
@@ -3020,6 +3057,147 @@ button {
 .dashboard-panel-stack {
   display: grid;
   gap: 1.5rem;
+}
+.auth-input.auth-select,
+.floating-field select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2364748b' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 1rem;
+  padding-right: 2.5rem;
+}
+
+.auth-input.auth-select:focus,
+.floating-field select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.1);
+}
+
+.profile-section-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.vehicle-signup-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.my-vehicles-panel {
+  display: grid;
+  gap: 1rem;
+  padding: clamp(1rem, 2vw, 1.35rem);
+  border: 1px solid var(--border-color);
+  border-radius: 1.2rem;
+  background: #F3F4F6;
+  box-shadow: 0 16px 36px rgba(17, 24, 39, 0.06);
+}
+
+.my-vehicles-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.add-vehicle-btn {
+  width: auto;
+  min-width: 150px;
+  white-space: nowrap;
+}
+
+.vehicle-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1rem;
+}
+
+.vehicle-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  background: #FFFFFF;
+  box-shadow: 0 12px 26px rgba(17, 24, 39, 0.06);
+}
+
+.vehicle-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.vehicle-card-top strong {
+  color: #111827;
+  font-size: 1.15rem;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.vehicle-type-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.42rem 0.7rem;
+  border-radius: 999px;
+  background: #E5E7EB;
+  color: #111827;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.vehicle-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.vehicle-detail-grid div {
+  min-width: 0;
+  padding: 0.75rem;
+  border-radius: 0.8rem;
+  background: #F9FAFB;
+}
+
+.vehicle-detail-grid span {
+  display: block;
+  color: #4B5563;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vehicle-detail-grid strong {
+  display: block;
+  margin-top: 0.25rem;
+  color: #111827;
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.vehicle-empty-state {
+  min-height: 180px;
+}
+
+.vehicle-modal-card {
+  width: min(100%, 640px);
+}
+
+.vehicle-modal-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 640px) {
+  .vehicle-signup-group {
+    grid-template-columns: 1fr;
+  }
 }
 
 .metric-value-compact {
@@ -3162,7 +3340,7 @@ body {
   gap: 1rem;
   margin-top: 2rem;
   padding: 1.1rem 1.3rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(94, 92, 92, 0.1);
   border-radius: 1.4rem;
   background:
     radial-gradient(circle at top right, rgba(255, 255, 255, 0.04), transparent 25%),
@@ -3247,6 +3425,7 @@ body {
 }
 
 @media (max-width: 860px) {
+
   .contact-footer,
   .site-footer {
     grid-template-columns: 1fr;
@@ -3263,7 +3442,7 @@ body {
 :root {
   --lux-gold: #d3b05f;
   --lux-gold-soft: rgba(211, 176, 95, 0.16);
-  --lux-panel: linear-gradient(180deg, rgba(16, 16, 16, 0.96), rgba(6, 6, 6, 0.99));
+  --lux-panel: var(--bg-main);
 }
 
 .dashboard-sidebar {
@@ -3319,7 +3498,7 @@ body {
   width: 2.35rem;
   height: 2.35rem;
   border-radius: 1rem;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
+  background: #FFFFFF;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
@@ -3353,12 +3532,10 @@ body {
 .records-summary-card {
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--soft-border);
   border-radius: 1.45rem;
-  background:
-    radial-gradient(circle at top right, rgba(211, 176, 95, 0.08), transparent 30%),
-    linear-gradient(180deg, rgba(24, 24, 24, 0.9), rgba(8, 8, 8, 0.98));
-  box-shadow: 0 22px 46px rgba(0, 0, 0, 0.24);
+  background: var(--bg-card);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.04);
 }
 
 .hero-quick-card {
@@ -3418,9 +3595,7 @@ body {
 .parking-lot-frame {
   padding: 1.2rem;
   border-radius: 2.2rem;
-  background:
-    radial-gradient(circle at top center, rgba(211, 176, 95, 0.06), transparent 30%),
-    var(--lux-panel);
+  background: var(--lux-panel);
 }
 
 .monitor-floor-selector,
@@ -3451,9 +3626,12 @@ body {
   font-size: 1.05rem;
 }
 
+/* Was rgba(255,255,255,.68) — white text on a white card, so the per-floor
+   "N open / N reserved" counts were invisible. Styled for a dark surface that
+   this card no longer has. */
 .floor-grid.floor-grid-inline.monitor-floor-grid .floor-card span,
 .floor-grid.floor-grid-inline.monitor-floor-grid .floor-card small {
-  color: rgba(255, 255, 255, 0.68);
+  color: var(--ds-text-muted);
 }
 
 .floor-grid.floor-grid-inline.monitor-floor-grid .floor-card small {
@@ -3466,9 +3644,7 @@ body {
   position: relative;
   padding: 2rem 1.25rem;
   border-radius: 1.55rem;
-  background:
-    linear-gradient(180deg, rgba(34, 34, 34, 0.94), rgba(18, 18, 18, 0.98)),
-    rgba(0, 0, 0, 0.7);
+  background: var(--bg-main);
 }
 
 .monitor-grid-overlay {
@@ -3477,33 +3653,7 @@ body {
 
 .monitor-center-lane {
   border-radius: 999px;
-  background:
-    linear-gradient(180deg, rgba(230, 230, 230, 0.08), rgba(230, 230, 230, 0.02)),
-    rgba(255, 255, 255, 0.03);
-}
-
-.monitor-lane-arrow {
-  position: absolute;
-  left: 50%;
-  z-index: 2;
-  width: 2.4rem;
-  height: 2.4rem;
-  display: grid;
-  place-items: center;
-  color: rgba(255, 255, 255, 0.42);
-  transform: translateX(-50%);
-}
-
-.lane-arrow-left {
-  top: 24%;
-}
-
-.lane-arrow-right {
-  bottom: 24%;
-}
-
-.monitor-lane-arrow i {
-  font-size: 1.5rem;
+  background: var(--border-color);
 }
 
 .parking-row {
@@ -3514,18 +3664,14 @@ body {
   min-width: 120px;
   padding: 0.95rem 0.85rem;
   border-radius: 1.2rem;
-  background:
-    radial-gradient(circle at top right, rgba(211, 176, 95, 0.08), transparent 26%),
-    linear-gradient(180deg, rgba(28, 28, 28, 0.94), rgba(10, 10, 10, 0.98));
+  background: var(--bg-card);
 }
 
 .parking-row-track {
   gap: 0.95rem;
   padding: 1.1rem;
   border-radius: 1.4rem;
-  background:
-    linear-gradient(180deg, rgba(52, 52, 52, 0.82), rgba(26, 26, 26, 0.96)),
-    rgba(255, 255, 255, 0.02);
+  background: var(--bg-main);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
@@ -3595,46 +3741,47 @@ body {
 
 .slot-meta {
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--muted-text);
 }
 
 .slot-status {
   gap: 0.35rem;
   padding: 0.4rem 0.7rem;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.24);
+  background: var(--bg-main);
+  border: 1px solid var(--soft-border);
 }
 
 .slot-card.available {
-  background: linear-gradient(180deg, rgba(39, 72, 53, 0.94), rgba(12, 32, 18, 0.98));
+  background: #FFFFFF;
 }
 
 .slot-card.available .slot-car-icon {
-  color: #63f29f;
+  color: var(--available);
 }
 
 .slot-card.reserved {
-  background: linear-gradient(180deg, rgba(94, 72, 27, 0.94), rgba(43, 31, 8, 0.98));
+  background: #FFFFFF;
 }
 
 .slot-card.reserved .slot-car-icon {
-  color: #f5c963;
+  color: var(--reserved);
 }
 
 .slot-card.occupied {
-  background: linear-gradient(180deg, rgba(94, 35, 35, 0.94), rgba(39, 12, 12, 0.98));
+  background: #FFFFFF;
 }
 
 .slot-card.occupied .slot-car-icon {
-  color: #ff8c8c;
+  color: var(--occupied);
 }
 
 .slot-card.inactive {
-  background: linear-gradient(180deg, rgba(54, 58, 64, 0.94), rgba(24, 27, 32, 0.98));
+  background: #FFFFFF;
 }
 
 .slot-card.inactive .slot-car-icon {
-  color: #8b93a1;
+  color: var(--inactive);
 }
 
 .slot-card.is-clickable:hover {
@@ -3668,10 +3815,8 @@ body {
   gap: 1rem;
   padding: 1.2rem;
   border-radius: 1.6rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background:
-    radial-gradient(circle at top right, rgba(211, 176, 95, 0.08), transparent 24%),
-    linear-gradient(180deg, rgba(19, 19, 19, 0.94), rgba(8, 8, 8, 0.99));
+  border: 1px solid var(--soft-border);
+  background: var(--bg-card);
   cursor: pointer;
 }
 
@@ -3692,8 +3837,8 @@ body {
   gap: 0.45rem;
   padding: 0.45rem 0.8rem;
   border-radius: 999px;
-  background: rgba(211, 176, 95, 0.12);
-  color: #f5d88c;
+  background: var(--bg-main);
+  color: var(--text-color);
   letter-spacing: 0.12em;
 }
 
@@ -3705,7 +3850,7 @@ body {
 .reservation-record-card p {
   margin: -0.55rem 0 0;
   font-size: 1rem;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--muted-text);
 }
 
 .reservation-record-meta {
@@ -3717,7 +3862,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
-  color: rgba(255, 255, 255, 0.68);
+  color: var(--muted-text);
 }
 
 .reservation-record-footer {
@@ -3764,7 +3909,7 @@ body {
 
 .support-card p {
   margin: 0.35rem 0 0;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--muted-text);
   line-height: 1.7;
 }
 
@@ -3779,13 +3924,14 @@ body {
 }
 
 .field-group.floating-field input,
-.field-group.floating-field textarea {
+.field-group.floating-field textarea,
+.field-group.floating-field select {
   width: 100%;
   padding: 1.35rem 1rem 0.78rem;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--border-color);
   border-radius: 1.05rem;
-  background: rgba(255, 255, 255, 0.03);
-  color: #ffffff;
+  background: var(--bg-card);
+  color: var(--text-color);
   outline: none;
   transition: border-color 0.22s ease, box-shadow 0.22s ease, background-color 0.22s ease;
 }
@@ -3820,8 +3966,8 @@ body {
 .field-group.floating-field.always-float label {
   top: 0;
   transform: translateY(-50%);
-  background: #0b0b0b;
-  color: #f5d88c;
+  background: var(--bg-card);
+  color: var(--accent);
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -3834,14 +3980,16 @@ body {
 }
 
 .field-group.floating-field input:focus,
-.field-group.floating-field textarea:focus {
-  border-color: rgba(211, 176, 95, 0.52);
-  box-shadow: 0 0 0 4px rgba(211, 176, 95, 0.08);
-  background: rgba(255, 255, 255, 0.05);
+.field-group.floating-field textarea:focus,
+.field-group.floating-field select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(77, 208, 209, 0.1);
+  background: var(--bg-main);
 }
 
 .field-group.has-error input,
-.field-group.has-error textarea {
+.field-group.has-error textarea,
+.field-group.has-error select {
   border-color: rgba(240, 106, 106, 0.58);
   box-shadow: 0 0 0 4px rgba(240, 106, 106, 0.08);
 }
@@ -3863,6 +4011,7 @@ body {
 }
 
 @media (max-width: 1080px) {
+
   .hero-quick-grid,
   .records-summary,
   .support-grid,
@@ -3872,6 +4021,7 @@ body {
 }
 
 @media (max-width: 860px) {
+
   .hero-quick-grid,
   .records-summary,
   .support-grid,
@@ -3896,4 +4046,174 @@ body {
   .dashboard-sidebar {
     margin: 0 1rem 1rem;
   }
+}
+
+.floor-card-icon,
+.hero-quick-icon,
+.support-icon {
+  width: 2.85rem;
+  height: 2.85rem;
+  display: grid;
+  place-items: center;
+  border-radius: 1rem;
+  background: #4DD0D1;
+  color: #FFFFFF;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+/* Was #ffffff and #f8f8f8 text on a #FAFCFC background — the footer copy and
+   links were effectively invisible. */
+.site-footer,
+.contact-footer {
+  background-color: var(--ds-surface);
+  color: var(--ds-text);
+}
+
+.site-footer a,
+.site-footer p,
+.contact-footer p,
+.social-links a,
+.site-footer svg {
+  color: var(--ds-text-muted);
+}
+
+.site-footer a:hover,
+.social-links a:hover { color: var(--ds-text); }
+
+/* ==========================================================================
+   About panel
+
+   The same explainer the landing page carries, rebuilt on the dashboard's own
+   tokens. Scoped to #about-us so the flow and advantage cards cannot pick up
+   the .about-card rules that other panels rely on.
+   ========================================================================== */
+
+#about-us .about-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+#about-us .about-flow-panel {
+  padding: 1.35rem;
+  border: 1px solid var(--soft-border);
+  border-radius: 1.45rem;
+  background: var(--panel-bg);
+}
+
+#about-us .about-flow-heading h3,
+#about-us .about-side-card h3 {
+  margin: 0.35rem 0 0;
+  font-size: clamp(1.2rem, 1.9vw, 1.55rem);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-color);
+}
+
+#about-us .about-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+  margin-top: 1.1rem;
+}
+
+#about-us .about-flow-step,
+#about-us .about-advantage-item,
+#about-us .about-side-card {
+  min-width: 0;
+  border: 1px solid var(--soft-border);
+  border-radius: 1.35rem;
+  background: var(--bg-card);
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+#about-us .about-flow-step { padding: 1rem; }
+
+#about-us .about-flow-step:hover,
+#about-us .about-advantage-item:hover,
+#about-us .about-side-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-color);
+  box-shadow: 0 12px 24px var(--shadow-color);
+}
+
+#about-us .about-flow-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--panel-bg);
+  color: var(--text-color);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+#about-us .about-flow-step h4,
+#about-us .about-advantage-item h4 {
+  margin: 0.9rem 0 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--text-color);
+}
+
+#about-us .about-advantage-item h4 { margin-top: 0; }
+
+#about-us .about-flow-step p,
+#about-us .about-advantage-item p,
+#about-us .about-side-card p,
+#about-us .about-conclusion {
+  margin: 0.6rem 0 0;
+  color: var(--muted-text);
+  line-height: 1.75;
+}
+
+#about-us .about-conclusion { margin-top: 1.25rem; }
+
+#about-us .about-side-column {
+  display: grid;
+  gap: 1rem;
+}
+
+#about-us .about-side-card { padding: 1.35rem; }
+
+#about-us .about-side-card-accent { background: var(--panel-bg); }
+
+#about-us .about-advantage-list {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1.1rem;
+}
+
+#about-us .about-advantage-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 1rem;
+}
+
+#about-us .about-advantage-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  background: var(--panel-bg);
+  color: var(--text-color);
+}
+
+/* One column before the two-up grids get too narrow to read. */
+@media (max-width: 1100px) {
+  #about-us .about-layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 640px) {
+  #about-us .about-flow-grid { grid-template-columns: minmax(0, 1fr); }
 }

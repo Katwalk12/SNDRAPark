@@ -1,2 +1,19 @@
 DirectoryIndex index.php
 Options -Indexes
+
+# Never serve dotfiles, credential files or editor/backup leftovers. Apache
+# has no PHP handler for these, so it hands back the raw text: before this,
+# GET /.env returned 200 with the database, SMTP and Google OAuth secrets in
+# the clear.
+<FilesMatch "^\.|\.(env|ini|log|bak|sql|sqlite|db|key|pem|crt|old|orig|save)$|~$">
+  Require all denied
+</FilesMatch>
+
+RewriteEngine On
+
+# Native PHP API clean URLs:
+# /backend/api/v1/session -> /backend/api/v1/index.php
+# /backend/api/v1/users/update -> /backend/api/v1/index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^backend/api/v1(?:/(.*))?$ backend/api/v1/index.php [QSA,L]

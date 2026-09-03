@@ -2,7 +2,7 @@
   const DEFAULT_SETTINGS = {
     system_name: "SNDRA Park",
     contact_number: "+63 917 555 0142",
-    gmail_address: "sndraparkemulator@gmail.com",
+    gmail_address: "sndraparksupport@gmail.com",
     parking_base_rate: 20,
     extra_hourly_rate: 10
   };
@@ -49,31 +49,67 @@
     return String(value || "").replace(/[^\d+]/g, "");
   }
 
-  function getTitleSuffix() {
+  function isBrandSegment(value, settings) {
+    const normalized = String(value || "").trim().toLowerCase();
+
+    return (
+      !normalized ||
+      normalized === "sndra park" ||
+      normalized === "sndrapark" ||
+      normalized === String(settings.system_name || "").trim().toLowerCase()
+    );
+  }
+
+  function getTitleSuffix(settings) {
     const bodySuffix = document.body?.dataset.pageTitleSuffix?.trim();
 
     if (bodySuffix) {
       return bodySuffix;
     }
 
-    const parts = String(document.title || "").split("|");
-
-    if (parts.length > 1) {
-      return parts.slice(1).join("|").trim();
-    }
-
-    return "";
+    // Pages use both "Brand | Page" and "Page | Brand", so drop whichever
+    // segment is the brand instead of assuming it comes first.
+    return String(document.title || "")
+      .split("|")
+      .map((part) => part.trim())
+      .filter((part) => !isBrandSegment(part, settings))
+      .join(" | ");
   }
 
   function replaceLegacyText(settings) {
-    const replacements = [
+    const brandReplacements = [
       [/SNDRAPark/g, settings.system_name],
       [/SNDRA PARK/g, settings.system_name.toUpperCase()],
-      [/SNDRA Park/g, settings.system_name],
+      [/SNDRA Park/g, settings.system_name]
+    ];
+
+    const contactReplacements = [
       [/sndrapark\.emulator@gmail\.com/g, settings.gmail_address],
       [/support@sndrapark\.com/g, settings.gmail_address],
       [/\+63 917 555 0142/g, settings.contact_number]
     ];
+
+    function rewrite(value) {
+      let nextValue = value;
+
+      // "SNDRA Park" is a prefix of the configured name, so swapping it into
+      // text that already carries that name appends the suffix a second time.
+      const alreadyBranded =
+        nextValue.includes(settings.system_name) ||
+        nextValue.includes(settings.system_name.toUpperCase());
+
+      if (!alreadyBranded) {
+        brandReplacements.forEach(([pattern, replacement]) => {
+          nextValue = nextValue.replace(pattern, replacement);
+        });
+      }
+
+      contactReplacements.forEach(([pattern, replacement]) => {
+        nextValue = nextValue.replace(pattern, replacement);
+      });
+
+      return nextValue;
+    }
 
     const walker = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT, null);
     const textNodes = [];
@@ -83,17 +119,19 @@
     }
 
     textNodes.forEach((node) => {
-      const parentTag = node.parentElement?.tagName;
+      const parent = node.parentElement;
+      const parentTag = parent?.tagName;
 
       if (!node.nodeValue || parentTag === "SCRIPT" || parentTag === "STYLE") {
         return;
       }
 
-      let nextValue = node.nodeValue;
+      // applyConfiguredElements already wrote these nodes from the settings.
+      if (parent?.closest("[data-system-setting]")) {
+        return;
+      }
 
-      replacements.forEach(([pattern, replacement]) => {
-        nextValue = nextValue.replace(pattern, replacement);
-      });
+      const nextValue = rewrite(node.nodeValue);
 
       if (nextValue !== node.nodeValue) {
         node.nodeValue = nextValue;
@@ -101,6 +139,10 @@
     });
 
     document.querySelectorAll("[aria-label], [title], [alt]").forEach((element) => {
+      if (element.closest("[data-system-setting]")) {
+        return;
+      }
+
       ["aria-label", "title", "alt"].forEach((attributeName) => {
         const currentValue = element.getAttribute(attributeName);
 
@@ -108,10 +150,7 @@
           return;
         }
 
-        let nextValue = currentValue;
-        replacements.forEach(([pattern, replacement]) => {
-          nextValue = nextValue.replace(pattern, replacement);
-        });
+        const nextValue = rewrite(currentValue);
 
         if (nextValue !== currentValue) {
           element.setAttribute(attributeName, nextValue);
@@ -153,7 +192,7 @@
   }
 
   function updateKnownContactLinks(settings) {
-    document.querySelectorAll('a[href="mailto:sndrapark.emulator@gmail.com"], a[href="mailto:support@sndrapark.com"]').forEach((link) => {
+    document.querySelectorAll('a[href="mailto:sndraparksupport@gmail.com"], a[href="mailto:support@sndrapark.com"]').forEach((link) => {
       link.setAttribute("href", `mailto:${settings.gmail_address}`);
     });
 
@@ -164,7 +203,7 @@
 
   function applySettings(settings) {
     const normalized = normalizeSettings(settings);
-    const suffix = getTitleSuffix();
+    const suffix = getTitleSuffix(normalized);
 
     window.SNDRA_SYSTEM_SETTINGS = normalized;
     document.title = suffix ? `${normalized.system_name} | ${suffix}` : normalized.system_name;

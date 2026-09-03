@@ -1,5 +1,10 @@
 <?php
 
+// Loading the app config is what sets date_default_timezone_set('Asia/Manila').
+// Without it this entry point ran on the php.ini default while MySQL ran on
+// system time, and every rate-limit window was written already expired.
+require_once __DIR__ . '/../../config/app.php';
+require_once __DIR__ . '/../../utils/CorsHelper.php';
 require_once __DIR__ . '/../../routes/api.php';
 require_once __DIR__ . '/../../controllers/AuthController.php';
 require_once __DIR__ . '/../../controllers/ParkingController.php';
@@ -23,9 +28,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 // Initialize CSRF protection
 CsrfMiddleware::initialize();
 
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token');
+CorsHelper::sendHeaders('GET, POST, PUT, DELETE', true, 'Content-Type, X-CSRF-Token');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
@@ -42,6 +45,10 @@ function parseApiRoute()
 
     $segments = array_values(array_filter(explode('/', trim($requestPath, '/')), 'strlen'));
     $authActions = ['login', 'register', 'session', 'logout'];
+
+    if (count($segments) >= 3 && is_numeric($segments[2])) {
+        $_GET['id'] = (int) $segments[2];
+    }
 
     if (empty($segments)) {
         $queryAction = RequestHelper::query('action', 'default');
@@ -111,9 +118,34 @@ try {
             AuthMiddleware::authorizeRequest();
             RateLimiter::enforce('api_call', $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
 
-            // RBAC check for user operations
-            if ($action === 'update') {
-                RBACMiddleware::authorize('users.update');
+            if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+                if (in_array($action, ['default', 'profile'], true)) {
+                    RBACMiddleware::authorize('users.profile');
+                } elseif ($action === 'vehicles') {
+                    RBACMiddleware::authorize('users.vehicles.read');
+                } else {
+                    RBACMiddleware::authorize('users.read');
+                }
+            } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                if ($action === 'update') {
+                    RBACMiddleware::authorize('users.update');
+                } elseif ($action === 'vehicles') {
+                    RBACMiddleware::authorize('users.vehicles.create');
+                } else {
+                    RBACMiddleware::authorize('users.update');
+                }
+            } elseif ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+                if ($action === 'vehicles') {
+                    RBACMiddleware::authorize('users.vehicles.update');
+                } else {
+                    RBACMiddleware::authorize('users.update');
+                }
+            } elseif ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+                if ($action === 'vehicles') {
+                    RBACMiddleware::authorize('users.vehicles.delete');
+                } else {
+                    RBACMiddleware::authorize('users.read');
+                }
             } else {
                 RBACMiddleware::authorize('users.read');
             }

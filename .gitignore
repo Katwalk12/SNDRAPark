@@ -1,0 +1,25 @@
+# Secrets — never commit. Copy .env.example to .env and fill it in locally.
+.env
+.env.*
+!.env.example
+
+# Runtime state
+storage/cache/
+storage/sessions/
+storage/logs/
+*.log
+
+# Dependencies
+node_modules/
+vendor/
+.claude/skills/*/node_modules/
+
+# Smoke-test output
+.claude/skills/run-sndrapark/shots/
+
+# OS / editor noise
+Thumbs.db
+Desktop.ini
+.DS_Store
+.idea/
+*.swp

@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SNDRA Park | Parking Booth Dashboard</title>
+  <link rel="icon" type="image/png" href="../../assets/images/favicon.png">
+  <link rel="apple-touch-icon" href="../../assets/images/favicon.png">
   <script>
     (function () {
       const pathName = String(window.location.pathname || "");
@@ -19,15 +21,22 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  <link rel="stylesheet" href="../css/design-system.css?v=20260824-ds1">
   <link rel="stylesheet" href="../../assets/css/notifications.css">
-  <link rel="stylesheet" href="../css/parking-booth.css?v=20260401-1">
+  <link rel="stylesheet" href="../css/parking-booth.css?v=20260901-walkin1">
+  <link rel="stylesheet" href="../css/components.css?v=20260824-ds1">
+  <link rel="stylesheet" href="../css/parking-booth.refine.css?v=20260824-ds1">
 </head>
 <body data-page-title-suffix="Parking Booth Dashboard">
   <div class="booth-shell">
     <aside class="booth-sidebar" aria-label="Parking booth sidebar">
       <div class="booth-sidebar-top">
+        <div class="sidebar-brand-mark">
+          <img src="../../assets/images/brand-mark.png" alt="SNDRA Park logo">
+        </div>
+
         <section class="booth-sidebar-session">
           <span class="meta-label">Signed In</span>
           <strong id="booth-session-name">Booth Teller</strong>
@@ -35,14 +44,14 @@
         </section>
 
         <nav class="booth-nav" aria-label="Parking booth navigation">
-          <button class="booth-nav-button active" type="button" data-view-target="dashboard-view">Dashboard</button>
-          <button class="booth-nav-button" type="button" data-view-target="payment-view">Payment</button>
-          <button class="booth-nav-button" type="button" data-view-target="logs-view">Log File</button>
+          <button class="booth-nav-button active" type="button" data-view-target="dashboard-view"><i class="fa-solid fa-chart-simple" aria-hidden="true"></i> Dashboard</button>
+          <button class="booth-nav-button" type="button" data-view-target="payment-view"><i class="fa-solid fa-barcode" aria-hidden="true"></i> Payment</button>
+          <button class="booth-nav-button" type="button" data-view-target="logs-view"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> Log File</button>
         </nav>
       </div>
 
       <div class="booth-sidebar-bottom">
-        <button class="booth-nav-button booth-nav-button-danger" id="booth-logout-btn" type="button">Logout</button>
+        <button class="booth-nav-button booth-nav-button-danger" id="booth-logout-btn" type="button"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i> Logout</button>
       </div>
     </aside>
 
@@ -177,6 +186,35 @@
               <p class="scanner-hint" id="scanner-hint">Most barcode scanners work like a keyboard and submit with the Enter key automatically.</p>
             </section>
 
+            <section class="scan-card booth-card" id="walkin-card">
+              <div class="card-heading">
+                <p class="section-kicker">No Reservation</p>
+                <h3>Issue a walk-in ticket</h3>
+              </div>
+              <p class="card-copy">For a driver who arrived without booking. The ticket is timed in immediately.</p>
+              <form id="walkin-form" class="scan-form" novalidate>
+                <label for="walkin-plate" class="field-label">Plate Number</label>
+                <input id="walkin-plate" name="plateNumber" class="scanner-input" type="text" autocomplete="off" placeholder="ABC 1234" maxlength="15" required>
+
+                <label for="walkin-vehicle-type" class="field-label">Vehicle Type</label>
+                <select id="walkin-vehicle-type" name="vehicleType" class="scanner-input">
+                  <option value="Car" selected>Car</option>
+                  <option value="Motorcycle">Motorcycle</option>
+                  <option value="SUV">SUV / Van</option>
+                  <option value="Truck">Truck</option>
+                </select>
+
+                <label for="walkin-floor" class="field-label">Floor (optional)</label>
+                <input id="walkin-floor" name="parkingFloor" class="scanner-input" type="text" autocomplete="off" placeholder="Leave blank for the first free slot">
+
+                <label for="walkin-slot" class="field-label">Slot (optional)</label>
+                <input id="walkin-slot" name="parkingSlot" class="scanner-input" type="text" autocomplete="off" placeholder="Leave blank to auto-assign">
+
+                <button class="primary-btn scan-btn" id="walkin-button" type="submit">Issue Ticket &amp; Time In</button>
+              </form>
+              <p class="scanner-hint" id="walkin-hint">The printed barcode is scanned again on exit, exactly like a booked reservation.</p>
+            </section>
+
             <section class="status-card booth-card">
               <div class="card-heading">
                 <p class="section-kicker">Realtime Status</p>
@@ -203,16 +241,57 @@
                 <p class="section-kicker">Payment Action</p>
                 <h3>Transaction controls</h3>
               </div>
+              <div class="tender-grid">
+                <div class="tender-field">
+                  <label for="discount-select" class="field-label">Discount</label>
+                  <select id="discount-select" class="scanner-input">
+                    <option value="None" selected>None</option>
+                    <option value="Senior">Senior Citizen (20%)</option>
+                    <option value="PWD">PWD (20%)</option>
+                  </select>
+                </div>
+                <div class="tender-field">
+                  <label for="payment-method-select" class="field-label">Payment Method</label>
+                  <select id="payment-method-select" class="scanner-input">
+                    <option value="Cash" selected>Cash</option>
+                    <option value="GCash">GCash</option>
+                    <option value="Maya">Maya</option>
+                    <option value="QR Ph">QR Ph</option>
+                    <option value="Card">Card</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                  </select>
+                </div>
+                <div class="tender-field" id="tender-cash-field">
+                  <label for="amount-tendered-input" class="field-label">Amount Tendered</label>
+                  <input id="amount-tendered-input" class="scanner-input" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+                </div>
+                <div class="tender-field" id="tender-reference-field" hidden>
+                  <label for="payment-reference-input" class="field-label">Reference Number</label>
+                  <input id="payment-reference-input" class="scanner-input" type="text" autocomplete="off" placeholder="e.g. 0012 3456 7890">
+                </div>
+              </div>
+              <p class="action-note" id="change-due-note" hidden>Change due: <strong id="change-due-value">PHP 0.00</strong></p>
+
               <div class="action-stack">
                 <button class="primary-btn" id="mark-paid-btn" type="button" disabled>Mark as Paid</button>
                 <button class="secondary-btn" id="clear-transaction-btn" type="button">Clear</button>
-                <button class="ghost-btn" id="print-receipt-btn" type="button">Print Receipt</button>
+                <button class="ghost-btn" id="print-receipt-btn" type="button" disabled>Print Receipt</button>
               </div>
               <p class="action-note" id="action-note">Scan a valid reservation barcode to begin Time In or Time Out processing.</p>
             </section>
           </aside>
 
           <section class="payment-main">
+            <section class="soft-monitor-panel">
+              <p class="section-kicker">Vehicle Verification</p>
+              <h3>Scan, match, and release with less visual noise</h3>
+              <div class="soft-monitor-list">
+                <div class="soft-monitor-item"><span>Barcode / QR</span><strong id="soft-verification-code">Waiting</strong></div>
+                <div class="soft-monitor-item"><span>Vehicle Match</span><strong id="soft-verification-vehicle">After scan</strong></div>
+                <div class="soft-monitor-item"><span>Slot Control</span><strong id="soft-verification-slot">Realtime</strong></div>
+              </div>
+            </section>
+
             <section class="detail-card booth-card">
               <div class="card-heading">
                 <p class="section-kicker">Reservation Details</p>
@@ -235,6 +314,9 @@
                 <article class="detail-item"><span>Reservation Fee</span><strong id="detail-reservation-fee">PHP 0.00</strong></article>
                 <article class="detail-item"><span>Overtime Fee</span><strong id="detail-overtime-fee">PHP 0.00</strong></article>
                 <article class="detail-item"><span>Total Payment</span><strong id="detail-total-payment">PHP 0.00</strong></article>
+                <article class="detail-item"><span>Vehicle Type</span><strong id="detail-vehicle-type">--</strong></article>
+                <article class="detail-item"><span>Discount</span><strong id="detail-discount">None</strong></article>
+                <article class="detail-item"><span>Payment Method</span><strong id="detail-payment-method">--</strong></article>
                 <article class="detail-item"><span>Payment Status</span><strong id="detail-payment-status">--</strong></article>
                 <article class="detail-item"><span>Booth Status</span><strong id="detail-booth-status">--</strong></article>
               </div>
@@ -299,9 +381,9 @@
     </main>
   </div>
 
-  <script src="../../assets/js/runtime-config.js"></script>
-  <script src="../../assets/js/system-settings.js?v=20260331-2"></script>
+  <script src="../../assets/js/runtime-config.js?v=20260830-attrib1"></script>
+  <script src="../../assets/js/system-settings.js?v=20260829-title1"></script>
   <script src="../../assets/js/notifications.js?v=20260331-2"></script>
-  <script src="../js/parking-booth.js?v=20260331-4"></script>
+  <script src="../js/parking-booth.js?v=20260901-walkin1"></script>
 </body>
 </html>

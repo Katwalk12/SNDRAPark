@@ -259,7 +259,17 @@ class RequestValidationMiddleware
     {
         $uri = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
 
-        return (bool) preg_match(
+        // Exempt the classic API login/register endpoints. The router may use auth.php?action=login
+        // so explicitly check for auth.php with action query as well as the neat route paths.
+        $isAuthPhp = false;
+        $scriptName = basename($_SERVER['SCRIPT_NAME'] ?? '');
+        $action = strtoupper((string) ($_GET['action'] ?? ''));
+
+        if (strcasecmp($scriptName, 'auth.php') === 0 && in_array(strtolower($action), ['login', 'register'], true)) {
+            $isAuthPhp = true;
+        }
+
+        return $isAuthPhp || (bool) preg_match(
             '#/backend/(api/v1/(login|register)|admin/login\.php|parking-booth/login\.php)$#i',
             $uri
         );

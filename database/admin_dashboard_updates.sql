@@ -51,7 +51,7 @@ INSERT INTO system_settings (setting_key, setting_value)
 VALUES
   ('system_name', 'SNDRA Park - Web-Based Smart Parking Reservation System'),
   ('contact_number', '+63 917 555 0142'),
-  ('gmail_address', 'sndraparkemulator@gmail.com'),
+  ('gmail_address', 'sndraparksupport@gmail.com'),
   ('parking_base_rate', '20'),
   ('extra_hourly_rate', '10')
 ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value);

@@ -385,7 +385,12 @@ class SessionManager
         }
     }
 
-    private static function prepareSessionStorage(): void
+    /**
+     * Public so alternative entry points (Google OAuth) start their session on the
+     * exact same storage path as the API, otherwise the cookie points at a session
+     * file the rest of the app cannot read.
+     */
+    public static function prepareSessionStorage(): void
     {
         if (self::$sessionStoragePrepared) {
             return;
