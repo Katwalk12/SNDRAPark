@@ -5,12 +5,14 @@ require_once __DIR__ . '/../middleware/RequestValidationMiddleware.php';
 require_once __DIR__ . '/../middleware/RBACMiddleware.php';
 require_once __DIR__ . '/../middleware/RateLimiter.php';
 require_once __DIR__ . '/../middleware/AuditLogger.php';
+require_once __DIR__ . '/../middleware/CsrfMiddleware.php';
 require_once __DIR__ . '/../models/User.php';
 require_once __DIR__ . '/../models/Vehicle.php';
 require_once __DIR__ . '/../common/reservation-security.php';
 require_once __DIR__ . '/../utils/ResponseHelper.php';
 require_once __DIR__ . '/../utils/SessionManager.php';
 require_once __DIR__ . '/../utils/PasswordPolicy.php';
+require_once __DIR__ . '/../utils/HumanCheck.php';
 require_once __DIR__ . '/../utils/LoginThrottle.php';
 
 class AuthController
@@ -181,6 +183,11 @@ class AuthController
 
         // Get validated request data
         $data = RequestValidationMiddleware::validateApiRequest(['email', 'password']);
+
+        // Prove a person is behind this before anything is written. Runs ahead
+        // of the field validation so a script gets the same generic refusal
+        // whatever it sent, and learns nothing about which fields it got wrong.
+        HumanCheck::verify($data);
 
         // Validate registration data
         $validatedData = ValidationMiddleware::validateUserRegistration($data);
@@ -420,6 +427,11 @@ class AuthController
         }
 
         session_regenerate_id(true);
+
+        // A privilege change invalidates the anonymous visitor's token; the
+        // new one rides back out on the response via ResponseHelper.
+        CsrfMiddleware::refresh();
+
         $_SESSION['user_id'] = (int) $user['id'];
         $_SESSION['user_email'] = $user['email'];
         $_SESSION['user_name'] = $user['full_name'] ?? '';

@@ -103,7 +103,17 @@ function admin_manage_slots_payload(mysqli $connection): array
             'manual_status' => $slot['manual_status'],
             'live_status' => $slot['status'],
             'status' => $slot['status'],
-            'unavailable_reason' => $slot['unavailable_reason'] ?? ''
+            'unavailable_reason' => $slot['unavailable_reason'] ?? '',
+            // The bare column. unavailable_reason above has been replaced with a
+            // canned driver-facing sentence for anything not Available, and the
+            // slot editor prefills its textarea from whatever we send here --
+            // so sending the canned line let an admin save it over the real
+            // reason just by opening an occupied bay and pressing save.
+            'raw_unavailable_reason' => $slot['raw_unavailable_reason'] ?? '',
+            'sensor_state' => $slot['sensor_state'] ?? 'none',
+            'sensor_device_id' => $slot['sensor_device_id'] ?? '',
+            'sensor_pin' => $slot['sensor_pin'] ?? null,
+            'sensor_age_seconds' => $slot['sensor_age_seconds'] ?? null
         ];
     }, parking_get_slots($connection, null, null, false));
 
@@ -462,7 +472,5 @@ try {
         ? 'That floor or slot already exists.'
         : 'Failed to manage parking floors and slots.';
 
-    admin_error($message, $status, [
-        'details' => $exception->getMessage()
-    ]);
+    admin_error($message, $status, admin_debug_details($exception));
 }

@@ -866,3 +866,174 @@
 .ops-table-pair table {
   min-width: 22rem;
 }
+
+/* --- Save alerts ---------------------------------------------------------
+   showStatus() writes to an inline line that only renders on two sections,
+   so saving a user or a setting confirmed nothing. These toasts are raised
+   from the same call, sit above the layout and dismiss themselves. */
+.admin-toast-stack {
+  position: fixed;
+  top: var(--ds-space-4);
+  right: var(--ds-space-4);
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+  width: min(24rem, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+.admin-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border: 1px solid var(--ds-border);
+  border-left: 3px solid var(--ds-success);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-lg);
+  color: var(--ds-text);
+  font-size: var(--ds-text-md);
+  line-height: var(--ds-leading);
+  pointer-events: auto;
+  animation: admin-toast-in var(--ds-duration) var(--ds-ease);
+}
+
+.admin-toast.is-error {
+  border-left-color: var(--ds-danger);
+}
+
+.admin-toast.is-leaving {
+  opacity: 0;
+  transform: translateX(0.5rem);
+  transition: opacity var(--ds-duration) var(--ds-ease),
+              transform var(--ds-duration) var(--ds-ease);
+}
+
+.admin-toast__icon {
+  flex: none;
+  margin-top: 0.1rem;
+  color: var(--ds-success);
+}
+
+.admin-toast.is-error .admin-toast__icon {
+  color: var(--ds-danger);
+}
+
+.admin-toast__message {
+  flex: 1 1 auto;
+  margin: 0;
+}
+
+.admin-toast__close {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ds-text-faint);
+  font-size: var(--ds-text-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.admin-toast__close:hover {
+  color: var(--ds-text);
+}
+
+@keyframes admin-toast-in {
+  from { opacity: 0; transform: translateX(0.75rem); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-toast { animation: none; }
+  .admin-toast.is-leaving { transition: none; }
+}
+
+/* --- Sidebar brand and account ------------------------------------------
+   The brand mark used to sit alone at the top of the workspace, costing a
+   full row plus a gap before the page said anything. In the sidebar it sits
+   with the navigation it belongs to and the content starts at the top. */
+.sidebar-brand-mark {
+  display: flex;
+  align-items: center;
+  padding: var(--ds-space-1, 0.25rem) var(--ds-space-2, 0.5rem);
+}
+
+/* The account block reads as the label on the Logout button below it, which
+   is why it lives in the footer rather than up beside the brand. */
+.sidebar-account {
+  min-width: 0;
+  margin-bottom: var(--ds-space-3, 0.75rem);
+  padding: var(--ds-space-3, 0.75rem);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface-muted);
+}
+
+.sidebar-account p {
+  margin: 0;
+  min-width: 0;
+}
+
+.sidebar-account__label {
+  font-size: var(--ds-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--ds-tracking-caps);
+  text-transform: uppercase;
+  color: var(--ds-text-faint);
+}
+
+.sidebar-account__name {
+  margin-top: var(--ds-space-1, 0.25rem) !important;
+  font-size: var(--ds-text-md);
+  font-weight: 600;
+  line-height: var(--ds-leading-tight);
+  color: var(--ds-text);
+  /* Display names run long -- one account here is called "SNDRA Park -
+     Web-Based Smart Parking Reservation System Administrator" -- so this wraps
+     rather than stretching the sidebar or spilling over the Logout button. */
+  overflow-wrap: anywhere;
+}
+
+/* The address is the part that identifies the account, so it stays on one
+   line and truncates; the full value is on the element's title. */
+.sidebar-account__email {
+  margin-top: var(--ds-space-1, 0.25rem) !important;
+  font-size: var(--ds-text-xs);
+  line-height: var(--ds-leading);
+  color: var(--ds-text-muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The sidebar is a fixed 100vh column. With the brand mark and the account
+   block added either side of eleven links, a short viewport would have pushed
+   Logout off the bottom, so the link list is what gives way. */
+.sidebar-nav {
+  overflow-y: auto;
+}
+
+/* --- Close-floor dialog ---------------------------------------------------
+   #floor-reason-modal uses .modal-backdrop + .is-open (see openFloorReasonModal)
+   but no stylesheet ever defined .modal-backdrop, so the dialog sat inline in
+   the analytics column at every width. */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: none;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.modal-backdrop.is-open {
+  display: grid;
+}
+
+.modal-backdrop .modal-card {
+  width: min(560px, 100%);
+}

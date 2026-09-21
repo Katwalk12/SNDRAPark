@@ -39,6 +39,11 @@ const BOOTH_API_ENDPOINTS = {
 };
 
 let currentTransaction = null;
+// The last walk-in issued this shift, kept so its ticket stays printable after
+// the teller moves on to the next scan.
+let lastWalkinTransaction = null;
+let discountApplyTimer = null;
+let discountRequestInFlight = false;
 let pollingTimer = null;
 let settingsRefreshTimer = null;
 let latestLogGroups = [];
@@ -75,7 +80,16 @@ const walkinVehicleTypeSelect = document.getElementById("walkin-vehicle-type");
 const walkinFloorInput = document.getElementById("walkin-floor");
 const walkinSlotInput = document.getElementById("walkin-slot");
 const walkinButton = document.getElementById("walkin-button");
+const walkinPrintButton = document.getElementById("walkin-print-btn");
 const discountSelect = document.getElementById("discount-select");
+const discountIdField = document.getElementById("discount-id-field");
+const discountIdInput = document.getElementById("discount-id-input");
+const discountNote = document.getElementById("discount-note");
+const discountSummary = document.getElementById("discount-summary");
+const discountSummaryGross = document.getElementById("discount-summary-gross");
+const discountSummaryLabel = document.getElementById("discount-summary-label");
+const discountSummaryAmount = document.getElementById("discount-summary-amount");
+const discountSummaryTotal = document.getElementById("discount-summary-total");
 const paymentMethodSelect = document.getElementById("payment-method-select");
 const amountTenderedInput = document.getElementById("amount-tendered-input");
 const paymentReferenceInput = document.getElementById("payment-reference-input");
@@ -111,6 +125,7 @@ const detailRefs = {
   boothStatus: document.getElementById("detail-booth-status"),
   vehicleType: document.getElementById("detail-vehicle-type"),
   discount: document.getElementById("detail-discount"),
+  discountId: document.getElementById("detail-discount-id"),
   paymentMethod: document.getElementById("detail-payment-method")
 };
 const softVerificationRefs = {
@@ -288,6 +303,29 @@ function bindEvents() {
   markPaidButton?.addEventListener("click", handleMarkAsPaid);
   clearTransactionButton?.addEventListener("click", clearCurrentTransaction);
   printReceiptButton?.addEventListener("click", handlePrintReceipt);
+  walkinPrintButton?.addEventListener("click", handlePrintWalkinTicket);
+
+  discountSelect?.addEventListener("change", handleDiscountTypeChange);
+
+  // The discount lands as the ID is keyed in, so the teller reads the new
+  // total back to the driver without pressing anything. The debounce keeps
+  // a 12-character card number from firing twelve recalculations.
+  discountIdInput?.addEventListener("input", () => {
+    normalizeDiscountIdField();
+    scheduleDiscountApply();
+  });
+
+  discountIdInput?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+
+    event.preventDefault();
+    normalizeDiscountIdField();
+    scheduleDiscountApply(0);
+  });
+
+  discountIdInput?.addEventListener("blur", () => scheduleDiscountApply(0));
   boothLogoutButton?.addEventListener("click", () => {
     logoutTo(BOOTH_LOGIN_URL);
   });
@@ -435,7 +473,8 @@ async function handleBarcodeScan() {
       body: {
         action: "scan",
         barcode,
-        discountType: discountSelect?.value || "None"
+        discountType: discountSelect?.value || "None",
+        discountIdNumber: normalizeDiscountIdValue(discountIdInput?.value || "").trim()
       }
     });
 
@@ -446,7 +485,6 @@ async function handleBarcodeScan() {
       currentTransaction.statusLabel || "Scan Success",
       result.message || "Barcode processed successfully."
     );
-    await pollRealtimeData();
   } catch (error) {
     const failedTransaction = normalizeReservationRecord(error?.payload?.data?.transaction || error?.payload?.data);
 
@@ -468,6 +506,8 @@ async function handleBarcodeScan() {
       barcodeInput.focus();
     }
   }
+
+  await pollRealtimeData();
 }
 
 async function handleMarkAsPaid() {
@@ -498,7 +538,6 @@ async function handleMarkAsPaid() {
     currentTransaction = normalizeReservationRecord(result.data);
     renderTransactionDetails(currentTransaction);
     setBoothStatus("success", "Paid", result.message || "Payment completed successfully.");
-    await pollRealtimeData();
   } catch (error) {
     const failedTransaction = normalizeReservationRecord(error?.payload?.data?.transaction || error?.payload?.data);
 
@@ -515,6 +554,8 @@ async function handleMarkAsPaid() {
   } finally {
     markPaidButton.disabled = false;
   }
+
+  await pollRealtimeData();
 }
 
 async function loadRecentActivity() {
@@ -717,18 +758,17 @@ function renderTransactionDetails(transaction) {
       : "None";
   }
 
+  if (detailRefs.discountId) {
+    detailRefs.discountId.textContent = transaction.discountIdNumber || "--";
+  }
+
   if (detailRefs.paymentMethod) {
     detailRefs.paymentMethod.textContent = transaction.paymentMethod
       ? transaction.paymentMethod + (transaction.paymentReference ? ` - ${transaction.paymentReference}` : "")
       : "--";
   }
 
-  // The discount has to be chosen before Time Out, because that is the scan
-  // that prices the stay.
-  if (discountSelect && transaction.discountType && transaction.discountType !== "None") {
-    discountSelect.value = transaction.discountType;
-  }
-
+  renderDiscountControls(transaction);
   syncTenderControls();
 
   latestBarcode.textContent = transaction.barcode || "No barcode yet";
@@ -780,6 +820,7 @@ function resetTransactionPanel() {
   }
   markPaidButton.disabled = true;
   printReceiptButton.disabled = true;
+  resetDiscountControls();
   actionNote.textContent = "Scan a valid reservation barcode to begin Time In or Time Out processing.";
   setBoothStatus("ready", "Ready to Scan", "Waiting for a barcode scan from the teller booth.");
 }
@@ -787,6 +828,230 @@ function resetTransactionPanel() {
 function clearCurrentTransaction() {
   resetTransactionPanel();
   barcodeInput?.focus();
+}
+
+/* --- Discount -------------------------------------------------------------
+   Time Out prices the stay, but the teller only sees the senior or PWD card
+   once the driver is at the window. So the ID field re-prices the stay in
+   place: type the number, the discount and the new total appear. */
+
+/** One shape for the ID: upper case, single spaces, dash and slash allowed. */
+function normalizeDiscountIdValue(value) {
+  return String(value ?? "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9 /-]/g, "")
+    .replace(/\s+/g, " ")
+    .trimStart()
+    .slice(0, 40);
+}
+
+function normalizeDiscountIdField() {
+  if (!discountIdInput) {
+    return;
+  }
+
+  const normalized = normalizeDiscountIdValue(discountIdInput.value);
+
+  if (normalized !== discountIdInput.value) {
+    const caret = discountIdInput.selectionStart;
+    discountIdInput.value = normalized;
+    discountIdInput.setSelectionRange?.(caret, caret);
+  }
+}
+
+function discountIdIsValid(value) {
+  return /^[A-Z0-9][A-Z0-9 /-]{3,39}$/.test(normalizeDiscountIdValue(value).trim());
+}
+
+function setDiscountNote(tone, message) {
+  if (!discountNote) {
+    return;
+  }
+
+  discountNote.hidden = !message;
+  discountNote.textContent = message || "";
+  discountNote.classList.toggle("is-error", tone === "error");
+  discountNote.classList.toggle("is-success", tone === "success");
+}
+
+function scheduleDiscountApply(delayMs = 450) {
+  if (discountApplyTimer) {
+    window.clearTimeout(discountApplyTimer);
+  }
+
+  discountApplyTimer = window.setTimeout(() => {
+    discountApplyTimer = null;
+    applyDiscountNow();
+  }, delayMs);
+}
+
+function handleDiscountTypeChange() {
+  const selected = discountSelect?.value || "None";
+
+  if (discountIdField) {
+    discountIdField.hidden = selected === "None";
+  }
+
+  if (selected === "None" && discountIdInput) {
+    discountIdInput.value = "";
+  }
+
+  if (selected !== "None") {
+    discountIdInput?.focus();
+  }
+
+  // Clearing the discount is itself a change worth pushing, so a discount
+  // applied by mistake can be taken back off before payment.
+  scheduleDiscountApply(selected === "None" ? 0 : 450);
+}
+
+async function applyDiscountNow() {
+  const discountType = discountSelect?.value || "None";
+  const discountIdNumber = normalizeDiscountIdValue(discountIdInput?.value || "").trim();
+
+  if (discountRequestInFlight) {
+    return;
+  }
+
+  if (!currentTransaction?.reservationId) {
+    setDiscountNote(
+      discountType === "None" ? "" : "error",
+      discountType === "None" ? "" : "Scan a barcode first, then the discount can be applied."
+    );
+    return;
+  }
+
+  if (!currentTransaction.actualTimeOut) {
+    setDiscountNote("", "The discount applies when Time Out prices the stay.");
+    return;
+  }
+
+  if (currentTransaction.paymentStatus === "Paid" || currentTransaction.boothStatus === "Completed") {
+    setDiscountNote("error", "This transaction is already paid and can no longer be discounted.");
+    return;
+  }
+
+  if (discountType !== "None" && !discountIdIsValid(discountIdNumber)) {
+    setDiscountNote("error", `Enter the ${discountType} ID number to apply the 20% discount.`);
+    return;
+  }
+
+  // Nothing to send when the screen already shows this exact discount.
+  const appliedId = String(currentTransaction.discountIdNumber || "");
+
+  if (currentTransaction.discountType === discountType && appliedId === discountIdNumber) {
+    return;
+  }
+
+  discountRequestInFlight = true;
+
+  try {
+    const result = await apiRequest(BOOTH_API_ENDPOINTS.payment, {
+      method: "POST",
+      body: {
+        action: "apply_discount",
+        reservationId: currentTransaction.reservationId,
+        discountType,
+        discountIdNumber
+      }
+    });
+
+    currentTransaction = normalizeReservationRecord(result.data);
+    renderTransactionDetails(currentTransaction);
+    setDiscountNote("success", result.message || "Discount applied.");
+    setBoothStatus("success", discountType === "None" ? "Discount Removed" : "Discount Applied", result.message || "");
+  } catch (error) {
+    const failedTransaction = normalizeReservationRecord(error?.payload?.data?.transaction || error?.payload?.data);
+
+    if (failedTransaction) {
+      currentTransaction = failedTransaction;
+      renderTransactionDetails(failedTransaction);
+    }
+
+    setDiscountNote("error", error.message || "Unable to apply the discount right now.");
+  } finally {
+    discountRequestInFlight = false;
+  }
+
+  await pollRealtimeData();
+}
+
+/** Mirror the stored discount back into the controls and the breakdown. */
+function renderDiscountControls(transaction) {
+  const storedType = transaction?.discountType && transaction.discountType !== "None"
+    ? transaction.discountType
+    : null;
+
+  if (discountSelect && storedType) {
+    discountSelect.value = storedType;
+  }
+
+  const selected = discountSelect?.value || "None";
+
+  if (discountIdField) {
+    discountIdField.hidden = selected === "None";
+  }
+
+  // Never overwrite a number the teller is still typing.
+  if (discountIdInput && document.activeElement !== discountIdInput && transaction?.discountIdNumber) {
+    discountIdInput.value = transaction.discountIdNumber;
+  }
+
+  const isPriced = Boolean(transaction?.actualTimeOut) && Number(transaction?.grossAmount || 0) > 0;
+
+  if (discountSummary) {
+    discountSummary.hidden = !isPriced;
+  }
+
+  if (!isPriced) {
+    return;
+  }
+
+  const discountAmount = Number(transaction.discountAmount || 0);
+  const percent = Number(transaction.discountPercent || 0);
+
+  if (discountSummaryGross) {
+    discountSummaryGross.textContent = formatCurrency(transaction.grossAmount);
+  }
+
+  if (discountSummaryLabel) {
+    discountSummaryLabel.textContent = discountAmount > 0
+      ? `${transaction.discountType} discount${percent > 0 ? ` (${percent}%)` : ""}`
+      : "Discount";
+  }
+
+  if (discountSummaryAmount) {
+    discountSummaryAmount.textContent = `-${formatCurrency(discountAmount)}`;
+  }
+
+  if (discountSummaryTotal) {
+    discountSummaryTotal.textContent = formatCurrency(transaction.totalPayment);
+  }
+}
+
+function resetDiscountControls() {
+  if (discountApplyTimer) {
+    window.clearTimeout(discountApplyTimer);
+    discountApplyTimer = null;
+  }
+
+  if (discountSelect) {
+    discountSelect.value = "None";
+  }
+
+  if (discountIdInput) {
+    discountIdInput.value = "";
+  }
+
+  if (discountIdField) {
+    discountIdField.hidden = true;
+  }
+
+  if (discountSummary) {
+    discountSummary.hidden = true;
+  }
+
+  setDiscountNote("", "");
 }
 
 function handlePrintReceipt() {
@@ -834,8 +1099,14 @@ function buildReceiptHtml(transaction) {
     line("Hours", formatHoursLabel(transaction.totalHours)),
     transaction.grossAmount > 0 ? line("Subtotal", formatCurrency(transaction.grossAmount)) : "",
     transaction.discountAmount > 0
-      ? line(`${transaction.discountType} discount`, `-${formatCurrency(transaction.discountAmount)}`)
+      ? line(
+        `${transaction.discountType} discount${transaction.discountPercent > 0 ? ` ${transaction.discountPercent}%` : ""}`,
+        `-${formatCurrency(transaction.discountAmount)}`
+      )
       : "",
+    // The ID is printed on the customer's copy because that copy is the
+    // booth's evidence that the statutory discount was properly granted.
+    transaction.discountAmount > 0 ? line(`${transaction.discountType} ID`, transaction.discountIdNumber) : "",
     line("TOTAL", formatCurrency(transaction.totalPayment)),
     line("Paid via", transaction.paymentMethod),
     line("Reference", transaction.paymentReference),
@@ -921,15 +1192,21 @@ async function handleWalkinSubmit(event) {
     });
 
     currentTransaction = normalizeReservationRecord(result.data);
+    lastWalkinTransaction = currentTransaction;
     renderTransactionDetails(currentTransaction);
     setBoothStatus(
       "success",
       "Walk-in Issued",
-      `${plate} is parked at ${currentTransaction.floor} ${currentTransaction.slot}. Barcode ${currentTransaction.barcode} - print it for the driver.`
+      `${plate} is parked at ${currentTransaction.floor} ${currentTransaction.slot}. Barcode ${currentTransaction.barcode} - press Print Ticket for the driver.`
     );
 
+    // reset() would clear the ticket the teller still has to print, so the
+    // print button is armed before the form goes back to blank.
     walkinForm?.reset();
-    await pollRealtimeData();
+
+    if (walkinPrintButton) {
+      walkinPrintButton.disabled = false;
+    }
   } catch (error) {
     setBoothStatus("danger", "Walk-in Failed", error.message || "Unable to issue a walk-in ticket right now.");
   } finally {
@@ -937,6 +1214,117 @@ async function handleWalkinSubmit(event) {
       walkinButton.disabled = false;
     }
   }
+
+  // Refreshed after the control is released, never before. The monitor, recent
+  // and log endpoints each take seconds on a busy booth, and awaiting them
+  // inside the try left the teller staring at a dead button until all three
+  // came back.
+  await pollRealtimeData();
+}
+
+function handlePrintWalkinTicket() {
+  const ticket = lastWalkinTransaction
+    || (currentTransaction?.isWalkIn ? currentTransaction : null);
+
+  if (!ticket?.barcode) {
+    setBoothStatus("warning", "No Walk-in Ticket", "Issue a walk-in ticket first, then print it.");
+    return;
+  }
+
+  const ticketWindow = window.open("", "_blank", "width=380,height=640");
+
+  if (!ticketWindow) {
+    setBoothStatus("warning", "Popup Blocked", "Allow popups for this site to print walk-in tickets.");
+    return;
+  }
+
+  ticketWindow.document.write(buildWalkinTicketHtml(ticket));
+  ticketWindow.document.close();
+  ticketWindow.focus();
+
+  // Give the layout one frame to settle before the print dialog takes over.
+  window.setTimeout(() => ticketWindow.print(), 250);
+  setBoothStatus("ready", "Ticket Ready", `Walk-in ticket ${ticket.barcode} sent to the printer dialog.`);
+}
+
+/**
+ * Draw the barcode to a detached canvas and hand back a data URL.
+ *
+ * The print window is a blank about:blank document with no scripts of its
+ * own, so the code has to arrive already rendered as an image. Returns an
+ * empty string when JsBarcode is unavailable; the caller falls back to
+ * printing the value as text, which the teller can still key in by hand.
+ */
+function renderBarcodeDataUrl(value) {
+  if (typeof window.JsBarcode !== "function" || !value) {
+    return "";
+  }
+
+  try {
+    const canvas = document.createElement("canvas");
+    window.JsBarcode(canvas, value, {
+      format: "CODE128",
+      width: 2,
+      height: 60,
+      displayValue: false,
+      margin: 0
+    });
+
+    return canvas.toDataURL("image/png");
+  } catch (error) {
+    console.error("Walk-in barcode render failed:", error);
+    return "";
+  }
+}
+
+/**
+ * The driver's entry ticket: 80mm wide like the payment receipt, but it
+ * carries the barcode instead of a total, because the stay is not priced
+ * until this same code is scanned again on the way out.
+ */
+function buildWalkinTicketHtml(transaction) {
+  const escape = (value) => String(value ?? "")
+    .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  const systemName = boothSystemSettings.system_name || "SNDRA Park";
+  const barcodeImage = renderBarcodeDataUrl(transaction.barcode);
+  const line = (label, value) => value === null || value === undefined || value === ""
+    ? ""
+    : `<tr><td>${escape(label)}</td><td class="right">${escape(value)}</td></tr>`;
+
+  const rows = [
+    line("Plate", transaction.plateNumber),
+    line("Vehicle", transaction.vehicleType),
+    line("Floor", transaction.floor),
+    line("Slot", transaction.slot),
+    line("Time in", formatDateTime(transaction.actualTimeIn || new Date().toISOString()))
+  ].join("");
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Walk-in Ticket ${escape(transaction.barcode)}</title>
+<style>
+  @page { size: 80mm auto; margin: 4mm; }
+  body { width: 72mm; margin: 0 auto; font-family: "Courier New", monospace; font-size: 12px; color: #000; }
+  h1 { font-size: 15px; text-align: center; margin: 0 0 2px; letter-spacing: 1px; }
+  .sub { text-align: center; font-size: 11px; margin: 0 0 10px; }
+  hr { border: 0; border-top: 1px dashed #000; margin: 8px 0; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 2px 0; vertical-align: top; }
+  td.right { text-align: right; font-weight: bold; }
+  .code { text-align: center; margin: 10px 0 2px; }
+  .code img { max-width: 100%; }
+  .code-value { text-align: center; font-size: 13px; font-weight: bold; letter-spacing: 2px; word-break: break-all; }
+  .foot { text-align: center; font-size: 10px; margin-top: 10px; }
+</style></head><body>
+  <h1>${escape(systemName)}</h1>
+  <p class="sub">Walk-in Parking Ticket</p>
+  <hr>
+  <table>${rows}</table>
+  <div class="code">
+    ${barcodeImage ? `<img src="${barcodeImage}" alt="${escape(transaction.barcode)}">` : ""}
+  </div>
+  <p class="code-value">${escape(transaction.barcode)}</p>
+  <hr>
+  <p class="foot">Keep this ticket. It is scanned on exit to compute your parking fee.<br>A lost ticket is charged the maximum daily rate.</p>
+</body></html>`;
 }
 
 function scheduleScannerSubmit(delayMs = 80) {
@@ -1087,6 +1475,8 @@ function normalizeReservationRecord(record) {
     grossAmount: toCurrencyNumber(record.grossAmount ?? record.gross_amount ?? 0),
     discountType: record.discountType || record.discount_type || "None",
     discountAmount: toCurrencyNumber(record.discountAmount ?? record.discount_amount ?? 0),
+    discountPercent: toCurrencyNumber(record.discountPercent ?? record.discount_percent ?? 0),
+    discountIdNumber: record.discountIdNumber || record.discount_id_number || "",
     paymentMethod: record.paymentMethod || record.payment_method || "",
     paymentReference: record.paymentReference || record.payment_reference || "",
     amountTendered: record.amountTendered ?? record.amount_tendered ?? null,

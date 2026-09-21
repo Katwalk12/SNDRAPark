@@ -771,6 +771,54 @@ button {
   color: inherit;
 }
 
+/* --- Discount breakdown --------------------------------------------------
+   The teller has to read the discount back to the driver, so the three
+   numbers that justify the total -- subtotal, deduction, amount due -- are
+   shown together instead of only the final figure. */
+.discount-summary {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.7rem 0.85rem;
+  margin-bottom: 0.9rem;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 0.75rem;
+  background: rgba(15, 23, 42, 0.03);
+  font-size: 0.86rem;
+}
+
+.discount-summary-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.discount-summary-row.is-discount strong {
+  color: #047857;
+}
+
+.discount-summary-row.is-total {
+  padding-top: 0.35rem;
+  border-top: 1px dashed rgba(15, 23, 42, 0.18);
+  font-weight: 600;
+}
+
+.discount-summary-row.is-total strong {
+  font-size: 1rem;
+}
+
+.discount-note.is-error {
+  color: #b91c1c;
+}
+
+.discount-note.is-success {
+  color: #047857;
+}
+
+#walkin-print-btn {
+  margin-top: 0.15rem;
+}
+
 #walkin-card .scan-form {
   gap: 0.55rem;
 }

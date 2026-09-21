@@ -19,7 +19,5 @@ try {
     admin_log('admin-get-live-reservations-failed', [
         'error' => $exception->getMessage()
     ]);
-    admin_error('Failed to load live reservations.', 500, [
-        'details' => $exception->getMessage()
-    ]);
+    admin_error('Failed to load live reservations.', 500, admin_debug_details($exception));
 }

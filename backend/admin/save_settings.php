@@ -51,11 +51,27 @@ try {
         $statement->execute();
     }
 
+    // Which keys actually moved. The audit row keeps the full settings map as
+    // before; this is only what the alert email names, and it is what decides
+    // whether an alert is worth sending at all -- pressing Save on an
+    // untouched form should not mail anybody.
+    $changedKeys = [];
+
+    foreach ($settings as $settingKey => $settingValue) {
+        if ((string) ($current[$settingKey] ?? '') !== $settingValue) {
+            $changedKeys[] = $settingKey;
+        }
+    }
+
     admin_audit_log($connection, $admin, 'ADMIN_SETTINGS_UPDATED', 'Admin updated the system settings.', [
         'target_type' => 'system_settings',
         'target_id' => 'global',
         'status' => 'success',
-        'metadata' => $settings
+        'metadata' => $settings,
+        'alert' => $changedKeys !== [],
+        'alert_details' => [
+            'Settings changed' => implode(', ', $changedKeys)
+        ]
     ]);
 
     system_settings_forget();
@@ -68,7 +84,5 @@ try {
         'method' => admin_method(),
         'error' => $exception->getMessage()
     ]);
-    admin_error('Failed to save settings.', 500, [
-        'details' => $exception->getMessage()
-    ]);
+    admin_error('Failed to save settings.', 500, admin_debug_details($exception));
 }

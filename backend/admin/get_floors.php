@@ -19,7 +19,5 @@ try {
     booth_log('admin-get-floors-failed', [
         'error' => $exception->getMessage()
     ]);
-    booth_error('Failed to load parking floors.', 500, [
-        'details' => $exception->getMessage()
-    ]);
+    booth_error('Failed to load parking floors.', 500, admin_debug_details($exception));
 }

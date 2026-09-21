@@ -55,8 +55,6 @@ try {
     admin_log('get-payments-failed', [
         'error' => $exception->getMessage()
     ]);
-    admin_error('Failed to load payments.', 500, [
-        'details' => $exception->getMessage()
-    ]);
+    admin_error('Failed to load payments.', 500, admin_debug_details($exception));
 }
 

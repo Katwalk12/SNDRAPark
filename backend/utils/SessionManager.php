@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../middleware/AuditLogger.php';
+require_once __DIR__ . '/../middleware/CsrfMiddleware.php';
 
 class SessionManager
 {
@@ -59,6 +60,13 @@ class SessionManager
 
         // Regenerate session ID for security
         session_regenerate_id(true);
+
+        // Mint a CSRF token for the authenticated session. session_unset()
+        // above has already discarded the anonymous visitor's token, so this
+        // is what leaves the new session with one at all -- and every
+        // successful response carries it back through ResponseHelper, which is
+        // how the page is armed for its first state-changing request.
+        CsrfMiddleware::refresh();
 
         // Set session data
         $_SESSION['user_id'] = (int) $user['id'];

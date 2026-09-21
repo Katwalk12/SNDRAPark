@@ -130,7 +130,7 @@ class Database
         ");
 
         self::$connection->query("
-            CREATE TABLE IF NOT EXISTS booth_teller_accounts (
+            CREATE TABLE IF NOT EXISTS boothDb (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 teller_name VARCHAR(150) NOT NULL,
                 teller_details VARCHAR(255) NULL,

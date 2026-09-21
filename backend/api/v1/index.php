@@ -16,6 +16,7 @@ require_once __DIR__ . '/../../middleware/CsrfMiddleware.php';
 require_once __DIR__ . '/../../middleware/RateLimiter.php';
 require_once __DIR__ . '/../../middleware/RBACMiddleware.php';
 require_once __DIR__ . '/../../middleware/ValidationMiddleware.php';
+require_once __DIR__ . '/../../utils/CsrfGuard.php';
 require_once __DIR__ . '/../../utils/RequestHelper.php';
 require_once __DIR__ . '/../../utils/ResponseHelper.php';
 
@@ -88,6 +89,18 @@ try {
     if (!$resource) {
         ResponseHelper::error('Route not found.', 404);
     }
+
+    // CSRF for the whole API surface, in one place.
+    //
+    // AuthController was calling RequestValidationMiddleware::validateRequest()
+    // itself, which checks a token -- but UserController, ReservationController
+    // and ParkingController never did, so POST /users/update, the vehicle
+    // create/update/delete routes and POST /reservations accepted any
+    // cross-site request that arrived with the victim's session cookie.
+    // Enforcing it at the router covers every controller, including ones
+    // written later that forget to ask. Sign-in and registration are exempt;
+    // see CsrfGuard.
+    CsrfGuard::requireValidToken();
 
     $handler = resolveApiAction($resource, $_SERVER['REQUEST_METHOD'], $action);
 

@@ -117,7 +117,5 @@ try {
         'method' => admin_method(),
         'error' => $exception->getMessage()
     ]);
-    admin_error('Failed to load or manage feedback messages.', 500, [
-        'details' => $exception->getMessage()
-    ]);
+    admin_error('Failed to load or manage feedback messages.', 500, admin_debug_details($exception));
 }

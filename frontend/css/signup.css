@@ -422,3 +422,37 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* --- Human verification --------------------------------------------------
+   The question and answer box from backend/utils/HumanCheck.php. */
+.human-check-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2, 0.5rem);
+  align-items: center;
+}
+
+.human-check-row .auth-input {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.human-check-row .ghost-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+#human-check-question {
+  font-weight: 600;
+}
+
+/* The bait field. It must stay in the DOM and in the submitted form data, so
+   it is moved out of view rather than given display:none -- some scripted
+   clients skip anything not rendered, and this one is meant to be found. */
+.trap-field {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}

@@ -25,6 +25,15 @@ if (!defined('BOOTH_PIN_LENGTH')) {
     define('BOOTH_PIN_LENGTH', 4);
 }
 
+/**
+ * Idle timeout for an admin session, in seconds. Applied to the session GC
+ * lifetime in admin_harden_session_cookie() and enforced per request in
+ * admin_require_auth().
+ */
+if (!defined('ADMIN_SESSION_TIMEOUT')) {
+    define('ADMIN_SESSION_TIMEOUT', 1800);
+}
+
 if (!function_exists('admin_prepare_session_storage')) {
     function admin_prepare_session_storage(): void
     {
@@ -48,14 +57,122 @@ if (!function_exists('admin_prepare_session_storage')) {
     }
 }
 
-admin_prepare_session_storage();
+if (!function_exists('admin_harden_session_cookie')) {
+    /**
+     * The admin cookie carries the whole dashboard, so it is worth more than a
+     * member's. These flags have to be set before session_start() -- once the
+     * session is open PHP has already emitted Set-Cookie and ini_set is
+     * ignored, which is why this runs above the start call rather than beside
+     * the timeout check in admin_require_auth().
+     *
+     * Secure is conditional: forcing it on plain-HTTP XAMPP would make the
+     * browser drop the cookie and nobody could sign in at all.
+     */
+    function admin_harden_session_cookie(): void
+    {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            return;
+        }
 
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
+        $isHttps = (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off')
+            || (int) ($_SERVER['SERVER_PORT'] ?? 0) === 443
+            || strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+
+        ini_set('session.cookie_httponly', '1');
+        ini_set('session.cookie_secure', $isHttps ? '1' : '0');
+        ini_set('session.cookie_samesite', 'Strict');
+        ini_set('session.use_strict_mode', '1');
+        ini_set('session.use_only_cookies', '1');
+        ini_set('session.cookie_lifetime', '0');
+
+        // admin_require_auth() reads this back as the idle timeout, so the
+        // 30 minutes documented there is set here rather than left to php.ini
+        // (whose 1440s default silently made it 24).
+        ini_set('session.gc_maxlifetime', (string) ADMIN_SESSION_TIMEOUT);
+    }
 }
 
-// Initialize CSRF protection for admin endpoints
-CsrfMiddleware::initialize();
+if (!function_exists('admin_send_security_headers')) {
+    /**
+     * Mirrors booth_send_common_headers(). Admin responses are JSON holding
+     * member records and payment totals: nosniff stops a browser rendering one
+     * as HTML, DENY keeps the dashboard out of a frame, and no-store keeps it
+     * out of the disk cache on a shared machine.
+     */
+    function admin_send_security_headers(): void
+    {
+        if (PHP_SAPI === 'cli' || headers_sent()) {
+            return;
+        }
+
+        header('X-Content-Type-Options: nosniff');
+        header('X-Frame-Options: DENY');
+        header('Referrer-Policy: strict-origin-when-cross-origin');
+        header('Cache-Control: no-store, no-cache, must-revalidate');
+        header('Pragma: no-cache');
+    }
+}
+
+if (!function_exists('admin_register_exception_handler')) {
+    /**
+     * Backstop for anything thrown outside an endpoint's own try block.
+     *
+     * The admin endpoints call admin_require_auth() at the top level, above
+     * their try, and that path can throw -- the rate limiter raises a 429.
+     * With no handler PHP turned that into a fatal, so the dashboard received
+     * an HTML stack trace (absolute paths included) where it expected JSON.
+     * parking-booth and api/v1 already install ErrorMiddleware; this does the
+     * same job while keeping the {success, message, data} shape the admin
+     * dashboard parses.
+     */
+    function admin_register_exception_handler(): void
+    {
+        set_exception_handler(static function (Throwable $exception): void {
+            $status = (int) $exception->getCode();
+
+            if ($status < 400 || $status > 599) {
+                $status = 500;
+            }
+
+            admin_log('admin-unhandled-exception', [
+                'error' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+                'status' => $status
+            ]);
+
+            // Unlike an endpoint's own catch block, this handler has no idea
+            // where the exception came from, so the message is never reused --
+            // a driver error that happens to carry a 4xx code would otherwise
+            // be repeated verbatim to the client. The status picks the wording.
+            $safeMessages = [
+                400 => 'Bad request.',
+                401 => 'Unauthorized: Admin session required.',
+                403 => 'Forbidden.',
+                404 => 'Not found.',
+                405 => 'Method not allowed.',
+                409 => 'That change conflicts with the current data.',
+                422 => 'The submitted data could not be processed.',
+                429 => 'Too many requests. Please slow down and try again shortly.'
+            ];
+
+            admin_error(
+                $safeMessages[$status] ?? 'An unexpected error occurred.',
+                $status,
+                admin_debug_details($exception)
+            );
+        });
+
+        // A PHP warning rendered into the middle of a JSON body both breaks the
+        // parse and prints the server's directory layout. It goes to the log.
+        if (!filter_var((string) EnvHelper::get('APP_DEBUG', ''), FILTER_VALIDATE_BOOLEAN)) {
+            ini_set('display_errors', '0');
+            ini_set('display_startup_errors', '0');
+        }
+
+        ini_set('log_errors', '1');
+    }
+}
 
 if (!function_exists('admin_db')) {
     function admin_db(): mysqli
@@ -83,6 +200,43 @@ if (!function_exists('admin_error')) {
     function admin_error(string $message, int $status = 400, array $data = []): void
     {
         booth_error($message, $status, $data);
+    }
+}
+
+if (!function_exists('admin_debug_details')) {
+    /**
+     * The 'details' bag on a failed admin response.
+     *
+     * These endpoints used to hand the raw exception text back to the browser,
+     * which on a query failure is the mysqli message -- table and column names,
+     * and the fragment of SQL that broke. That is a map of the schema handed to
+     * anyone who can provoke a 500. The text still goes to the error log via
+     * admin_log() on every path; it only reaches the client when APP_DEBUG is
+     * on in .env, which it is not in a deployed copy.
+     */
+    function admin_debug_details(Throwable $exception): array
+    {
+        return booth_debug_details($exception);
+    }
+}
+
+if (!function_exists('admin_safe_error_message')) {
+    /**
+     * Some endpoints raise their own RuntimeException to explain a refusal
+     * ("Floor still has active reservations") and re-use that text as the
+     * response message. That is fine for a 4xx the endpoint authored, but a
+     * 5xx message is whatever the driver threw, so it is replaced with the
+     * caller's generic fallback.
+     */
+    function admin_safe_error_message(Throwable $exception, int $status, string $fallback): string
+    {
+        if ($status >= 500) {
+            return $fallback;
+        }
+
+        $message = trim($exception->getMessage());
+
+        return $message !== '' ? $message : $fallback;
     }
 }
 
@@ -172,22 +326,92 @@ if (!function_exists('admin_staff_password_hash')) {
     }
 }
 
+if (!function_exists('admin_staff_password_is_legacy_hash')) {
+    /**
+     * A bare SHA-256 hex digest, from before staff passwords used password_hash().
+     */
+    function admin_staff_password_is_legacy_hash(string $hash): bool
+    {
+        return strlen($hash) === 64 && ctype_xdigit($hash);
+    }
+}
+
 if (!function_exists('admin_staff_password_verify')) {
     function admin_staff_password_verify(string $password, string $hash): bool
     {
-        // Support both old SHA256 hashes and new password_hash() for migration
-        if (strlen($hash) === 64 && ctype_xdigit($hash)) {
+        // Support both old SHA256 hashes and new password_hash() for migration.
+        // Callers that have the account id should follow a success with
+        // admin_staff_password_upgrade_hash(), which retires the old digest.
+        if (admin_staff_password_is_legacy_hash($hash)) {
             return hash_equals($hash, hash('sha256', $password));
         }
         return password_verify($password, $hash);
     }
 }
 
+if (!function_exists('admin_staff_password_upgrade_hash')) {
+    /**
+     * Re-hash a legacy password the moment its owner proves they know it.
+     *
+     * Unsalted SHA-256 is one GPU-hour away from plaintext for any password a
+     * person would actually choose, so a leaked staff_accounts table gave up
+     * every admin credential in it. The compatibility branch above had to stay
+     * -- dropping it would have locked out every account created before the
+     * migration -- but it only has to survive until each account holder signs
+     * in once. This is what makes that happen: the verified plaintext is in
+     * hand exactly here and nowhere else, so this is the only point where the
+     * upgrade is possible without a password reset.
+     *
+     * Best effort by design. A failed UPDATE must not fail the login; the old
+     * hash still verifies and the upgrade is retried on the next sign-in.
+     */
+    function admin_staff_password_upgrade_hash(mysqli $connection, int $staffId, string $password, string $currentHash): void
+    {
+        if ($staffId <= 0 || !admin_staff_password_is_legacy_hash($currentHash)) {
+            return;
+        }
+
+        try {
+            $newHash = admin_staff_password_hash($password);
+
+            $statement = $connection->prepare(
+                'UPDATE staff_accounts SET password_hash = ? WHERE id = ?'
+            );
+            $statement->bind_param('si', $newHash, $staffId);
+            $statement->execute();
+            $statement->close();
+
+            admin_log('admin-password-hash-upgraded', ['staff_id' => $staffId]);
+        } catch (Throwable $exception) {
+            admin_log('admin-password-hash-upgrade-failed', [
+                'staff_id' => $staffId,
+                'error' => $exception->getMessage()
+            ]);
+        }
+    }
+}
+
 if (!function_exists('admin_require_auth')) {
     function admin_require_auth(string $requiredRole = 'admin', ?string $permission = null): array
     {
-        // Rate limiting for admin actions
-        RateLimiter::enforce('admin_action', $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
+        // Rate limiting for admin actions. enforce() throws on the way past,
+        // and this runs before the session check, so an unauthenticated flood
+        // is refused here rather than reaching the database.
+        $rateLimitKey = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+
+        try {
+            RateLimiter::enforce('admin_action', $rateLimitKey);
+        } catch (RuntimeException $rateLimitException) {
+            $retryAfter = RateLimiter::getResetTime('admin_action', $rateLimitKey);
+
+            if (!headers_sent()) {
+                header('Retry-After: ' . max(1, $retryAfter));
+            }
+
+            admin_error('Too many requests. Please slow down and try again shortly.', 429, [
+                'retryAfter' => max(1, $retryAfter)
+            ]);
+        }
 
         $currentTime = time();
 
@@ -231,7 +455,7 @@ if (!function_exists('admin_require_auth')) {
         }
 
         // Check session timeout (30 minutes default)
-        $sessionTimeout = (int) ini_get('session.gc_maxlifetime') ?: 1800;
+        $sessionTimeout = (int) ini_get('session.gc_maxlifetime') ?: ADMIN_SESSION_TIMEOUT;
         if (isset($_SESSION['_admin_last_activity'])) {
             if ($currentTime - $_SESSION['_admin_last_activity'] > $sessionTimeout) {
                 session_destroy();
@@ -445,3 +669,24 @@ if (!function_exists('admin_require_csrf')) {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Bootstrap. This runs last so every helper above is defined first: the
+// exception handler installed here calls admin_log() and admin_error(), and
+// registering it earlier left a window where a throw from session_start() or
+// the CSRF initialiser would hit an undefined function instead of the handler.
+// ---------------------------------------------------------------------------
+
+admin_register_exception_handler();
+
+admin_prepare_session_storage();
+admin_harden_session_cookie();
+
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
+
+admin_send_security_headers();
+
+// Initialize CSRF protection for admin endpoints
+CsrfMiddleware::initialize();

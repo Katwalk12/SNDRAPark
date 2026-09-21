@@ -19,7 +19,5 @@ try {
     admin_log('get-logs-failed', [
         'error' => $exception->getMessage()
     ]);
-    admin_error('Failed to load logs.', 500, [
-        'details' => $exception->getMessage()
-    ]);
+    admin_error('Failed to load logs.', 500, admin_debug_details($exception));
 }
