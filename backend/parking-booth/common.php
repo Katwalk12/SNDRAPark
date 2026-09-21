@@ -13,6 +13,28 @@ require_once __DIR__ . '/../common/reservation-security.php';
 require_once __DIR__ . '/../middleware/BoothAuthMiddleware.php';
 require_once __DIR__ . '/../middleware/ErrorMiddleware.php';
 require_once __DIR__ . '/../middleware/AuditLogger.php';
+require_once __DIR__ . '/../utils/CsrfGuard.php';
+
+/**
+ * Refuse a state-changing booth request that does not carry a CSRF token.
+ *
+ * Runs after authentication so a caller with no session still gets the more
+ * useful 401 rather than being told its token is missing.
+ */
+function booth_require_csrf(): void
+{
+    try {
+        CsrfGuard::requireValidToken();
+    } catch (RuntimeException $exception) {
+        AuditLogger::log('CSRF_VIOLATION', 'WARNING', [
+            'category' => 'booth_endpoint',
+            'message' => 'Booth request rejected: ' . $exception->getMessage(),
+            'path' => (string) ($_SERVER['REQUEST_URI'] ?? '')
+        ]);
+
+        booth_error($exception->getMessage(), 403);
+    }
+}
 
 function booth_bootstrap_endpoint(string $allowedMethods, ?string $requiredPermission = null): array
 {
@@ -33,6 +55,11 @@ function booth_bootstrap_endpoint(string $allowedMethods, ?string $requiredPermi
     // Authenticate booth request
     try {
         $boothUser = BoothAuthMiddleware::authenticate($requiredPermission);
+
+        // Only now, with a real session in hand, is the token worth checking:
+        // an unauthenticated caller has already been turned away above.
+        booth_require_csrf();
+
         return $boothUser;
     } catch (Exception $e) {
         // Log the authentication failure
@@ -180,6 +207,9 @@ function booth_calculate_payment(
     $gross = $baseComponent + $extraComponent + $surcharge;
 
     $discountType = booth_normalize_discount_type($context['discount_type'] ?? null);
+    $discountIdNumber = $discountType === 'None'
+        ? null
+        : booth_normalize_discount_id($context['discount_id_number'] ?? null);
     $discountPercent = $discountType === 'None'
         ? 0.0
         : (float) system_settings_value('statutory_discount_percent', $connection);
@@ -196,6 +226,7 @@ function booth_calculate_payment(
         'vehicle_multiplier' => round($multiplier, 2),
         'gross_amount' => round($gross, 2),
         'discount_type' => $discountType,
+        'discount_id_number' => $discountIdNumber,
         'discount_percent' => round($discountPercent, 2),
         'discount_amount' => $discountAmount,
         'total_payment' => $finalTotal,
@@ -217,6 +248,35 @@ function booth_normalize_discount_type($value): string
     }
 
     return 'None';
+}
+
+/**
+ * Normalise the ID presented for a statutory discount.
+ *
+ * The number is what makes the discount auditable, so it is stored in one
+ * shape: upper case, single-spaced, punctuation limited to dash and slash.
+ * Returns null when nothing usable was entered.
+ */
+function booth_normalize_discount_id($value): ?string
+{
+    $normalized = strtoupper(trim((string) ($value ?? '')));
+    $normalized = preg_replace('/\s+/', ' ', $normalized) ?? '';
+
+    if ($normalized === '') {
+        return null;
+    }
+
+    return substr($normalized, 0, 40);
+}
+
+/** A discount ID has to look like an ID card number before it is accepted. */
+function booth_discount_id_is_valid(?string $discountId): bool
+{
+    if ($discountId === null) {
+        return false;
+    }
+
+    return (bool) preg_match('/^[A-Z0-9][A-Z0-9 \/-]{3,39}$/', $discountId);
 }
 
 function booth_build_transaction_query(): string
@@ -246,6 +306,7 @@ function booth_build_transaction_query(): string
             COALESCE(pt.discount_type, 'None') AS discount_type,
             COALESCE(pt.discount_percent, 0) AS discount_percent,
             COALESCE(pt.discount_amount, 0) AS discount_amount,
+            pt.discount_id_number,
             COALESCE(pt.vehicle_type, r.walk_in_vehicle_type, v.vehicle_type) AS vehicle_type,
             COALESCE(v.plate_number, r.walk_in_plate) AS plate_number,
             pt.payment_method,
@@ -409,6 +470,8 @@ function booth_format_transaction(array $record): array
         'discountPercent' => round((float) ($record['discount_percent'] ?? 0), 2),
         'discount_amount' => round((float) ($record['discount_amount'] ?? 0), 2),
         'discountAmount' => round((float) ($record['discount_amount'] ?? 0), 2),
+        'discount_id_number' => ($record['discount_id_number'] ?? null) ?: null,
+        'discountIdNumber' => ($record['discount_id_number'] ?? null) ?: null,
         'payment_method' => $record['payment_method'] ?? null,
         'paymentMethod' => $record['payment_method'] ?? null,
         'payment_reference' => $record['payment_reference'] ?? null,
@@ -498,6 +561,7 @@ function booth_apply_transaction_pricing(mysqli $connection, int $reservationId,
             discount_type = ?,
             discount_percent = ?,
             discount_amount = ?,
+            discount_id_number = ?,
             gross_amount = ?,
             updated_at = NOW()
         WHERE reservation_id = ?
@@ -506,14 +570,20 @@ function booth_apply_transaction_pricing(mysqli $connection, int $reservationId,
     $discountType = (string) ($payment['discount_type'] ?? 'None');
     $discountPercent = round((float) ($payment['discount_percent'] ?? 0), 2);
     $discountAmount = round((float) ($payment['discount_amount'] ?? 0), 2);
+    // Dropping back to None has to clear the old ID, or a reversed discount
+    // would leave a stale card number attached to the sale.
+    $discountIdNumber = $discountType === 'None'
+        ? null
+        : booth_normalize_discount_id($payment['discount_id_number'] ?? null);
     $grossAmount = round((float) ($payment['gross_amount'] ?? 0), 2);
 
     $statement->bind_param(
-        'ssdddi',
+        'ssddsdi',
         $vehicleType,
         $discountType,
         $discountPercent,
         $discountAmount,
+        $discountIdNumber,
         $grossAmount,
         $reservationId
     );

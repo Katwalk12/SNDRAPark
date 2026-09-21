@@ -25,13 +25,20 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
   <link rel="stylesheet" href="../css/design-system.css?v=20260824-ds1">
   <link rel="stylesheet" href="../../assets/css/notifications.css">
-  <link rel="stylesheet" href="../css/parking-booth.css?v=20260901-walkin1">
+  <link rel="stylesheet" href="../css/parking-booth.css?v=20260911-discount2">
   <link rel="stylesheet" href="../css/components.css?v=20260824-ds1">
   <link rel="stylesheet" href="../css/parking-booth.refine.css?v=20260824-ds1">
+  <link rel="stylesheet" href="../css/responsive.css?v=20260912-resp1">
 </head>
 <body data-page-title-suffix="Parking Booth Dashboard">
   <div class="booth-shell">
-    <aside class="booth-sidebar" aria-label="Parking booth sidebar">
+    <header class="mobile-topbar">
+      <img class="mobile-topbar__logo" src="../../assets/images/brand-mark.png" alt="">
+      <p class="mobile-topbar__title"><small>Parking booth</small><span>SNDRA Park</span></p>
+      <button class="mobile-nav-toggle" type="button" data-mobile-nav-toggle data-mobile-nav-breakpoint="1220" aria-controls="booth-sidebar" aria-expanded="false" aria-label="Open menu"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
+    </header>
+    <aside class="booth-sidebar" id="booth-sidebar" data-mobile-nav-drawer aria-label="Parking booth sidebar">
+      <button class="mobile-nav-close" type="button" data-mobile-nav-close aria-label="Close menu"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
       <div class="booth-sidebar-top">
         <div class="sidebar-brand-mark">
           <img src="../../assets/images/brand-mark.png" alt="SNDRA Park logo">
@@ -54,6 +61,7 @@
         <button class="booth-nav-button booth-nav-button-danger" id="booth-logout-btn" type="button"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i> Logout</button>
       </div>
     </aside>
+    <div class="mobile-nav-backdrop" data-mobile-nav-close></div>
 
     <main class="booth-workspace">
       <div class="page-utility-bar">
@@ -211,6 +219,7 @@
                 <input id="walkin-slot" name="parkingSlot" class="scanner-input" type="text" autocomplete="off" placeholder="Leave blank to auto-assign">
 
                 <button class="primary-btn scan-btn" id="walkin-button" type="submit">Issue Ticket &amp; Time In</button>
+                <button class="ghost-btn scan-btn" id="walkin-print-btn" type="button" disabled>Print Ticket</button>
               </form>
               <p class="scanner-hint" id="walkin-hint">The printed barcode is scanned again on exit, exactly like a booked reservation.</p>
             </section>
@@ -250,6 +259,10 @@
                     <option value="PWD">PWD (20%)</option>
                   </select>
                 </div>
+                <div class="tender-field" id="discount-id-field" hidden>
+                  <label for="discount-id-input" class="field-label">Discount ID No.</label>
+                  <input id="discount-id-input" class="scanner-input" type="text" autocomplete="off" maxlength="40" placeholder="e.g. SC-2024-001234">
+                </div>
                 <div class="tender-field">
                   <label for="payment-method-select" class="field-label">Payment Method</label>
                   <select id="payment-method-select" class="scanner-input">
@@ -269,6 +282,12 @@
                   <label for="payment-reference-input" class="field-label">Reference Number</label>
                   <input id="payment-reference-input" class="scanner-input" type="text" autocomplete="off" placeholder="e.g. 0012 3456 7890">
                 </div>
+              </div>
+              <p class="action-note discount-note" id="discount-note" hidden>Enter the ID number to apply the discount.</p>
+              <div class="discount-summary" id="discount-summary" hidden>
+                <div class="discount-summary-row"><span>Subtotal</span><strong id="discount-summary-gross">PHP 0.00</strong></div>
+                <div class="discount-summary-row is-discount"><span id="discount-summary-label">Discount</span><strong id="discount-summary-amount">-PHP 0.00</strong></div>
+                <div class="discount-summary-row is-total"><span>Amount Due</span><strong id="discount-summary-total">PHP 0.00</strong></div>
               </div>
               <p class="action-note" id="change-due-note" hidden>Change due: <strong id="change-due-value">PHP 0.00</strong></p>
 
@@ -316,6 +335,7 @@
                 <article class="detail-item"><span>Total Payment</span><strong id="detail-total-payment">PHP 0.00</strong></article>
                 <article class="detail-item"><span>Vehicle Type</span><strong id="detail-vehicle-type">--</strong></article>
                 <article class="detail-item"><span>Discount</span><strong id="detail-discount">None</strong></article>
+                <article class="detail-item"><span>Discount ID No.</span><strong id="detail-discount-id">--</strong></article>
                 <article class="detail-item"><span>Payment Method</span><strong id="detail-payment-method">--</strong></article>
                 <article class="detail-item"><span>Payment Status</span><strong id="detail-payment-status">--</strong></article>
                 <article class="detail-item"><span>Booth Status</span><strong id="detail-booth-status">--</strong></article>
@@ -382,8 +402,11 @@
   </div>
 
   <script src="../../assets/js/runtime-config.js?v=20260830-attrib1"></script>
+  <script src="../../assets/js/csrf.js?v=20260917-csrf1"></script>
   <script src="../../assets/js/system-settings.js?v=20260829-title1"></script>
   <script src="../../assets/js/notifications.js?v=20260331-2"></script>
-  <script src="../js/parking-booth.js?v=20260901-walkin1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <script src="../js/parking-booth.js?v=20260911-discount2"></script>
+  <script src="../js/mobile-nav.js?v=20260912-resp1"></script>
 </body>
 </html>

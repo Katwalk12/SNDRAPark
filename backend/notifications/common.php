@@ -3,9 +3,24 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../utils/CsrfGuard.php';
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
+}
+
+// mark-read.php is a POST that acts on the caller's own notifications, so it
+// needs a token like any other state-changing endpoint. Checked here, while
+// the session is still open -- notifications_session_snapshot() closes it
+// further down to release the lock early, and validation after that point
+// would have to reopen it.
+try {
+    CsrfGuard::requireValidToken();
+} catch (RuntimeException $csrfException) {
+    booth_json_response([
+        'success' => false,
+        'message' => $csrfException->getMessage()
+    ], 403);
 }
 
 header('Content-Type: application/json');

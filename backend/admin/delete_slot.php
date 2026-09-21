@@ -50,6 +50,17 @@ try {
         ]);
     }
 
+    // parking_slots carries no foreign keys, so the sensor mapping has to go by
+    // hand. Leaving it behind would not just orphan a row: uq_..._slot is on
+    // slot_id, so the stale mapping would block re-mapping a rebuilt bay.
+    $sensorStatement = $connection->prepare("
+        DELETE FROM parking_slot_sensors
+        WHERE slot_id = ?
+    ");
+    $sensorStatement->bind_param('i', $slotId);
+    $sensorStatement->execute();
+    $sensorStatement->close();
+
     $deleteStatement = $connection->prepare("
         DELETE FROM parking_slots
         WHERE id = ?
@@ -95,8 +106,8 @@ try {
     ]);
 
     admin_error(
-        $exception->getMessage() ?: 'Failed to delete slot.',
+        admin_safe_error_message($exception, $status, 'Failed to delete slot.'),
         $status,
-        $status >= 500 ? ['details' => $exception->getMessage()] : []
+        admin_debug_details($exception)
     );
 }

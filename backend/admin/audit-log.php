@@ -104,6 +104,153 @@ if (!function_exists('admin_audit_ensure_schema')) {
     }
 }
 
+if (!function_exists('admin_alertable_actions')) {
+    /**
+     * The admin actions worth waking someone up for.
+     *
+     * Everything an admin does is written to admin_audit_logs, but an audit
+     * log only helps someone who thinks to go and read it. These three areas --
+     * system settings, user accounts and booth teller accounts -- are the ones
+     * where a change made by somebody else is worth hearing about the same
+     * minute, so they also send mail. Reservations and feedback are noisy and
+     * reversible; they stay in the log only.
+     */
+    function admin_alertable_actions(): array
+    {
+        return [
+            'ADMIN_SETTINGS_UPDATED' => 'System settings changed',
+
+            'ADMIN_USER_UPDATED' => 'User account changed',
+            'ADMIN_USER_DISABLED' => 'User account disabled',
+            'ADMIN_USER_ACTIVATED' => 'User account activated',
+            'ADMIN_USER_UNLOCKED' => 'User account unlocked',
+            'ADMIN_USER_DELETED' => 'User account deleted',
+
+            'ADMIN_STAFF_CREATED' => 'Booth teller account created',
+            'ADMIN_STAFF_UPDATED' => 'Booth teller account changed',
+            'ADMIN_STAFF_DELETED' => 'Booth teller account deleted',
+
+            // Your own sign-in credentials. update_account.php logs these
+            // against the address the account had *before* the change, so a
+            // hijacker who swaps the email still cannot stop the mail landing
+            // with the person who owned it.
+            'ADMIN_ACCOUNT_UPDATED' => 'Your admin sign-in details changed',
+
+            // Not a mistyped password -- this one can only be a script driving
+            // the sign-in form, so it is worth interrupting somebody for.
+            'ADMIN_HONEYPOT_TRIPPED' => 'A scripted sign-in attempt was blocked'
+        ];
+    }
+}
+
+if (!function_exists('admin_dispatch_change_alert')) {
+    /**
+     * Email the acting administrator that a privileged change just happened.
+     *
+     * Called from admin_audit_log() rather than from the endpoints, so an
+     * endpoint written later is covered the moment it logs an alertable
+     * action -- there is no second list for someone to forget to update.
+     *
+     * It never throws and never blocks the change: the write has already
+     * committed by the time this runs, and sndra_mail_send() swallows its own
+     * failures, so a dead SMTP server costs a log line and nothing else.
+     */
+    function admin_dispatch_change_alert(array $event): void
+    {
+        try {
+            if (!isset(admin_alertable_actions()[$event['action_type']])) {
+                return;
+            }
+
+            // Successes only, with one exception. Alerting on ordinary
+            // refusals was tried and removed: the send happens inline, so every
+            // mistyped password sat there for the SMTP round trip -- measured
+            // at 5.3s against Gmail -- to report a typo the form already shows
+            // instantly.
+            //
+            // A tripped honeypot is different. It cannot be a mistake, it is
+            // rare, and the person it delays is already blocked.
+            $alertsOnFailure = ['ADMIN_HONEYPOT_TRIPPED'];
+
+            if (strtolower((string) ($event['status'] ?? 'success')) !== 'success'
+                && !in_array($event['action_type'], $alertsOnFailure, true)) {
+                return;
+            }
+
+            // An endpoint can say the write was a no-op, so pressing Save on an
+            // unchanged form does not send mail.
+            if (array_key_exists('alert', $event) && $event['alert'] === false) {
+                return;
+            }
+
+            if (!function_exists('system_settings_value')
+                || (int) system_settings_value('admin_change_alerts_enabled') !== 1) {
+                return;
+            }
+
+            require_once __DIR__ . '/../common/mailer.php';
+
+            // The actor's own address is the useful one: if the session was
+            // stolen, this is what tells the real owner. Falls back to the
+            // support mailbox for actions with no signed-in admin attached.
+            $recipient = trim((string) ($event['admin_email'] ?? ''));
+
+            if ($recipient === '') {
+                $recipient = trim((string) system_settings_value('gmail_address'));
+            }
+
+            if ($recipient === '') {
+                return;
+            }
+
+            $headline = admin_alertable_actions()[$event['action_type']];
+            $actor = trim((string) ($event['admin_name'] ?? '')) ?: 'An administrator';
+
+            $rows = [
+                'What changed' => $headline,
+                'Who' => $actor . (($event['admin_email'] ?? '') !== '' ? ' (' . $event['admin_email'] . ')' : ''),
+                'When' => date('j M Y, g:i A'),
+                'IP address' => (string) ($event['ip_address'] ?? 'unknown')
+            ];
+
+            if (($event['target_type'] ?? '') !== '' && ($event['target_id'] ?? '') !== '') {
+                $rows['Record'] = $event['target_type'] . ' #' . $event['target_id'];
+            }
+
+            foreach (($event['alert_details'] ?? []) as $label => $value) {
+                $rows[(string) $label] = (string) $value;
+            }
+
+            $sent = sndra_mail_send(
+                $recipient,
+                'SNDRA Park admin alert: ' . $headline,
+                sndra_mail_layout(
+                    $headline,
+                    (string) ($event['description'] ?? $headline),
+                    $rows,
+                    '',
+                    'If this was not you, change the admin password immediately and review the Admin Audit Logs.'
+                )
+            );
+
+            if (!$sent && function_exists('admin_log')) {
+                admin_log('admin-change-alert-not-sent', [
+                    'action' => $event['action_type'],
+                    'recipient' => $recipient
+                ]);
+            }
+        } catch (Throwable $exception) {
+            // An alert is never worth failing the change that triggered it.
+            if (function_exists('admin_log')) {
+                admin_log('admin-change-alert-failed', [
+                    'action' => $event['action_type'] ?? '',
+                    'error' => $exception->getMessage()
+                ]);
+            }
+        }
+    }
+}
+
 if (!function_exists('admin_audit_log')) {
     function admin_audit_log(mysqli $connection, ?array $admin, string $actionType, string $description, array $options = []): int
     {
@@ -167,7 +314,26 @@ if (!function_exists('admin_audit_log')) {
         );
         $statement->execute();
 
-        return (int) $connection->insert_id;
+        $auditLogId = (int) $connection->insert_id;
+
+        admin_dispatch_change_alert([
+            'action_type' => $actionType,
+            'description' => $description,
+            'admin_name' => $adminName,
+            'admin_email' => $adminEmail,
+            'ip_address' => $ipAddress,
+            'status' => $status,
+            'target_type' => $targetType,
+            'target_id' => $targetId,
+            'alert' => $options['alert'] ?? true,
+            // Endpoints add their own label/value lines here (which settings
+            // changed, which user) without touching the stored metadata.
+            'alert_details' => isset($options['alert_details']) && is_array($options['alert_details'])
+                ? $options['alert_details']
+                : []
+        ]);
+
+        return $auditLogId;
     }
 }
 

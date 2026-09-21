@@ -63,8 +63,10 @@ try {
     ]);
 
     booth_error(
-        $status === 409 ? 'This floor already exists.' : $exception->getMessage(),
+        $status === 409
+            ? 'This floor already exists.'
+            : admin_safe_error_message($exception, $status, 'Failed to add the parking floor.'),
         $status,
-        $status >= 500 ? ['details' => $exception->getMessage()] : []
+        admin_debug_details($exception)
     );
 }

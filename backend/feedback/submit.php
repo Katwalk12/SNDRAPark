@@ -8,6 +8,12 @@ require_once __DIR__ . '/../common/system-logs.php';
 
 admin_require_method('POST');
 
+// Posted from the signed-in member dashboard, so it is a state-changing
+// request on an authenticated session and takes a token like the rest. The
+// appeal form in backend/user/submit-appeal.php deliberately does not -- that
+// one is reached by people who cannot log in.
+admin_require_csrf();
+
 try {
     $connection = admin_db();
     $email = strtolower(admin_clean_text(admin_input('email')));

@@ -51,7 +51,13 @@ if (!function_exists('system_settings_defaults')) {
 
             // Emailed second factor for admin sign-in. Off by default so a
             // fresh install is not locked out before SMTP is configured.
-            'admin_2fa_enabled' => 0
+            'admin_2fa_enabled' => 0,
+
+            // Email the acting administrator whenever settings, user accounts
+            // or booth teller accounts change. The audit log records these
+            // either way; the alert is what makes a stolen session visible to
+            // the person whose account was used.
+            'admin_change_alerts_enabled' => 1
         ];
     }
 }
@@ -128,7 +134,8 @@ if (!function_exists('system_settings_normalize')) {
             'reservation_warning_window_days' => $count('reservation_warning_window_days', 1, 365),
 
             'notify_email_enabled' => $count('notify_email_enabled', 0, 1),
-            'admin_2fa_enabled' => $count('admin_2fa_enabled', 0, 1)
+            'admin_2fa_enabled' => $count('admin_2fa_enabled', 0, 1),
+            'admin_change_alerts_enabled' => $count('admin_change_alerts_enabled', 0, 1)
         ];
     }
 }

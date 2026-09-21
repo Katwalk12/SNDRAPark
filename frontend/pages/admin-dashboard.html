@@ -27,10 +27,23 @@
   <link rel="stylesheet" href="../css/admin-dashboard.css?v=20260402-2">
   <link rel="stylesheet" href="../css/components.css?v=20260824-ds1">
   <link rel="stylesheet" href="../css/admin-dashboard.refine.css?v=20260901-ops1">
+  <link rel="stylesheet" href="../css/responsive.css?v=20260912-resp1">
 </head>
 <body>
   <main class="admin-shell">
-    <aside class="admin-sidebar">
+    <header class="mobile-topbar">
+      <img class="mobile-topbar__logo" src="../../assets/images/brand-mark.png" alt="">
+      <p class="mobile-topbar__title"><small>Administrator</small><span>SNDRA Park</span></p>
+      <button class="mobile-nav-toggle" type="button" data-mobile-nav-toggle data-mobile-nav-breakpoint="1080" aria-controls="admin-sidebar" aria-expanded="false" aria-label="Open menu"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
+    </header>
+    <aside class="admin-sidebar" id="admin-sidebar" data-mobile-nav-drawer>
+      <button class="mobile-nav-close" type="button" data-mobile-nav-close aria-label="Close menu"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      <div class="sidebar-brand-mark">
+        <div class="workspace-logo">
+          <img src="../../assets/images/brand-mark.png" alt="SNDRA Park logo">
+        </div>
+      </div>
+
       <nav class="sidebar-nav" aria-label="Admin sections">
         <button class="sidebar-link is-active" type="button" data-section="dashboard"><i class="fa-solid fa-chart-line" aria-hidden="true"></i> Dashboard</button>
         <button class="sidebar-link" type="button" data-section="slots"><i class="fa-solid fa-square-parking" aria-hidden="true"></i> Manage Floors &amp; Slots</button>
@@ -46,15 +59,17 @@
       </nav>
 
       <div class="sidebar-footer">
+        <div class="sidebar-account">
+          <p class="sidebar-account__label">Signed in as</p>
+          <p class="sidebar-account__name" id="admin-sidebar-name">Administrator</p>
+          <p class="sidebar-account__email" id="admin-sidebar-email">&mdash;</p>
+        </div>
         <button class="logout-btn" id="admin-logout-btn" type="button"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i> Logout</button>
       </div>
     </aside>
+    <div class="mobile-nav-backdrop" data-mobile-nav-close></div>
 
     <section class="admin-workspace">
-      <div class="workspace-logo">
-        <img src="../../assets/images/brand-mark.png" alt="SNDRA Park logo">
-      </div>
-
       <header class="workspace-header">
         <div>
           <p class="section-kicker" id="admin-section-kicker">Administrator View</p>
@@ -75,6 +90,11 @@
       </header>
 
       <p class="admin-status" id="admin-global-status" aria-live="polite"></p>
+
+      <!-- Save confirmations surface here. The inline status line above only
+           shows on a couple of sections, so saves elsewhere used to confirm
+           nothing at all. -->
+      <div class="admin-toast-stack" id="admin-toast-stack" role="status" aria-live="polite"></div>
 
       <section class="admin-section is-active" id="section-dashboard">
         <div class="stats-grid">
@@ -550,6 +570,85 @@
             </form>
           </section>
         </div>
+
+        <section class="panel-card" id="sensor-panel">
+          <div class="panel-heading with-tools">
+            <div>
+              <p class="section-kicker">Slot sensors</p>
+              <h3>Arduino sensor rig</h3>
+            </div>
+
+            <button class="secondary-btn" id="sensor-refresh-btn" type="button">Refresh</button>
+          </div>
+
+          <!-- Pick the bay rather than typing its primary key. A mistyped slot
+               id is worse than no sensor at all: the bay actually being watched
+               reads free while an unwatched one reads taken. -->
+          <form class="admin-form sensor-assign-form" id="sensor-map-form">
+            <div class="field-group">
+              <label for="sensor-map-device">Board</label>
+              <input id="sensor-map-device" name="device_id" list="sensor-device-options"
+                placeholder="UNO-A" autocomplete="off" required>
+              <datalist id="sensor-device-options"></datalist>
+              <p class="field-helper">Boards that have reported are listed. Type a name to wire one up in advance.</p>
+            </div>
+
+            <div class="field-group">
+              <label for="sensor-map-pin">Pin</label>
+              <input id="sensor-map-pin" name="sensor_pin" type="number" min="0" max="255" value="2" required>
+              <p class="field-helper">Which input on that board. A board printing plain text uses the pin set in .env.</p>
+            </div>
+
+            <div class="field-group">
+              <label for="sensor-map-floor">Floor</label>
+              <select id="sensor-map-floor" name="floor_id" required>
+                <option value="">Choose a floor</option>
+              </select>
+            </div>
+
+            <div class="field-group">
+              <label for="sensor-map-slot">Parking slot</label>
+              <select id="sensor-map-slot" name="slot_id" required disabled>
+                <option value="">Choose a floor first</option>
+              </select>
+            </div>
+
+            <div class="field-group">
+              <label for="sensor-map-kind">Sensor type</label>
+              <select id="sensor-map-kind" name="sensor_kind">
+                <option value="IR">IR</option>
+                <option value="Ultrasonic">Ultrasonic</option>
+              </select>
+            </div>
+
+            <div class="editor-actions">
+              <p class="field-helper" id="sensor-assign-preview">Choose a board and a bay to wire them together.</p>
+              <button class="primary-btn" type="submit">Assign sensor to bay</button>
+            </div>
+          </form>
+
+          <p class="field-helper" id="sensor-device-summary">Loading sensor rig status.</p>
+
+          <div class="table-shell">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Floor</th>
+                  <th>Slot</th>
+                  <th>Device</th>
+                  <th>Pin</th>
+                  <th>Sensor</th>
+                  <th>Bay status</th>
+                  <th>Last reading</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="sensor-table-body">
+                <tr><td colspan="8">Loading sensors.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
       </section>
 
       <section class="admin-section" id="section-reservations">
@@ -614,14 +713,18 @@
               <p class="section-kicker">Users</p>
               <h3>Registered user accounts</h3>
             </div>
+            <!-- No submit button: both controls filter the table as they are
+                 used. The options are the three states the Status column
+                 actually shows -- the old "Inactive" matched no row, because
+                 the accounts table only ever stores Active or Disabled. -->
             <form class="toolbar-form" id="users-filter-form">
               <input id="users-search" name="search" type="search" placeholder="Search by name or email">
               <select id="users-status-filter" name="status">
                 <option value="">All Statuses</option>
                 <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
+                <option value="Disabled">Disabled</option>
+                <option value="Locked">Locked</option>
               </select>
-              <button class="primary-btn" type="button" id="add-user-btn">+ Add User</button>
             </form>
           </div>
           <div class="table-shell">
@@ -1120,9 +1223,23 @@
                     <option value="0">Off</option>
                   </select>
                 </div>
+              </div>
+            </fieldset>
+
+            <fieldset class="settings-fieldset">
+              <legend>Security</legend>
+              <p class="settings-hint">Two-factor sign-in emails a 6-digit code to the administrator's address and holds the session until that code comes back. If the code cannot be sent, the sign-in is let through and the failure is recorded &mdash; a broken mail setup should not lock you out of your own dashboard. Change alerts email you whenever system settings, user accounts or booth teller accounts are changed, so a session that is not yours does not go unnoticed.</p>
+              <div class="settings-grid">
                 <div class="field-group">
                   <label for="setting-admin-2fa">Admin Sign-In Code (2FA)</label>
                   <select id="setting-admin-2fa" name="admin_2fa_enabled">
+                    <option value="1">On</option>
+                    <option value="0">Off</option>
+                  </select>
+                </div>
+                <div class="field-group">
+                  <label for="setting-change-alerts">Change Alert Emails</label>
+                  <select id="setting-change-alerts" name="admin_change_alerts_enabled">
                     <option value="1">On</option>
                     <option value="0">Off</option>
                   </select>
@@ -1132,6 +1249,44 @@
 
             <p class="admin-status" id="settings-form-status" aria-live="polite" hidden></p>
             <button class="primary-btn" type="submit" disabled>Save Settings</button>
+          </form>
+        </section>
+
+        <!-- Deliberately its own <form>: the settings form above posts every
+             field it holds in one request, so credentials must not sit in it. -->
+        <section class="panel-card">
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">My Account</p>
+              <h3>Your sign-in email and password</h3>
+            </div>
+          </div>
+          <form class="admin-form settings-form" id="account-form">
+            <fieldset class="settings-fieldset">
+              <legend>Signed in as <span id="account-current-role">admin</span></legend>
+              <p class="settings-hint">Changes apply to your own staff account only. Your current password is required either way, and changing it signs out any other device using your account. Leave the password fields blank to change just the email address.</p>
+              <div class="settings-grid">
+                <div class="field-group">
+                  <label for="account-email">Email Address</label>
+                  <input id="account-email" name="email" type="email" autocomplete="username" maxlength="150">
+                </div>
+                <div class="field-group">
+                  <label for="account-current-password">Current Password</label>
+                  <input id="account-current-password" name="current_password" type="password" autocomplete="current-password" placeholder="Required to save">
+                </div>
+                <div class="field-group">
+                  <label for="account-new-password">New Password</label>
+                  <input id="account-new-password" name="new_password" type="password" autocomplete="new-password" placeholder="Blank keeps current password">
+                </div>
+                <div class="field-group">
+                  <label for="account-confirm-password">Confirm New Password</label>
+                  <input id="account-confirm-password" name="confirm_password" type="password" autocomplete="new-password" placeholder="Repeat the new password">
+                </div>
+              </div>
+            </fieldset>
+
+            <p class="admin-status" id="account-form-status" aria-live="polite" hidden></p>
+            <button class="primary-btn" type="submit">Save Account Changes</button>
           </form>
         </section>
       </section>
@@ -1253,6 +1408,7 @@
   <script src="../../assets/js/runtime-config.js?v=20260830-attrib1"></script>
   <script src="../../assets/js/system-settings.js?v=20260829-title1"></script>
   <script src="../js/admin-dashboard.js?v=20260901-ops1"></script>
+  <script src="../js/mobile-nav.js?v=20260912-resp1"></script>
 </body>
 </html>
 

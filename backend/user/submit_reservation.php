@@ -17,8 +17,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
 
 try {
     $payload = parking_request_data();
-    $sessionUserId = (int) ($_SESSION['user_id'] ?? 0);
-    $userId = $sessionUserId > 0 ? $sessionUserId : (int) ($payload['userId'] ?? $payload['user_id'] ?? 0);
+
+    // The booking is always for whoever owns the session cookie.
+    //
+    // This used to fall back to a userId in the request body when the session
+    // was empty, which meant an unauthenticated caller could post any user's
+    // id and book a slot in their name -- filling the garage with reservations
+    // the named driver never made, and, because an unclaimed booking expires
+    // into a no-show strike, walking a stranger's account toward the four-
+    // strike lock in reservation-security.php. It is the same class of defect
+    // the March audit found in ReservationController, where user_id came from
+    // the query string; that one was fixed and this one was missed.
+    //
+    // Any client-supplied id is ignored rather than trusted.
+    $userId = (int) ($_SESSION['user_id'] ?? 0);
 
     if ($userId <= 0) {
         booth_error('No active user session found.', 401);

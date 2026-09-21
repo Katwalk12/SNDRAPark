@@ -19,8 +19,25 @@ if (!function_exists('booth_json_response')) {
 }
 
 if (!function_exists('booth_success')) {
+    /**
+     * The booth and member page endpoints now refuse a state-changing request
+     * without a CSRF token, so every successful response carries the current
+     * one -- the same way admin_success() has always done it. A page is then
+     * armed for its next POST by the GET it already made on load, and
+     * assets/js/csrf.js only has to fall back to backend/auth/csrf-token.php
+     * when it has not seen a response yet.
+     *
+     * A list-shaped payload is left untouched: adding a string key would turn
+     * a JSON array into an object under every caller that iterates it.
+     */
     function booth_success(string $message, array $data = [], int $status = 200): never
     {
+        $isList = $data !== [] && array_keys($data) === range(0, count($data) - 1);
+
+        if (!$isList && class_exists('CsrfGuard')) {
+            $data['csrfToken'] = CsrfGuard::issueToken();
+        }
+
         booth_json_response([
             'success' => true,
             'message' => $message,
@@ -70,10 +87,31 @@ if (!function_exists('booth_log_debug')) {
     }
 }
 
+if (!function_exists('booth_debug_details')) {
+    /**
+     * The 'details' bag on a failed response.
+     *
+     * The raw exception text is a driver message: schema names on a query
+     * failure, host and port on a connection failure. It belongs in the error
+     * log, which every caller writes anyway, and only reaches the client when
+     * APP_DEBUG is on in .env.
+     */
+    function booth_debug_details(Throwable $exception): array
+    {
+        static $enabled = null;
+
+        if ($enabled === null) {
+            $enabled = filter_var((string) EnvHelper::get('APP_DEBUG', ''), FILTER_VALIDATE_BOOLEAN);
+        }
+
+        return $enabled ? ['details' => $exception->getMessage()] : [];
+    }
+}
+
 if (!function_exists('booth_schema_cache_version')) {
     function booth_schema_cache_version(): string
     {
-        return '20260901_pricing_walkin_notify_appeal_supervisor';
+        return '20260917_slot_sensors';
     }
 }
 
@@ -188,9 +226,7 @@ if (!function_exists('booth_db')) {
                 'error' => $exception->getMessage()
             ]);
 
-            booth_error('Database connection failed.', 500, [
-                'details' => $exception->getMessage()
-            ]);
+            booth_error('Database connection failed.', 500, booth_debug_details($exception));
         }
     }
 }
@@ -392,6 +428,61 @@ if (!function_exists('booth_ensure_schema')) {
             )
         ");
 
+        /**
+         * Live occupancy from the Arduino slot-sensor rig.
+         *
+         * One row per physical sensor, keyed both ways on purpose:
+         * uq_..._slot stops two sensors claiming one bay, uq_..._device_pin stops
+         * one physical pin claiming two bays. No foreign key, because
+         * parking_slots carries none either -- delete_slot.php clears the row
+         * instead, or the UNIQUE(slot_id) would block re-mapping a rebuilt bay.
+         *
+         * last_reading_at is the staleness clock and is only ever written with
+         * NOW(). app.php pins PHP to Asia/Manila but nothing issues SET time_zone,
+         * so a PHP-generated timestamp here would drift against MariaDB on any box
+         * whose clock is not Manila, and would free or freeze every bay at once.
+         */
+        $connection->query("
+            CREATE TABLE IF NOT EXISTS parking_slot_sensors (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                slot_id INT NOT NULL,
+                device_id VARCHAR(64) NOT NULL,
+                sensor_pin INT NOT NULL,
+                sensor_kind ENUM('IR', 'Ultrasonic') NOT NULL DEFAULT 'IR',
+                is_occupied TINYINT(1) NOT NULL DEFAULT 0,
+                is_enabled TINYINT(1) NOT NULL DEFAULT 1,
+                last_reading_at DATETIME NULL,
+                last_changed_at DATETIME NULL,
+                mismatch_flagged_at DATETIME NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_parking_slot_sensors_slot (slot_id),
+                UNIQUE KEY uq_parking_slot_sensors_device_pin (device_id, sensor_pin)
+            )
+        ");
+
+        /**
+         * One row per sensor board, so the admin health panel can say whether the
+         * rig is alive and which pins it is reporting that nobody has mapped yet.
+         */
+        $connection->query("
+            CREATE TABLE IF NOT EXISTS parking_sensor_devices (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                device_id VARCHAR(64) NOT NULL,
+                firmware VARCHAR(32) NULL,
+                transport VARCHAR(32) NOT NULL DEFAULT 'serial',
+                port_label VARCHAR(32) NULL,
+                last_seen_at DATETIME NULL,
+                last_sequence INT NOT NULL DEFAULT 0,
+                frame_count INT NOT NULL DEFAULT 0,
+                reject_count INT NOT NULL DEFAULT 0,
+                unmapped_pins VARCHAR(255) NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_parking_sensor_devices_device (device_id)
+            )
+        ");
+
         $connection->query("
             CREATE TABLE IF NOT EXISTS feedback_messages (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -560,6 +651,9 @@ if (!function_exists('booth_ensure_schema')) {
         booth_add_column_if_missing($connection, 'parking_slots', 'manual_status', "ALTER TABLE parking_slots ADD COLUMN manual_status ENUM('Auto', 'Available', 'Reserved', 'Occupied', 'Inactive') NOT NULL DEFAULT 'Auto' AFTER is_active");
         booth_add_column_if_missing($connection, 'parking_slots', 'created_at', "ALTER TABLE parking_slots ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER manual_status");
         booth_add_column_if_missing($connection, 'parking_slots', 'updated_at', "ALTER TABLE parking_slots ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at");
+        booth_add_column_if_missing($connection, 'parking_slot_sensors', 'sensor_kind', "ALTER TABLE parking_slot_sensors ADD COLUMN sensor_kind ENUM('IR', 'Ultrasonic') NOT NULL DEFAULT 'IR' AFTER sensor_pin");
+        booth_add_column_if_missing($connection, 'parking_slot_sensors', 'mismatch_flagged_at', "ALTER TABLE parking_slot_sensors ADD COLUMN mismatch_flagged_at DATETIME NULL AFTER last_changed_at");
+        booth_add_column_if_missing($connection, 'parking_sensor_devices', 'unmapped_pins', "ALTER TABLE parking_sensor_devices ADD COLUMN unmapped_pins VARCHAR(255) NULL AFTER reject_count");
         booth_add_column_if_missing($connection, 'feedback_messages', 'user_id', "ALTER TABLE feedback_messages ADD COLUMN user_id INT NULL AFTER id");
         booth_add_column_if_missing($connection, 'feedback_messages', 'admin_reply', "ALTER TABLE feedback_messages ADD COLUMN admin_reply TEXT NULL AFTER message");
         booth_add_column_if_missing($connection, 'feedback_messages', 'replied_at', "ALTER TABLE feedback_messages ADD COLUMN replied_at DATETIME NULL AFTER submitted_at");
@@ -583,7 +677,10 @@ if (!function_exists('booth_ensure_schema')) {
         booth_add_column_if_missing($connection, 'parking_transactions', 'discount_type', "ALTER TABLE parking_transactions ADD COLUMN discount_type VARCHAR(20) NOT NULL DEFAULT 'None' AFTER vehicle_type");
         booth_add_column_if_missing($connection, 'parking_transactions', 'discount_percent', "ALTER TABLE parking_transactions ADD COLUMN discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0.00 AFTER discount_type");
         booth_add_column_if_missing($connection, 'parking_transactions', 'discount_amount', "ALTER TABLE parking_transactions ADD COLUMN discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER discount_percent");
-        booth_add_column_if_missing($connection, 'parking_transactions', 'gross_amount', "ALTER TABLE parking_transactions ADD COLUMN gross_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER discount_amount");
+        // RA 9994 and RA 10754 both require the booth to record the ID it read
+        // before granting the discount, so the number is stored with the sale.
+        booth_add_column_if_missing($connection, 'parking_transactions', 'discount_id_number', "ALTER TABLE parking_transactions ADD COLUMN discount_id_number VARCHAR(40) NULL AFTER discount_amount");
+        booth_add_column_if_missing($connection, 'parking_transactions', 'gross_amount', "ALTER TABLE parking_transactions ADD COLUMN gross_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER discount_id_number");
         booth_add_column_if_missing($connection, 'parking_transactions', 'payment_method', "ALTER TABLE parking_transactions ADD COLUMN payment_method VARCHAR(30) NULL AFTER gross_amount");
         booth_add_column_if_missing($connection, 'parking_transactions', 'payment_reference', "ALTER TABLE parking_transactions ADD COLUMN payment_reference VARCHAR(80) NULL AFTER payment_method");
         booth_add_column_if_missing($connection, 'parking_transactions', 'amount_tendered', "ALTER TABLE parking_transactions ADD COLUMN amount_tendered DECIMAL(10,2) NULL AFTER payment_reference");
@@ -697,6 +794,10 @@ if (!function_exists('booth_ensure_schema')) {
         booth_add_index_if_missing($connection, 'parking_slots', 'idx_parking_slots_floor_id_status', "CREATE INDEX idx_parking_slots_floor_id_status ON parking_slots (floor_id, status, is_active)");
         booth_add_index_if_missing($connection, 'parking_slots', 'idx_parking_slots_floor_active', "CREATE INDEX idx_parking_slots_floor_active ON parking_slots (floor_name, is_active, manual_status)");
         booth_add_index_if_missing($connection, 'parking_slots', 'idx_parking_slots_floor_status', "CREATE INDEX idx_parking_slots_floor_status ON parking_slots (floor_name, status, is_active)");
+        booth_add_index_if_missing($connection, 'parking_slot_sensors', 'uq_parking_slot_sensors_slot', "CREATE UNIQUE INDEX uq_parking_slot_sensors_slot ON parking_slot_sensors (slot_id)");
+        booth_add_index_if_missing($connection, 'parking_slot_sensors', 'uq_parking_slot_sensors_device_pin', "CREATE UNIQUE INDEX uq_parking_slot_sensors_device_pin ON parking_slot_sensors (device_id, sensor_pin)");
+        booth_add_index_if_missing($connection, 'parking_slot_sensors', 'idx_parking_slot_sensors_live', "CREATE INDEX idx_parking_slot_sensors_live ON parking_slot_sensors (is_enabled, is_occupied, last_reading_at)");
+        booth_add_index_if_missing($connection, 'parking_sensor_devices', 'uq_parking_sensor_devices_device', "CREATE UNIQUE INDEX uq_parking_sensor_devices_device ON parking_sensor_devices (device_id)");
         booth_add_index_if_missing($connection, 'feedback_messages', 'idx_feedback_messages_status_submitted', "CREATE INDEX idx_feedback_messages_status_submitted ON feedback_messages (status, submitted_at)");
         booth_add_index_if_missing($connection, 'feedback_messages', 'idx_feedback_messages_user_status', "CREATE INDEX idx_feedback_messages_user_status ON feedback_messages (user_id, status)");
         booth_add_index_if_missing($connection, 'notifications', 'idx_notifications_date_created', "CREATE INDEX idx_notifications_date_created ON notifications (notification_date, created_at)");
@@ -968,21 +1069,46 @@ if (!function_exists('booth_sync_slots_from_reservations')) {
 if (!function_exists('booth_seed_default_staff_accounts')) {
     function booth_seed_default_staff_accounts(mysqli $connection): void
     {
-        $adminPassword = hash('sha256', 'Admin123!');
-        $boothPassword = hash('sha256', 'Booth123!');
+        // Bootstrap accounts for a database that has none. They are bcrypt now:
+        // the old sha256 was unsalted, so the seeded hash was a published
+        // rainbow-table entry for anyone who read this file.
+        $adminPassword = password_hash('Admin123!', PASSWORD_DEFAULT);
+        $boothPassword = password_hash('Booth123!', PASSWORD_DEFAULT);
 
-        $connection->query("
+        // These exist so a brand new database can be signed into at all. The
+        // guard is therefore "are there any staff accounts?", not "is this
+        // particular address missing".
+        //
+        // Two earlier versions got this wrong. ON DUPLICATE KEY UPDATE used to
+        // reassign password_hash, role and is_active, so an administrator who
+        // had changed their password silently got 'Admin123!' back. Keying the
+        // insert on the email instead fixed that but left a subtler hole: an
+        // administrator who changed their *address* freed up
+        // admin@sndrapark.com, and the next schema run -- this fires whenever
+        // the schema cache file is missing or its version moves -- helpfully
+        // recreated it as a live admin account with the published default
+        // password. Changing your own email should not mint a second
+        // administrator behind you.
+        $existing = $connection->query("SELECT 1 FROM staff_accounts LIMIT 1");
+
+        if ($existing instanceof mysqli_result && $existing->num_rows > 0) {
+            return;
+        }
+
+        $statement = $connection->prepare("
             INSERT INTO staff_accounts (full_name, username, email, password_hash, role, is_active)
-            VALUES
-                ('SNDRA Park Administrator', 'admin', 'admin@sndrapark.com', '{$adminPassword}', 'admin', 1),
-                ('Booth Teller', 'booth', 'booth@sndrapark.com', '{$boothPassword}', 'booth', 1)
-            ON DUPLICATE KEY UPDATE
-                full_name = VALUES(full_name),
-                username = COALESCE(NULLIF(VALUES(username), ''), username),
-                password_hash = VALUES(password_hash),
-                role = VALUES(role),
-                is_active = VALUES(is_active)
+            VALUES (?, ?, ?, ?, ?, 1)
         ");
+
+        foreach ([
+            ['SNDRA Park Administrator', 'admin', 'admin@sndrapark.com', $adminPassword, 'admin'],
+            ['Booth Teller', 'booth', 'booth@sndrapark.com', $boothPassword, 'booth']
+        ] as [$fullName, $username, $email, $passwordHash, $role]) {
+            $statement->bind_param('sssss', $fullName, $username, $email, $passwordHash, $role);
+            $statement->execute();
+        }
+
+        $statement->close();
 
         $defaultPinHash = password_hash('1234', PASSWORD_DEFAULT);
         $statement = $connection->prepare("

@@ -270,6 +270,7 @@ if (!function_exists('reservation_notifier_send_receipt')) {
                     pt.gross_amount,
                     pt.discount_type,
                     pt.discount_amount,
+                    pt.discount_id_number,
                     pt.total_payment,
                     pt.payment_method,
                     pt.payment_reference,
@@ -301,6 +302,12 @@ if (!function_exists('reservation_notifier_send_receipt')) {
 
             if ((float) ($record['discount_amount'] ?? 0) > 0) {
                 $rows['Discount (' . (string) $record['discount_type'] . ')'] = '-' . $peso($record['discount_amount']);
+
+                // The emailed copy carries the same ID as the printed receipt,
+                // so either one on its own evidences the statutory discount.
+                if (trim((string) ($record['discount_id_number'] ?? '')) !== '') {
+                    $rows[(string) $record['discount_type'] . ' ID'] = (string) $record['discount_id_number'];
+                }
             }
 
             if (trim((string) ($record['payment_reference'] ?? '')) !== '') {

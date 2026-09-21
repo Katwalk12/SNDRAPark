@@ -76,6 +76,21 @@ try {
         booth_success('Walk-in ticket issued.', booth_format_transaction($transaction));
     }
 
+    if ($action === 'apply_discount') {
+        $result = booth_process_apply_discount($connection, $payload, $boothUser);
+        $connection->commit();
+
+        AuditLogger::log('BOOTH_DISCOUNT_APPLIED', 'INFO', [
+            'service' => 'payment',
+            'status' => 'success',
+            'details' => 'Discount ' . $result['discount_type'] . ' applied to reservation: '
+                . (string) $result['reservation_id'],
+            'category' => 'payment'
+        ], (int) $boothUser['id']);
+
+        booth_success($result['message'], booth_format_transaction($result['transaction']));
+    }
+
     if ($action === 'mark_paid') {
         $result = booth_process_mark_paid($connection, $payload, $boothUser);
         $connection->commit();
@@ -210,7 +225,8 @@ function booth_process_payment_scan(mysqli $connection, array $payload, array $b
             'actor_role' => 'booth',
             'actor_name' => (string) ($boothUser['full_name'] ?? $boothUser['email'] ?? 'Booth Teller'),
             'action_type' => 'BARCODE_TIME_IN_SCANNED',
-            'description' => 'Time In recorded for barcode ' . $barcode . ' assigned to '
+            'description' => '
+            Time In recorded for barcode ' . $barcode . ' assigned to '
                 . (string) ($transaction['full_name'] ?? 'Reservation Holder') . '.',
             'related_barcode' => $barcode,
             'related_floor' => (string) ($transaction['parking_floor'] ?? ''),
@@ -228,12 +244,29 @@ function booth_process_payment_scan(mysqli $connection, array $payload, array $b
         $actualTimeOut = booth_get_database_now($connection);
         $vehicleType = (string) ($payload['vehicleType'] ?? $payload['vehicle_type'] ?? $transaction['vehicle_type'] ?? '');
         $discountType = booth_normalize_discount_type($payload['discountType'] ?? $payload['discount_type'] ?? $transaction['discount_type'] ?? null);
+        $discountIdNumber = booth_normalize_discount_id(
+            $payload['discountIdNumber'] ?? $payload['discount_id_number'] ?? $transaction['discount_id_number'] ?? null
+        );
+
+        // A statutory discount without the ID that justified it is not a
+        // discount the booth can defend in an audit, so it is refused here
+        // rather than quietly priced at full rate.
+        if ($discountType !== 'None' && !booth_discount_id_is_valid($discountIdNumber)) {
+            booth_error('Enter the ' . $discountType . ' ID number before applying the discount.', 422, [
+                'transaction' => booth_format_transaction($transaction)
+            ]);
+        }
+
         $payment = booth_calculate_payment(
             $connection,
             (string) $transaction['actual_time_in'],
             $actualTimeOut,
             $reservationFee,
-            ['vehicle_type' => $vehicleType, 'discount_type' => $discountType]
+            [
+                'vehicle_type' => $vehicleType,
+                'discount_type' => $discountType,
+                'discount_id_number' => $discountIdNumber
+            ]
         );
 
         booth_upsert_transaction(
@@ -278,6 +311,108 @@ function booth_process_payment_scan(mysqli $connection, array $payload, array $b
     booth_error('Transaction already completed', 409, [
         'transaction' => booth_format_transaction($transaction)
     ]);
+}
+
+/**
+ * Re-price a stay that has already timed out, under a different discount.
+ *
+ * Time Out is the scan that prices the stay, but the teller only sees the
+ * senior or PWD card *after* the driver reaches the window. Rather than force
+ * a rescan, this recomputes the same stay from its recorded Time In and Time
+ * Out, so the discount lands the moment the ID is keyed in. It refuses once
+ * the sale is settled -- a paid transaction is closed.
+ */
+function booth_process_apply_discount(mysqli $connection, array $payload, array $boothUser): array
+{
+    $reservationId = (int) ($payload['reservationId'] ?? $payload['reservation_id'] ?? 0);
+
+    if ($reservationId <= 0) {
+        booth_error('A valid reservation ID is required.', 400);
+    }
+
+    $transaction = booth_find_transaction_by_reservation_id($connection, $reservationId, true);
+
+    if (!$transaction) {
+        booth_error('Reservation not found.', 404);
+    }
+
+    if (empty($transaction['actual_time_in']) || empty($transaction['actual_time_out'])) {
+        booth_error('Record Time Out before applying a discount.', 409, [
+            'transaction' => booth_format_transaction($transaction)
+        ]);
+    }
+
+    if (($transaction['payment_status'] ?? '') === 'Paid' || ($transaction['booth_status'] ?? '') === 'Completed') {
+        booth_error('This transaction is already paid and can no longer be discounted.', 409, [
+            'transaction' => booth_format_transaction($transaction)
+        ]);
+    }
+
+    $discountType = booth_normalize_discount_type($payload['discountType'] ?? $payload['discount_type'] ?? null);
+    $discountIdNumber = booth_normalize_discount_id($payload['discountIdNumber'] ?? $payload['discount_id_number'] ?? null);
+
+    if ($discountType !== 'None' && !booth_discount_id_is_valid($discountIdNumber)) {
+        booth_error('Enter the ' . $discountType . ' ID number before applying the discount.', 422, [
+            'transaction' => booth_format_transaction($transaction)
+        ]);
+    }
+
+    $vehicleType = (string) ($payload['vehicleType'] ?? $payload['vehicle_type'] ?? $transaction['vehicle_type'] ?? '');
+    $payment = booth_calculate_payment(
+        $connection,
+        (string) $transaction['actual_time_in'],
+        (string) $transaction['actual_time_out'],
+        round((float) ($transaction['reservation_fee'] ?? 0), 2),
+        [
+            'vehicle_type' => $vehicleType,
+            'discount_type' => $discountType,
+            'discount_id_number' => $discountIdNumber
+        ]
+    );
+
+    booth_upsert_transaction(
+        $connection,
+        $reservationId,
+        (string) $transaction['actual_time_in'],
+        (string) $transaction['actual_time_out'],
+        (float) $payment['total_hours_stayed'],
+        (float) $payment['extra_fee'],
+        (float) $payment['total_payment'],
+        'Unpaid',
+        'Exited',
+        null
+    );
+    booth_apply_transaction_pricing($connection, $reservationId, $payment, $vehicleType !== '' ? $vehicleType : null);
+
+    system_logs_write($connection, [
+        'user_id' => isset($transaction['user_id']) ? (int) $transaction['user_id'] : null,
+        'actor_role' => 'booth',
+        'actor_name' => (string) ($boothUser['full_name'] ?? $boothUser['email'] ?? 'Booth Teller'),
+        'action_type' => $discountType === 'None' ? 'DISCOUNT_REMOVED' : 'DISCOUNT_APPLIED',
+        'description' => $discountType === 'None'
+            ? 'Discount removed from barcode ' . (string) ($transaction['barcode_value'] ?? 'Unknown Barcode') . '.'
+            : $discountType . ' discount (' . (string) $discountIdNumber . ') applied to barcode '
+                . (string) ($transaction['barcode_value'] ?? 'Unknown Barcode') . '.',
+        'related_barcode' => (string) ($transaction['barcode_value'] ?? ''),
+        'related_floor' => (string) ($transaction['parking_floor'] ?? ''),
+        'related_slot' => (string) ($transaction['parking_slot'] ?? ''),
+        'amount' => (float) $payment['total_payment'],
+        'status' => 'Unpaid'
+    ]);
+
+    return [
+        'message' => $discountType === 'None'
+            ? 'Discount removed. The full rate applies.'
+            : sprintf(
+                '%s discount applied: -%s off %s.',
+                $discountType,
+                number_format((float) $payment['discount_amount'], 2),
+                number_format((float) $payment['gross_amount'], 2)
+            ),
+        'discount_type' => $discountType,
+        'reservation_id' => $reservationId,
+        'transaction' => booth_find_transaction_by_reservation_id($connection, $reservationId)
+    ];
 }
 
 function booth_process_mark_paid(mysqli $connection, array $payload, array $boothUser): array

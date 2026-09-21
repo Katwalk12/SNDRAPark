@@ -877,3 +877,121 @@ textarea:focus,
     max-width: calc(100vw - 1.4rem);
   }
 }
+
+/* ---------------------------------------------------------------- sensors --
+   A bay covered by a live slot sensor is reporting what is physically in it,
+   not just what the booking system believes. The badge marks that difference.
+
+   Absolutely positioned so it rides in the corner of the card without joining
+   the flex column and shoving the bay code around -- .slot-card is already
+   position: relative, and the parking-lot layout hides .slot-bay-number and
+   .slot-meta, so this must not depend on either being visible. */
+.slot-sensor-badge {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.4rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  padding: 0.08rem 0.36rem;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.slot-sensor-badge i {
+  font-size: 0.56rem;
+}
+
+.slot-sensor-badge.is-live {
+  color: #0F766E;
+  background: rgba(13, 148, 136, 0.14);
+  border: 1px solid rgba(13, 148, 136, 0.3);
+}
+
+.slot-sensor-badge.is-offline {
+  color: #92400E;
+  background: rgba(217, 119, 6, 0.14);
+  border: 1px solid rgba(217, 119, 6, 0.3);
+}
+
+/* Only rendered while a floor has sensors that stopped reporting, so it is
+   allowed to be loud -- a bay shown free may still have a car in it. */
+.sensor-offline-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 0.7rem;
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  background: rgba(217, 119, 6, 0.1);
+  color: #92400E;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+/* display:flex above beats the hidden attribute, which left an empty orange bar
+   on every floor whose sensors were all healthy. */
+.sensor-offline-banner[hidden] {
+  display: none;
+}
+
+.sensor-offline-banner i {
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .slot-sensor-badge {
+    font-size: 0.55rem;
+    padding: 0.05rem 0.28rem;
+  }
+
+  .sensor-offline-banner {
+    font-size: 0.76rem;
+    align-items: flex-start;
+  }
+}
+
+#sensor-panel .admin-table td {
+  vertical-align: middle;
+}
+
+#sensor-panel .admin-table .secondary-btn {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.78rem;
+}
+
+/* The assign form is a real form now, not a toolbar, so it lays out in a grid
+   rather than a single cramped row of unlabelled boxes. */
+.sensor-assign-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.9rem;
+  align-items: start;
+  margin-bottom: 1rem;
+}
+
+.sensor-assign-form .editor-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.sensor-assign-form .editor-actions .field-helper {
+  margin: 0;
+  flex: 1 1 14rem;
+}
+
+.sensor-assign-form select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

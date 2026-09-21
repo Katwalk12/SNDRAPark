@@ -12,6 +12,8 @@ require_once __DIR__ . '/../config/system-settings.php';
 require_once __DIR__ . '/../common/reservation-security.php';
 require_once __DIR__ . '/../common/system-logs.php';
 require_once __DIR__ . '/../parking-booth/common.php';
+require_once __DIR__ . '/../utils/CsrfGuard.php';
+require_once __DIR__ . '/../iot/sensors.php';
 
 /**
  * When the garage is open. A reservation outside these hours could never be
@@ -102,6 +104,35 @@ function parking_bootstrap_endpoint(string $allowedMethods = 'GET, POST'): void
 
     parking_send_common_headers($allowedMethods);
     parking_handle_preflight();
+    parking_require_csrf();
+}
+
+/**
+ * Refuse a state-changing member request that does not carry a CSRF token.
+ *
+ * These endpoints act on whoever owns the session cookie -- cancelling a
+ * reservation, booking a slot -- so a forged cross-site POST used to be worth
+ * making. Safe methods and the unauthenticated appeal form pass straight
+ * through; see CsrfGuard for the exemption list.
+ *
+ * Several of these endpoints call session_write_close() before bootstrapping
+ * to release the session lock early. CsrfMiddleware::initialize() reopens the
+ * session when it finds none active, so validation still sees the stored
+ * token; the cost is re-acquiring the lock, which only state-changing requests
+ * pay.
+ */
+function parking_require_csrf(): void
+{
+    try {
+        CsrfGuard::requireValidToken();
+    } catch (RuntimeException $exception) {
+        booth_log('user-csrf-rejected', [
+            'path' => (string) ($_SERVER['REQUEST_URI'] ?? ''),
+            'method' => (string) ($_SERVER['REQUEST_METHOD'] ?? '')
+        ]);
+
+        booth_error($exception->getMessage(), 403);
+    }
 }
 
 function parking_send_common_headers(string $allowedMethods = 'GET, POST'): void
@@ -287,12 +318,29 @@ function parking_sync_slot_statuses(mysqli $connection, bool $force = false): vo
     parking_sync_slot_floor_links($connection);
     $activeSlotSubquery = parking_build_active_slot_subquery();
 
+    // Interpolated rather than bound because this is query(), not a prepared
+    // statement. parking_sensor_stale_after_seconds() returns a clamped int,
+    // and that cast is the only thing between a config value and this string.
+    $staleAfter = parking_sensor_stale_after_seconds();
+
+    // The sensor branch sits above Reserved on purpose: a car is physically in
+    // the bay, so the next driver must not be offered it, whoever holds the
+    // booking. It sits below a booth check-in so a sensor that has not noticed
+    // a car yet can never contradict a transaction someone is being billed for.
+    // The staleness comparison is NULL-safe on its own -- a sensor that has
+    // never reported yields NULL, which is falsy, and the bay falls through to
+    // reservation truth. That is also what happens when the bridge dies, which
+    // is why an unplugged rig degrades to today's behaviour instead of freezing
+    // the whole board. parking_resolve_live_status() in backend/iot/common.php
+    // is the readable twin of this CASE and the one the tests pin.
     $connection->query("
         UPDATE parking_slots s
         LEFT JOIN parking_floors f ON f.id = s.floor_id
         LEFT JOIN ({$activeSlotSubquery}) active_slots
             ON active_slots.floor_id = f.id
            AND active_slots.parking_slot = s.slot_code
+        LEFT JOIN parking_slot_sensors sen
+            ON sen.slot_id = s.id
         SET
             s.row_label = CASE
                 WHEN s.row_label IS NOT NULL AND s.row_label <> '' THEN s.row_label
@@ -302,6 +350,9 @@ function parking_sync_slot_statuses(mysqli $connection, bool $force = false): vo
             s.status = CASE
                 WHEN COALESCE(f.is_active, 0) = 0 OR s.is_active = 0 OR s.manual_status = 'Inactive' THEN 'Inactive'
                 WHEN COALESCE(active_slots.active_rank, 0) = 2 THEN 'Occupied'
+                WHEN COALESCE(sen.is_enabled, 0) = 1
+                 AND COALESCE(sen.is_occupied, 0) = 1
+                 AND sen.last_reading_at >= DATE_SUB(NOW(), INTERVAL {$staleAfter} SECOND) THEN 'Occupied'
                 WHEN COALESCE(active_slots.active_rank, 0) = 1 THEN 'Reserved'
                 WHEN s.manual_status IN ('Available', 'Reserved', 'Occupied') THEN s.manual_status
                 ELSE 'Available'
@@ -390,6 +441,15 @@ function parking_slot_unavailable_context(array $row, string $status): array
     }
 
     if ($status === 'Occupied') {
+        // A sensor-seen car may have no booking behind it at all, so the stock
+        // "once the driver checks out" line would be a promise nobody has made.
+        if ((string) ($row['sensor_state'] ?? 'none') === 'occupied') {
+            return [
+                'unavailable_scope' => 'sensor',
+                'unavailable_reason' => 'Our slot sensor can see a vehicle in this bay right now. It frees up as soon as the bay is clear.'
+            ];
+        }
+
         return [
             'unavailable_scope' => 'occupied',
             'unavailable_reason' => 'A vehicle is parked here right now. It frees up once the driver checks out.'
@@ -445,10 +505,21 @@ function parking_get_slots(
             s.is_active,
             f.is_active AS floor_is_active,
             s.unavailable_reason,
+            s.unavailable_reason AS raw_unavailable_reason,
             f.unavailable_reason AS floor_unavailable_reason,
-            s.created_at
+            s.created_at,
+            sen.id AS sensor_id,
+            sen.device_id AS sensor_device_id,
+            sen.sensor_pin,
+            sen.is_enabled AS sensor_is_enabled,
+            sen.is_occupied AS sensor_is_occupied,
+            CASE
+                WHEN sen.last_reading_at IS NULL THEN NULL
+                ELSE TIMESTAMPDIFF(SECOND, sen.last_reading_at, NOW())
+            END AS sensor_age_seconds
         FROM parking_slots s
         INNER JOIN parking_floors f ON f.id = s.floor_id
+        LEFT JOIN parking_slot_sensors sen ON sen.slot_id = s.id
         WHERE 1 = 1
     ";
 
@@ -482,8 +553,23 @@ function parking_get_slots(
 
     $slots = [];
 
+    $staleAfter = parking_sensor_stale_after_seconds();
+
     while ($row = $result->fetch_assoc()) {
         $status = parking_normalize_status((string) ($row['status'] ?? 'Available'));
+        $sensorAge = $row['sensor_age_seconds'] === null ? null : (int) $row['sensor_age_seconds'];
+
+        // The sensor join is left unfiltered on is_enabled so the UI can tell a
+        // bay an admin switched off apart from a bay that never had a sensor.
+        $sensorState = parking_sensor_classify_reading(
+            $row['sensor_id'] !== null,
+            (int) ($row['sensor_is_enabled'] ?? 0) === 1,
+            (int) ($row['sensor_is_occupied'] ?? 0) === 1,
+            $sensorAge,
+            $staleAfter
+        );
+        $row['sensor_state'] = $sensorState;
+
         $slots[] = array_merge([
             'id' => (int) $row['id'],
             'floor_id' => (int) $row['floor_id'],
@@ -496,13 +582,37 @@ function parking_get_slots(
             'manual_status' => $row['manual_status'],
             'is_active' => (int) $row['is_active'],
             'disabled' => in_array($status, ['Reserved', 'Occupied', 'Inactive'], true),
-            'created_at' => $row['created_at']
+            'created_at' => $row['created_at'],
+            'sensor_state' => $sensorState,
+            'sensor_live' => parking_sensor_state_is_live($sensorState),
+            'sensor_age_seconds' => $sensorAge,
+            'sensor_device_id' => (string) ($row['sensor_device_id'] ?? ''),
+            'sensor_pin' => $row['sensor_pin'] === null ? null : (int) $row['sensor_pin'],
+            // The bare column, because unavailable_reason below has been
+            // overwritten with a canned sentence for anything not Available and
+            // the admin editor must never save that back over the real reason.
+            'raw_unavailable_reason' => (string) ($row['raw_unavailable_reason'] ?? '')
         ], parking_slot_unavailable_context($row, $status));
     }
 
     return $slots;
 }
 
+/**
+ * Lock one bay for a booking and report what it really is right now.
+ *
+ * The sensor table is deliberately NOT joined into this FOR UPDATE. MariaDB
+ * 10.4 has no `FOR UPDATE OF <table>`, so a join here would also exclusively
+ * lock the sensor row that the serial bridge rewrites on every edge, and a
+ * booking in flight and the bridge would take turns stalling each other for up
+ * to innodb_lock_wait_timeout. The sensor is read unlocked, one statement
+ * later, and that is correct rather than a compromise: this lock exists to
+ * serialise reservations against each other, and no lock can stop a car
+ * rolling into a bay one second after somebody confirmed it.
+ *
+ * live_status is resolved in PHP now instead of in the CASE, so the precedence
+ * rules live in exactly one readable place that the test suite can pin.
+ */
 function parking_get_slot_record_for_update(mysqli $connection, string $floorName, string $slotCode): ?array
 {
     $activeSlotSubquery = parking_build_active_slot_subquery();
@@ -519,13 +629,7 @@ function parking_get_slot_record_for_update(mysqli $connection, string $floorNam
             s.is_active,
             s.manual_status,
             s.status,
-            CASE
-                WHEN COALESCE(f.is_active, 0) = 0 OR s.is_active = 0 OR s.manual_status = 'Inactive' THEN 'Inactive'
-                WHEN COALESCE(active_slots.active_rank, 0) = 2 THEN 'Occupied'
-                WHEN COALESCE(active_slots.active_rank, 0) = 1 THEN 'Reserved'
-                WHEN s.manual_status IN ('Available', 'Reserved', 'Occupied') THEN s.manual_status
-                ELSE 'Available'
-            END AS live_status
+            COALESCE(active_slots.active_rank, 0) AS active_rank
         FROM parking_slots s
         INNER JOIN parking_floors f ON f.id = s.floor_id
         LEFT JOIN ({$activeSlotSubquery}) active_slots
@@ -547,7 +651,9 @@ function parking_get_slot_record_for_update(mysqli $connection, string $floorNam
         return null;
     }
 
-    $row['live_status'] = parking_normalize_status((string) ($row['live_status'] ?? 'Available'));
+    $row = array_merge($row, parking_sensor_state_for_slot($connection, (int) $row['id']));
+    $row['live_status'] = parking_resolve_live_status($row);
+
     return $row;
 }
 

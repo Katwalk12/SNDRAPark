@@ -26,6 +26,7 @@
   <link rel="stylesheet" href="../css/design-system.css?v=20260828-signup2">
   <link rel="stylesheet" href="../css/auth.css?v=20260828-signup2">
   <link rel="stylesheet" href="../css/signup.css?v=20260828-signup2">
+  <link rel="stylesheet" href="../css/responsive.css?v=20260912-resp1">
 </head>
 <body class="auth-page signup-page">
   <main class="auth-shell">
@@ -247,6 +248,29 @@
             </div>
             <p class="field-error checkbox-error" data-error-for="terms"></p>
 
+            <!-- The question is fetched from backend/auth/human-check.php on
+                 load; its answer never reaches the page. -->
+            <div class="field-block human-check" id="human-check-block">
+              <label class="field-label" for="human-check-answer">
+                Verify you are human &mdash; <span id="human-check-question">loading question...</span>
+              </label>
+              <div class="human-check-row">
+                <input class="auth-input" id="human-check-answer" name="humanCheckAnswer" type="text"
+                  inputmode="numeric" autocomplete="off" placeholder="Your answer">
+                <button class="action-btn ghost-btn" type="button" id="human-check-refresh"
+                  title="Get a different question">New question</button>
+              </div>
+              <p class="field-error" data-error-for="humanCheckAnswer" id="human-check-error"></p>
+            </div>
+
+            <!-- Bait. Off-screen and out of the tab order, so no person can
+                 put anything in it; anything that arrives filled came from a
+                 script. See backend/utils/HumanCheck.php. -->
+            <div class="trap-field" aria-hidden="true">
+              <label for="extra-notes-hp">Leave this field empty</label>
+              <input id="extra-notes-hp" name="extra_notes_hp" type="text" tabindex="-1" autocomplete="off">
+            </div>
+
             <div class="step-nav">
               <button class="action-btn ghost-btn" type="button" data-step-back>Back</button>
               <button class="action-btn primary-btn" type="submit">Create account</button>
@@ -262,6 +286,7 @@
   </main>
 
   <script src="../../assets/js/runtime-config.js?v=20260830-attrib1"></script>
+  <script src="../../assets/js/csrf.js?v=20260917-csrf1"></script>
   <script src="../../assets/js/system-settings.js?v=20260829-title1"></script>
   <script src="../../assets/js/password-policy.js"></script>
   <script src="../js/auth.js"></script>

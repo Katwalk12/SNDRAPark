@@ -515,11 +515,13 @@ Lookups are case- and separator-insensitive.
 c:\xampp\php\php.exe tests\run.php
 ```
 
-44 assertions covering what is hardest to click through in a browser and most
+188 assertions covering what is hardest to click through in a browser and most
 expensive to get wrong: what a stay costs (rates, multipliers, included hours,
 night surcharge, statutory discounts), when a reservation expires (grace period,
-scanned bookings, cancelled bookings, legacy rows), CORS origin handling, and
-barcode normalisation. It primes the settings cache, so it needs no database.
+scanned bookings, cancelled bookings, legacy rows), CORS origin handling,
+barcode normalisation, the admin honeypot, the sign-up human check, and which
+requests must carry a CSRF token. It primes the settings cache, so it needs no
+database.
 
 [GitHub Actions](.github/workflows/ci.yml) runs on every push and pull request:
 
@@ -547,8 +549,16 @@ barcode normalisation. It primes the settings cache, so it needs no database.
 - Origin allow-listing on the API — the wildcard is never returned
 - All secrets in `.env`, which is git-ignored and enforced by CI
 
-See [SECURITY_AUDIT_REPORT.md](SECURITY_AUDIT_REPORT.md) and
-[SECURITY_AUDIT_QUICK_REFERENCE.md](SECURITY_AUDIT_QUICK_REFERENCE.md).
+Full detail in **[docs/SECURITY.md](docs/SECURITY.md)** — every control, the file
+that implements it, what it assumes, the deployment requirements the code does
+not enforce, and an honest list of what is still missing.
+[docs/](docs/README.md) indexes everything written about the system.
+
+[SECURITY_AUDIT_REPORT.md](SECURITY_AUDIT_REPORT.md) and
+[SECURITY_AUDIT_QUICK_REFERENCE.md](SECURITY_AUDIT_QUICK_REFERENCE.md) are the
+**March 2026 audit that produced most of the controls above**. They describe the
+system *before* those fixes landed, so read them as the work order and the audit
+trail — not as the current state.
 
 ---
 

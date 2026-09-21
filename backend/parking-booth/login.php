@@ -100,6 +100,12 @@ try {
 
     session_regenerate_id(true);
 
+    // A token minted for the anonymous visitor must not stay valid for the
+    // signed-in teller -- the same rule admin_establish_session() follows.
+    // The new one is returned below so the booth page is armed before its
+    // first scan or payment.
+    $csrfToken = CsrfMiddleware::refresh();
+
     $tellerId = (int) $teller['id'];
     $tellerName = (string) ($teller['teller_name'] ?? 'Booth Teller');
     $tellerDetails = (string) ($teller['teller_details'] ?? '');
@@ -129,7 +135,8 @@ try {
             'fullName' => $tellerName,
             'details' => $tellerDetails,
             'email' => '',
-            'token' => session_id()
+            'token' => session_id(),
+            'csrfToken' => $csrfToken
         ]
     ]);
 } catch (Throwable $exception) {
@@ -143,13 +150,41 @@ try {
         error_log('[booth-login] ' . $exception->getMessage() . ' in ' . $exception->getFile() . ':' . $exception->getLine());
     }
 
+    // A refusal this endpoint meant to make is not a server fault.
+    //
+    // RateLimiter::enforce() throws 429 to cap PIN guessing, and this block
+    // was flattening it to 500 -- so a rate-limited teller saw "Failed to log
+    // in to the parking booth", the console showed a server error, and the
+    // limiter's own text ("Rate limit exceeded for action 'login'") was handed
+    // to the client in the details bag. Carrying the status through gives the
+    // teller the real reason and lets the page offer Retry-After.
+    $status = (int) $exception->getCode();
+
+    if ($status < 400 || $status > 599) {
+        $status = 500;
+    }
+
+    $safeMessages = [
+        400 => 'Bad request.',
+        401 => 'Incorrect PIN code.',
+        403 => 'Forbidden.',
+        405 => 'Method not allowed.',
+        422 => 'The submitted data could not be processed.',
+        429 => 'Too many sign-in attempts. Try again in a few minutes.'
+    ];
+
+    if ($status === 429 && !headers_sent()) {
+        $retryAfter = RateLimiter::getResetTime('login', ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1') . '|booth-pin');
+        header('Retry-After: ' . max(1, $retryAfter));
+    }
+
     booth_login_json_response([
         'success' => false,
-        'message' => 'Failed to log in to the parking booth.',
-        'data' => [
-            'details' => $exception->getMessage()
-        ]
-    ], 500);
+        'message' => $safeMessages[$status] ?? 'Failed to log in to the parking booth.',
+        // The driver's message is the schema on a query failure, so it only
+        // travels when APP_DEBUG is on. It is in the log either way, above.
+        'data' => booth_debug_details($exception)
+    ], $status);
 } finally {
     restore_error_handler();
 }

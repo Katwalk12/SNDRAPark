@@ -178,6 +178,14 @@ a {
 
 .admin-workspace {
   display: grid;
+  /* Grid treats align-content:normal as stretch, so on a section whose content
+     is shorter than the viewport -- Users filtered down to nothing, say -- the
+     spare height was shared out among the rows instead of being left at the
+     bottom. That pushed the header card from ~110px to 256px and opened a
+     126px hole under the logo, which read as the page being broken rather than
+     empty. Packing to the start keeps every section's header the same height
+     whether the table below it has twenty rows or none. */
+  align-content: start;
   gap: 1.5rem;
   padding: 1.5rem 2rem 2rem 1.5rem;
 }

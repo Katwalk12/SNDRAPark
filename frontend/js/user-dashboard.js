@@ -1349,7 +1349,12 @@ async function refreshFloorSlots(floorName, { keepPage = true, floorId = null } 
       status: String(slot.status_key || slot.status || "available").toLowerCase(),
       disabled: Boolean(slot.disabled),
       unavailableScope: String(slot.unavailable_scope || ""),
-      unavailableReason: String(slot.unavailable_reason || "")
+      unavailableReason: String(slot.unavailable_reason || ""),
+      // "none" when no sensor covers this bay, "offline" when one does but has
+      // stopped reporting. Those are different stories and the banner below
+      // only speaks up about the second one.
+      sensorState: String(slot.sensor_state || "none"),
+      sensorLive: Boolean(slot.sensor_live)
     })).sort((left, right) => compareSlotCodes(left.code, right.code))
     : [];
 
@@ -1562,6 +1567,37 @@ function updateMonitorStats(slots) {
   if (heroAvailableCount) {
     heroAvailableCount.textContent = String(counts.available);
   }
+
+  updateSensorOfflineBanner(slots);
+}
+
+/**
+ * Warn when this floor's sensors have gone quiet.
+ *
+ * A dead bridge ages every reading out, and the bays it was holding as occupied
+ * quietly become bookable again on booking data alone. That is the right way to
+ * fail -- the alternative is freezing the whole board -- but it must not be
+ * silent, because a bay shown as free may still have a car sitting in it.
+ */
+function updateSensorOfflineBanner(slots) {
+  const banner = document.getElementById("sensor-offline-banner");
+  const bannerText = document.getElementById("sensor-offline-banner-text");
+
+  if (!banner || !bannerText) {
+    return;
+  }
+
+  const offlineCount = slots.filter((slot) => slot.sensorState === "offline").length;
+
+  if (offlineCount < 1) {
+    banner.hidden = true;
+    return;
+  }
+
+  bannerText.textContent = offlineCount === 1
+    ? "One bay's sensor is offline, so its availability comes from bookings only."
+    : `${offlineCount} bay sensors are offline, so their availability comes from bookings only.`;
+  banner.hidden = false;
 }
 
 function updateMonitorStatusChip(floorName) {
@@ -1752,9 +1788,21 @@ function renderParkingRow(rowName, rowSlots, floorName, rowIndex = 0) {
         : slot.status === "occupied"
           ? "Parking Unavailable"
           : "Floor Unavailable";
-    button.setAttribute("aria-label", `${slot.code} ${statusLabelMap[slot.status] || "Parking slot"}`);
+    // A bay backed by a live sensor is telling you what is physically there,
+    // not just what the booking system believes, and that is worth a mark.
+    const sensorBadge = slot.sensorLive
+      ? `<span class="slot-sensor-badge is-live" title="Live sensor reading"><i class="fa-solid fa-wifi" aria-hidden="true"></i> Live</span>`
+      : slot.sensorState === "offline"
+        ? `<span class="slot-sensor-badge is-offline" title="This bay's sensor has stopped reporting"><i class="fa-solid fa-plug-circle-xmark" aria-hidden="true"></i> Offline</span>`
+        : "";
+
+    button.setAttribute(
+      "aria-label",
+      `${slot.code} ${statusLabelMap[slot.status] || "Parking slot"}${slot.sensorLive ? ", live sensor" : ""}`
+    );
     button.innerHTML = `
       <span class="slot-bay-number">${slot.code}</span>
+      ${sensorBadge}
       <div class="slot-car-icon" aria-hidden="true">
         <i class="fa-solid fa-car-side"></i>
       </div>

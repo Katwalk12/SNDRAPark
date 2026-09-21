@@ -124,6 +124,32 @@ const commands = {
     out('ok', r.status, r.body);
   },
 
+  // Resize the viewport (e.g. `viewport 390 844` for a phone) to check responsive layouts.
+  async viewport([w = '1440', h = '900']) { await page.setViewportSize({ width: Number(w), height: Number(h) }); await page.waitForTimeout(300); out('ok', w + 'x' + h); },
+
+  // Reports horizontal overflow: document width vs viewport, and the widest
+  // offending elements. The main signal for "this page breaks on a phone".
+  async overflow() {
+    const r = await page.evaluate(() => {
+      const vw = document.documentElement.clientWidth;
+      const sw = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
+      const bad = [];
+      for (const el of document.querySelectorAll('body *')) {
+        const cs = getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+        const b = el.getBoundingClientRect();
+        if (b.width === 0) continue;
+        if (b.right > vw + 1 || b.left < -1) {
+          const id = el.id ? '#' + el.id : '';
+          const cls = el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '';
+          bad.push(el.tagName.toLowerCase() + id + cls + ' [' + Math.round(b.left) + '..' + Math.round(b.right) + ']');
+        }
+      }
+      return { vw, sw, bad: bad.slice(0, 25) };
+    });
+    out('ok', 'viewport=' + r.vw, 'scrollWidth=' + r.sw, r.sw > r.vw ? 'OVERFLOW' : 'fits', r.bad.length ? '\n  ' + r.bad.join('\n  ') : '');
+  },
+
   async logs() { out('ok', logs.length ? logs.join('\n') : '(none)'); },
   async quit() { await browser.close(); process.exit(0); },
 };

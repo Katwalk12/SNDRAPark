@@ -12,6 +12,7 @@ const ADMIN_ENDPOINTS = {
   deleteFloor: `${ADMIN_API_BASE}/delete_floor.php`,
   slots: `${ADMIN_API_BASE}/manage_slots.php`,
   deleteSlot: `${ADMIN_API_BASE}/delete_slot.php`,
+  sensors: `${ADMIN_API_BASE}/manage_sensors.php`,
   reservations: `${ADMIN_API_BASE}/get_reservations.php`,
   liveReservations: `${ADMIN_API_BASE}/get_live_reservations.php`,
   users: `${ADMIN_API_BASE}/get_users.php`,
@@ -24,6 +25,7 @@ const ADMIN_ENDPOINTS = {
   notifications: `${ADMIN_API_BASE}/manage_notifications.php`,
   userViolations: `${ADMIN_API_BASE}/get-user-violations.php`,
   settings: `${ADMIN_API_BASE}/save_settings.php`,
+  account: `${ADMIN_API_BASE}/update_account.php`,
   logout: `${ADMIN_API_BASE}/logout.php`
 };
 
@@ -88,6 +90,7 @@ const SECTION_META = {
 const state = {
   activeSection: "dashboard",
   slotsData: { floors: [], slots: [] },
+  sensorReport: { devices: [], sensors: [], stuck: [], assignable: { floors: [], slots: [] } },
   selectedFloor: "",
   selectedFloorId: null,
   selectedSlotId: null,
@@ -109,6 +112,8 @@ const refs = {
   sectionTitle: document.getElementById("admin-section-title"),
   sectionDescription: document.getElementById("admin-section-description"),
   sessionName: document.getElementById("admin-session-name"),
+  sidebarName: document.getElementById("admin-sidebar-name"),
+  sidebarEmail: document.getElementById("admin-sidebar-email"),
   liveDatetime: document.getElementById("admin-live-datetime"),
   globalStatus: document.getElementById("admin-global-status"),
   logoutButton: document.getElementById("admin-logout-btn"),
@@ -120,6 +125,7 @@ const refs = {
   staffForm: document.getElementById("staff-form"),
   notificationForm: document.getElementById("notification-form"),
   settingsForm: document.getElementById("settings-form"),
+  accountForm: document.getElementById("account-form"),
   notificationDate: document.getElementById("notification-date"),
   slotFloorSelect: document.getElementById("slot-floor"),
   slotCodeInput: document.getElementById("slot-code"),
@@ -188,6 +194,11 @@ const refs = {
 let dashboardPollTimer = null;
 let logsPollTimer = null;
 
+// Kept so the sales chart can be redrawn at the new width when the window is
+// resized, without going back to the server for data that has not changed.
+let lastSalesSeries = [];
+let salesResizeTimer = null;
+
 document.addEventListener("DOMContentLoaded", () => {
   const session = requireAdminSession();
 
@@ -195,7 +206,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  refs.sessionName.textContent = session.fullName || session.email || "Administrator";
+  renderAdminIdentity(session);
   syncAdminCsrfFields();
   refs.notificationDate.value = toDateInputValue(new Date());
   updateLiveClock();
@@ -215,6 +226,7 @@ function bindEvents() {
 
   bindDashboardTableLinks();
   bindSlotReasonControls();
+  bindSensorPanel();
   bindSalesReportControls();
   refs.logoutButton?.addEventListener("click", handleLogout);
   refs.floorForm?.addEventListener("submit", handleAddFloor);
@@ -237,7 +249,23 @@ function bindEvents() {
   });
   refs.staffForm?.addEventListener("submit", handleCreateStaff);
   refs.notificationForm?.addEventListener("submit", handleCreateNotification);
+  // The toolbar filters as it is used, so its form must never navigate.
+  const usersFilterForm = document.getElementById("users-filter-form");
+  usersFilterForm?.addEventListener("submit", (event) => event.preventDefault());
+  document.getElementById("users-status-filter")?.addEventListener("change", renderUsers);
+  document.getElementById("users-search")?.addEventListener("input", renderUsers);
+
+  window.addEventListener("resize", () => {
+    window.clearTimeout(salesResizeTimer);
+    salesResizeTimer = window.setTimeout(() => {
+      if (lastSalesSeries.length) {
+        renderSalesTrendChart(lastSalesSeries);
+      }
+    }, 150);
+  });
+
   refs.settingsForm?.addEventListener("submit", handleSaveSettings);
+  refs.accountForm?.addEventListener("submit", handleSaveAccount);
   refs.slotEditorForm?.addEventListener("submit", handleSlotEditorSubmit);
   refs.slotEditorClearButton?.addEventListener("click", clearSelectedSlot);
   refs.reservationModalClose?.addEventListener("click", closeReservationModal);
@@ -310,7 +338,10 @@ function activateSection(sectionName) {
 
   const loaderMap = {
     dashboard: loadDashboard,
-    slots: loadSlots,
+    slots: () => {
+      loadSlots();
+      loadSensors();
+    },
     reservations: loadReservations,
     users: loadUsers,
     staff: loadStaff,
@@ -319,7 +350,10 @@ function activateSection(sectionName) {
     logs: loadLogs,
     feedback: loadFeedback,
     notifications: loadNotifications,
-    settings: loadSettings
+    settings: () => {
+      loadSettings();
+      loadAccount();
+    }
   };
 
   const loader = loaderMap[sectionName];
@@ -970,6 +1004,347 @@ async function loadSlots() {
   }
 }
 
+/**
+ * Load the sensor rig's health and mappings.
+ *
+ * Not polled. Like the slots table it refreshes on demand and after every
+ * mutation, because manage_sensors.php returns the whole refreshed report with
+ * each POST.
+ */
+async function loadSensors() {
+  try {
+    const result = await fetchJson(ADMIN_ENDPOINTS.sensors);
+    renderSensorPanel(result?.data || {});
+  } catch (error) {
+    showStatus(error.message || "Failed to load slot sensors.", true);
+  }
+}
+
+function describeSensorAge(ageSeconds) {
+  if (ageSeconds === null || ageSeconds === undefined) {
+    return "never";
+  }
+
+  const age = Number(ageSeconds);
+
+  if (age < 60) {
+    return `${age}s ago`;
+  }
+
+  if (age < 3600) {
+    return `${Math.floor(age / 60)}m ago`;
+  }
+
+  return `${Math.floor(age / 3600)}h ago`;
+}
+
+function renderSensorPanel(report) {
+  const summary = document.getElementById("sensor-device-summary");
+  const body = document.getElementById("sensor-table-body");
+
+  if (!summary || !body) {
+    return;
+  }
+
+  state.sensorReport = report;
+  renderSensorAssignControls(report);
+
+  const devices = Array.isArray(report.devices) ? report.devices : [];
+  const sensors = Array.isArray(report.sensors) ? report.sensors : [];
+  const stuck = Array.isArray(report.stuck) ? report.stuck : [];
+
+  if (!devices.length) {
+    summary.textContent = "No sensor board has reported yet. Start the serial bridge, then map pins to slots.";
+  } else {
+    const parts = devices.map((device) => {
+      const health = device.is_online ? "online" : "offline";
+      const unmapped = device.unmapped_pins
+        ? `, unmapped pins ${device.unmapped_pins}`
+        : "";
+      // A climbing reject count is how a loose USB lead shows up before it
+      // starts dropping frames outright.
+      const rejects = Number(device.reject_count) > 0
+        ? `, ${device.reject_count} garbled`
+        : "";
+      return `${device.device_id} ${health} (last seen ${describeSensorAge(device.age_seconds)}, ${device.mapped_count} mapped${unmapped}${rejects})`;
+    });
+
+    // The stuck list is the one worth interrupting for: a bay reading occupied
+    // and unchanged for a day is almost certainly a dirty lens, and it has been
+    // quietly unbookable the whole time.
+    if (stuck.length) {
+      parts.push(`${stuck.length} sensor(s) stuck occupied for over a day -- check the lens or disable them.`);
+    }
+
+    summary.textContent = parts.join(" | ");
+  }
+
+  if (!sensors.length) {
+    body.innerHTML = `<tr><td colspan="8">No sensors mapped yet.</td></tr>`;
+    return;
+  }
+
+  body.innerHTML = sensors.map((sensor) => `
+    <tr>
+      <td>${escapeHtml(sensor.floor_name || "--")}</td>
+      <td>${escapeHtml(sensor.slot_code || "--")} <span class="field-helper">#${Number(sensor.slot_id)}</span></td>
+      <td>${escapeHtml(sensor.device_id || "--")}</td>
+      <td>${Number(sensor.sensor_pin)}</td>
+      <td>${escapeHtml(sensor.sensor_state || "none")}</td>
+      <td>${escapeHtml(sensor.slot_status || "--")}</td>
+      <td>${escapeHtml(describeSensorAge(sensor.sensor_age_seconds))}</td>
+      <td>
+        <button class="secondary-btn" type="button" data-sensor-toggle="${Number(sensor.slot_id)}" data-sensor-enabled="${Number(sensor.is_enabled)}">
+          ${Number(sensor.is_enabled) === 1 ? "Disable" : "Enable"}
+        </button>
+        <button class="secondary-btn" type="button" data-sensor-unmap="${Number(sensor.slot_id)}">Unmap</button>
+      </td>
+    </tr>
+  `).join("");
+}
+
+
+/**
+ * Fill the assignment controls: which boards exist, and which bay to point one at.
+ *
+ * Rebuilt from each report rather than held in the DOM, so a bay wired from
+ * another browser tab stops being offered here on the next refresh instead of
+ * failing on the unique index at save time.
+ */
+function renderSensorAssignControls(report) {
+  const deviceList = document.getElementById("sensor-device-options");
+  const floorSelect = document.getElementById("sensor-map-floor");
+
+  if (!deviceList || !floorSelect) {
+    return;
+  }
+
+  const devices = Array.isArray(report.devices) ? report.devices : [];
+  deviceList.innerHTML = devices
+    .map((device) => `<option value="${escapeHtml(device.device_id)}"></option>`)
+    .join("");
+
+  // A single reporting board is almost always the one being wired, so fill it
+  // in rather than making someone retype what the panel already knows.
+  const deviceField = document.getElementById("sensor-map-device");
+  if (deviceField && !deviceField.value && devices.length === 1) {
+    deviceField.value = devices[0].device_id;
+  }
+
+  const floors = Array.isArray(report.assignable?.floors) ? report.assignable.floors : [];
+  const chosenFloor = floorSelect.value;
+
+  floorSelect.innerHTML = `<option value="">Choose a floor</option>` + floors
+    .map((floor) => {
+      const closed = Number(floor.is_active) === 1 ? "" : " (closed)";
+      return `<option value="${Number(floor.id)}">${escapeHtml(floor.floor_label)}${closed}</option>`;
+    })
+    .join("");
+
+  if (chosenFloor && floors.some((floor) => String(floor.id) === chosenFloor)) {
+    floorSelect.value = chosenFloor;
+  }
+
+  renderSensorSlotChoices();
+}
+
+/**
+ * Offer the bays on the chosen floor, saying which are already wired.
+ *
+ * A bay that already has a sensor is shown but disabled. Hiding it would leave
+ * someone hunting for a bay that is plainly on the wall in front of them.
+ */
+function renderSensorSlotChoices() {
+  const floorSelect = document.getElementById("sensor-map-floor");
+  const slotSelect = document.getElementById("sensor-map-slot");
+
+  if (!floorSelect || !slotSelect) {
+    return;
+  }
+
+  const floorId = Number(floorSelect.value || 0);
+  const allSlots = Array.isArray(state.sensorReport?.assignable?.slots)
+    ? state.sensorReport.assignable.slots
+    : [];
+
+  if (floorId < 1) {
+    slotSelect.innerHTML = `<option value="">Choose a floor first</option>`;
+    slotSelect.disabled = true;
+    updateSensorAssignPreview();
+    return;
+  }
+
+  const slots = allSlots.filter((slot) => Number(slot.floor_id) === floorId);
+  slotSelect.disabled = slots.length === 0;
+
+  if (slots.length === 0) {
+    slotSelect.innerHTML = `<option value="">No slots on this floor yet</option>`;
+    updateSensorAssignPreview();
+    return;
+  }
+
+  slotSelect.innerHTML = `<option value="">Choose a slot</option>` + slots
+    .map((slot) => {
+      const wired = slot.sensor_device_id
+        ? ` - already on ${escapeHtml(slot.sensor_device_id)} pin ${Number(slot.sensor_pin)}`
+        : "";
+      const closed = Number(slot.is_active) === 1 ? "" : " (inactive)";
+      return `<option value="${Number(slot.id)}"${slot.sensor_device_id ? " disabled" : ""}>`
+        + `${escapeHtml(slot.slot_code)}${closed}${wired}</option>`;
+    })
+    .join("");
+
+  updateSensorAssignPreview();
+}
+
+/**
+ * Say in words what the save will do, before it does it.
+ */
+function updateSensorAssignPreview() {
+  const preview = document.getElementById("sensor-assign-preview");
+
+  if (!preview) {
+    return;
+  }
+
+  const device = document.getElementById("sensor-map-device")?.value?.trim() || "";
+  const pin = document.getElementById("sensor-map-pin")?.value || "";
+  const floorSelect = document.getElementById("sensor-map-floor");
+  const slotSelect = document.getElementById("sensor-map-slot");
+  const floorLabel = floorSelect?.selectedOptions?.[0]?.textContent?.trim() || "";
+  const slotId = Number(slotSelect?.value || 0);
+
+  if (!device || pin === "" || slotId < 1) {
+    preview.textContent = "Choose a board and a bay to wire them together.";
+    return;
+  }
+
+  const slot = (state.sensorReport?.assignable?.slots || []).find((row) => Number(row.id) === slotId);
+  const target = `${floorLabel} ${slot?.slot_code || ""}`.trim();
+  const current = findSensorCurrentBay(device, pin);
+  syncSensorKindField(device, pin);
+
+  preview.textContent = current && current !== target
+    ? `${device} pin ${pin} currently watches ${current}. Saving moves it to ${target}, leaving ${current} on booking data only.`
+    : `${device} pin ${pin} will decide whether ${target} is free.`;
+}
+
+/**
+ * The existing mapping for this board and pin, if there is one.
+ *
+ * Read from the last report rather than asked of the server, so the preview can
+ * warn about a move before anyone commits to one.
+ */
+function findSensorMapping(deviceId, pin) {
+  return (state.sensorReport?.sensors || []).find((sensor) =>
+    String(sensor.device_id).toUpperCase() === String(deviceId).toUpperCase()
+    && Number(sensor.sensor_pin) === Number(pin)) || null;
+}
+
+function findSensorCurrentBay(deviceId, pin) {
+  const match = findSensorMapping(deviceId, pin);
+  return match ? `${match.floor_name} ${match.slot_code}` : "";
+}
+
+/**
+ * Carry the sensor type across when a known board is being re-pointed.
+ *
+ * Without this the type silently reverted to the IR default, so moving an
+ * ultrasonic board to another bay quietly relabelled the hardware.
+ */
+function syncSensorKindField(deviceId, pin) {
+  const kindField = document.getElementById("sensor-map-kind");
+  const existing = findSensorMapping(deviceId, pin);
+
+  if (kindField && existing?.sensor_kind) {
+    kindField.value = existing.sensor_kind;
+  }
+}
+
+async function submitSensorAction(payload, successMessage) {
+  try {
+    const result = await postJson(ADMIN_ENDPOINTS.sensors, payload);
+    renderSensorPanel(result?.data || {});
+    showStatus(result?.message || successMessage, false);
+    // A sensor change can flip a bay's status, so the slot grid is now stale.
+    await loadSlots();
+  } catch (error) {
+    showStatus(error.message || "Failed to update the sensor.", true);
+  }
+}
+
+function bindSensorPanel() {
+  const form = document.getElementById("sensor-map-form");
+  const body = document.getElementById("sensor-table-body");
+
+  document.getElementById("sensor-map-floor")?.addEventListener("change", renderSensorSlotChoices);
+  document.getElementById("sensor-map-slot")?.addEventListener("change", updateSensorAssignPreview);
+  document.getElementById("sensor-map-device")?.addEventListener("input", updateSensorAssignPreview);
+  document.getElementById("sensor-map-pin")?.addEventListener("input", updateSensorAssignPreview);
+  document.getElementById("sensor-refresh-btn")?.addEventListener("click", () => loadSensors());
+
+  if (form) {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const slotId = Number(document.getElementById("sensor-map-slot")?.value || 0);
+
+      if (slotId < 1) {
+        showStatus("Choose the floor and slot this sensor watches.", true);
+        return;
+      }
+
+      const device = document.getElementById("sensor-map-device")?.value?.trim() || "";
+      const pin = Number(document.getElementById("sensor-map-pin")?.value || 0);
+      const current = findSensorCurrentBay(device, pin);
+      const slot = (state.sensorReport?.assignable?.slots || []).find((row) => Number(row.id) === slotId);
+      const target = slot ? `${slot.floor_name} ${slot.slot_code}` : "this bay";
+
+      // Moving the board leaves its old bay with nothing watching it, which is
+      // a real consequence and not one to discover afterwards.
+      if (current && current !== target
+        && !window.confirm(`${device} pin ${pin} currently watches ${current}.
+
+Move it to ${target}? ${current} will fall back to booking data only.`)) {
+        return;
+      }
+
+      await submitSensorAction({
+        action: "map_sensor",
+        slot_id: slotId,
+        device_id: device,
+        sensor_pin: pin,
+        sensor_kind: document.getElementById("sensor-map-kind")?.value || "IR",
+        allow_move: current ? 1 : 0
+      }, "Sensor assigned.");
+    });
+  }
+
+  if (body) {
+    body.addEventListener("click", async (event) => {
+      const toggle = event.target.closest("[data-sensor-toggle]");
+
+      if (toggle) {
+        await submitSensorAction({
+          action: "set_sensor_enabled",
+          slot_id: Number(toggle.dataset.sensorToggle),
+          is_enabled: Number(toggle.dataset.sensorEnabled) === 1 ? 0 : 1
+        }, "Sensor updated.");
+        return;
+      }
+
+      const unmap = event.target.closest("[data-sensor-unmap]");
+
+      if (unmap && window.confirm("Remove this sensor mapping? The bay goes back to reservation data only.")) {
+        await submitSensorAction({
+          action: "unmap_sensor",
+          slot_id: Number(unmap.dataset.sensorUnmap)
+        }, "Sensor mapping removed.");
+      }
+    });
+  }
+}
+
 async function loadReservations() {
   try {
     const search = document.getElementById("reservation-search")?.value?.trim() || "";
@@ -1017,13 +1392,60 @@ async function loadUsers() {
   try {
     const result = await fetchJson(ADMIN_ENDPOINTS.users);
     state.users = Array.isArray(result?.data?.users) ? result.data.users : [];
+    renderUsers();
+  } catch (error) {
+    showStatus(error.message || "Failed to load users.", true);
+  }
+}
 
-    if (!state.users.length) {
-      refs.usersTableBody.innerHTML = `<tr><td colspan="8" class="empty-table">No registered users yet.</td></tr>`;
-      return;
+/**
+ * The rows currently passing the toolbar's search box and status select.
+ *
+ * Filtering happens here rather than on the server: the whole list is already
+ * in memory, so narrowing it costs no round trip and the table can update on
+ * every keystroke.
+ */
+function getFilteredUsers() {
+  const searchTerm = String(document.getElementById("users-search")?.value || "")
+    .trim()
+    .toLowerCase();
+  const statusFilter = String(document.getElementById("users-status-filter")?.value || "");
+
+  return state.users.filter((user) => {
+    // Match the badge the row actually shows, so filtering by Locked finds the
+    // rows labelled Locked -- account_status and status are two columns and
+    // comparing against either one alone gets it wrong.
+    if (statusFilter && resolveUserDisplayStatus(user) !== statusFilter) {
+      return false;
     }
 
-    refs.usersTableBody.innerHTML = state.users.map((user) => `
+    if (!searchTerm) {
+      return true;
+    }
+
+    return `${user.full_name || ""} ${user.email || ""}`.toLowerCase().includes(searchTerm);
+  });
+}
+
+function renderUsers() {
+  if (!refs.usersTableBody) {
+    return;
+  }
+
+  const users = getFilteredUsers();
+
+  if (!users.length) {
+    // "Nothing matched" and "nobody is registered" are different problems, and
+    // the empty row is the only place either one gets explained.
+    const message = state.users.length
+      ? "No users match the current search or status filter."
+      : "No registered users yet.";
+
+    refs.usersTableBody.innerHTML = `<tr><td colspan="8" class="empty-table">${message}</td></tr>`;
+    return;
+  }
+
+  refs.usersTableBody.innerHTML = users.map((user) => `
       <tr>
         <td class="user-cell-id">${escapeHtml(String(user.id || "--"))}</td>
         <td class="user-cell-name"><strong>${escapeHtml(user.full_name || "--")}</strong></td>
@@ -1044,10 +1466,7 @@ async function loadUsers() {
           </div>
         </td>
       </tr>
-    `).join("");
-  } catch (error) {
-    showStatus(error.message || "Failed to load users.", true);
-  }
+  `).join("");
 }
 
 async function loadStaff() {
@@ -1268,6 +1687,8 @@ function renderSalesTrendChart(series) {
 
   [gridGroup, columnGroup, axisGroup].forEach((node) => { node.textContent = ""; });
 
+  lastSalesSeries = series;
+
   if (!series.length) {
     return;
   }
@@ -1276,8 +1697,22 @@ function renderSalesTrendChart(series) {
   const right = 12;
   const top = 26;
   const bottom = 34;
-  const width = 660;
+
+  // The chart is drawn in SVG user units and the viewBox was fixed at 660
+  // wide, so on a full-width card the browser scaled the whole drawing to fit
+  // -- roughly 2.3x on a desktop, which is why 11px axis labels arrived on
+  // screen at 25px and the card was over 500px tall. Matching the viewBox to
+  // the box the chart is actually painted into renders it at 1:1, so the type
+  // stays the size it was designed at and the plot keeps its intended height
+  // however wide the window is.
+  const svg = gridGroup.ownerSVGElement;
+  const measuredWidth = Math.round(svg?.clientWidth || svg?.parentElement?.clientWidth || 0);
+  // Below this the bands stop being readable, and the SVG scales down as it
+  // did before rather than squeezing the labels together.
+  const width = Math.max(560, measuredWidth || 660);
   const height = 260;
+
+  svg?.setAttribute("viewBox", `0 0 ${width} ${height}`);
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
   const band = plotWidth / series.length;
@@ -1847,6 +2282,129 @@ async function loadNotifications() {
   }
 }
 
+async function loadAccount() {
+  try {
+    const result = await fetchJson(ADMIN_ENDPOINTS.account);
+    const account = result?.data?.account || {};
+
+    // The settings section fetches this after it renders, which on a slow
+    // response can land after the administrator has started typing. Don't
+    // overwrite the field they are in the middle of editing.
+    const emailField = document.getElementById("account-email");
+
+    if (emailField && document.activeElement !== emailField) {
+      emailField.value = String(account.email || "");
+    }
+
+    const roleLabel = document.getElementById("account-current-role");
+
+    if (roleLabel) {
+      roleLabel.textContent = String(account.role || "admin");
+    }
+
+    setAccountFormMessage("");
+  } catch (error) {
+    setAccountFormMessage(error.message || "Your account details could not be loaded.", true);
+  }
+}
+
+function setAccountFormMessage(message, isError = false) {
+  const node = document.getElementById("account-form-status");
+
+  if (!node) {
+    return;
+  }
+
+  node.textContent = message || "";
+  node.hidden = !message;
+  node.className = `admin-status${message ? (isError ? " is-error" : " is-success") : ""}`;
+}
+
+function clearAccountPasswordFields() {
+  ["account-current-password", "account-new-password", "account-confirm-password"]
+    .forEach((id) => {
+      const field = document.getElementById(id);
+
+      if (field) {
+        field.value = "";
+      }
+    });
+}
+
+async function handleSaveAccount(event) {
+  event.preventDefault();
+
+  const formData = new FormData(refs.accountForm);
+  const newPassword = String(formData.get("new_password") || "");
+  const confirmPassword = String(formData.get("confirm_password") || "");
+
+  // Caught here as well as on the server so the mismatch costs no round trip
+  // and, more to the point, does not clear what was already typed.
+  if (newPassword !== confirmPassword) {
+    setAccountFormMessage("The new password and its confirmation do not match.", true);
+    showStatus("The new password and its confirmation do not match.", true);
+    return;
+  }
+
+  const submitButton = refs.accountForm?.querySelector("button[type=\"submit\"]");
+
+  if (submitButton) {
+    submitButton.disabled = true;
+  }
+
+  try {
+    const result = await postJson(ADMIN_ENDPOINTS.account, {
+      email: String(formData.get("email") || "").trim(),
+      current_password: String(formData.get("current_password") || ""),
+      new_password: newPassword,
+      confirm_password: confirmPassword
+    });
+
+    clearAccountPasswordFields();
+
+    const changedPassword = result?.data?.passwordChanged;
+    const message = changedPassword
+      ? "Account updated. Your other devices have been signed out."
+      : "Account updated successfully.";
+
+    // The response already carries the saved account, so it is read from
+    // there rather than re-fetched: loadAccount() would clear the message
+    // that was just set, and the round trip bought nothing.
+    const savedEmail = result?.data?.account?.email;
+
+    if (savedEmail) {
+      setFormValue(refs.accountForm, "email", String(savedEmail));
+    }
+
+    // The sidebar reads the email out of the stored session, so without this
+    // it would keep showing the old address until the next sign-in.
+    if (savedEmail) {
+      const storedSession = loadStaffSession();
+
+      if (storedSession) {
+        localStorage.setItem(STAFF_SESSION_KEY, JSON.stringify({
+          ...storedSession,
+          email: String(savedEmail)
+        }));
+      }
+
+      renderAdminIdentity(loadStaffSession());
+    }
+
+    setAccountFormMessage(message, false);
+    showStatus(message);
+  } catch (error) {
+    // The password fields are deliberately left alone on failure: the usual
+    // cause is a mistyped current password, and wiping the rest is punishing.
+    setAccountFormMessage(error.message || "Failed to update the account.", true);
+    showStatus(error.message || "Failed to update the account.", true);
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+    }
+  }
+}
+
 async function loadSettings() {
   try {
     const result = await fetchJson(ADMIN_ENDPOINTS.settings);
@@ -2315,7 +2873,12 @@ function renderSlotEditor() {
   const reasonField = document.getElementById("slot-editor-reason");
 
   if (reasonField) {
-    reasonField.value = selectedSlot.unavailable_reason || "";
+    // raw_unavailable_reason, never unavailable_reason: the latter has been
+    // replaced with a canned driver-facing sentence for anything not Available,
+    // so prefilling from it let an admin overwrite the real stored reason with
+    // "A vehicle is parked here right now" just by opening an occupied bay and
+    // pressing save.
+    reasonField.value = selectedSlot.raw_unavailable_reason || "";
   }
 
   syncSlotReasonField();
@@ -3288,7 +3851,68 @@ function syncAdminCsrfFields() {
   });
 }
 
+/**
+ * Raise a dismissing alert for a save that just succeeded or failed.
+ *
+ * Every outcome in the dashboard already funnels through showStatus(), which
+ * writes to a line that only renders on the Slots and Feedback sections, so
+ * saving settings, a user or a booth teller confirmed nothing at all. This is
+ * called from there, which means all of those call sites are covered without
+ * each one having to be found and changed.
+ */
+function showAlert(message, isError = false) {
+  const stack = document.getElementById("admin-toast-stack");
+  const text = String(message || "").trim();
+
+  if (!stack || text === "") {
+    return;
+  }
+
+  const toast = document.createElement("div");
+  toast.className = `admin-toast${isError ? " is-error" : ""}`;
+
+  const icon = document.createElement("i");
+  icon.className = `admin-toast__icon fa-solid ${isError ? "fa-circle-exclamation" : "fa-circle-check"}`;
+  icon.setAttribute("aria-hidden", "true");
+
+  const body = document.createElement("p");
+  body.className = "admin-toast__message";
+  // textContent, not innerHTML: some of these messages carry a server string.
+  body.textContent = text;
+
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "admin-toast__close";
+  close.setAttribute("aria-label", "Dismiss alert");
+  close.textContent = "×";
+
+  let dismissed = false;
+  const dismiss = () => {
+    if (dismissed) {
+      return;
+    }
+    dismissed = true;
+    window.clearTimeout(timer);
+    toast.classList.add("is-leaving");
+    window.setTimeout(() => toast.remove(), 200);
+  };
+
+  // An error stays up longer: it is likely to be read, and often copied.
+  const timer = window.setTimeout(dismiss, isError ? 9000 : 5000);
+  close.addEventListener("click", dismiss);
+
+  toast.append(icon, body, close);
+  stack.appendChild(toast);
+
+  // Keep the stack from growing without bound during a burst of saves.
+  while (stack.children.length > 4) {
+    stack.firstElementChild?.remove();
+  }
+}
+
 function showStatus(message, isError = false) {
+  showAlert(message, isError);
+
   if (!refs.globalStatus) {
     return;
   }
@@ -3309,6 +3933,34 @@ function setText(id, value) {
   const element = document.getElementById(id);
   if (element) {
     element.textContent = value;
+  }
+}
+
+/**
+ * Who is signed in, in the header badge and in the sidebar.
+ *
+ * The sidebar carries the email as well: several staff accounts share a
+ * display name, and the address is the only part that says which account the
+ * session actually belongs to -- which matters before you change a setting.
+ */
+function renderAdminIdentity(session) {
+  const name = session?.fullName || session?.email || "Administrator";
+  const email = session?.email || "";
+
+  if (refs.sessionName) {
+    refs.sessionName.textContent = name;
+  }
+
+  if (refs.sidebarName) {
+    refs.sidebarName.textContent = name;
+    refs.sidebarName.title = name;
+  }
+
+  if (refs.sidebarEmail) {
+    // The address is truncated with an ellipsis, so the full one lives on the
+    // title where it can still be read.
+    refs.sidebarEmail.textContent = email || "No email on this account";
+    refs.sidebarEmail.title = email;
   }
 }
 

@@ -1,0 +1,379 @@
+/* ============================================================================
+   responsive.css — shared small-screen layer for the console pages
+   (user dashboard, admin dashboard, parking booth) and the auth pages.
+
+   Loaded LAST on each page so it can override the per-page stylesheets.
+
+   What it does
+   1. Turns each console sidebar into an off-canvas drawer on phones/tablets,
+      driven by a sticky top bar with a menu button (see js/mobile-nav.js).
+      Breakpoints match the width at which each page already collapses its
+      sidebar grid: 1080px for the user/admin dashboards, 1220px for the booth.
+   2. Keeps data tables scrollable inside their cards instead of widening the
+      page.
+   3. Stops iOS Safari from zooming into form fields on focus (font-size ≥16px).
+   4. Gives tap targets a sane minimum size on touch devices.
+   ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   Desktop defaults: the mobile chrome does not exist.
+   ------------------------------------------------------------------------- */
+.mobile-topbar,
+.mobile-nav-backdrop,
+.mobile-nav-close {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Drawer chrome — shared rules. Activated by the media blocks further down,
+   which only add `display` / positioning. Kept together so both breakpoints
+   share one definition.
+   ------------------------------------------------------------------------- */
+.mobile-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 900;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.6rem 1rem;
+  padding-top: max(0.6rem, env(safe-area-inset-top));
+  background: rgba(255, 255, 255, 0.94);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.mobile-topbar__logo {
+  flex: 0 0 auto;
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: 0.75rem;
+  object-fit: contain;
+  background: #0f172a;
+  padding: 0.25rem;
+  box-sizing: border-box;
+}
+
+.mobile-topbar__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-topbar__title small {
+  display: block;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.mobile-nav-toggle,
+.mobile-nav-close {
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 0.9rem;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.mobile-nav-toggle {
+  display: inline-flex;
+}
+
+.mobile-nav-toggle:active,
+.mobile-nav-close:active {
+  background: #f1f5f9;
+}
+
+.mobile-nav-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1290;
+  background: rgba(15, 23, 42, 0.48);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+body.nav-open .mobile-nav-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ---------------------------------------------------------------------------
+   User + admin dashboards collapse at 1080px.
+   ------------------------------------------------------------------------- */
+@media (max-width: 1080px) {
+  .dashboard-layout > .mobile-topbar,
+  .admin-shell > .mobile-topbar {
+    display: flex;
+  }
+
+  .dashboard-layout > .mobile-nav-backdrop,
+  .admin-shell > .mobile-nav-backdrop {
+    display: block;
+  }
+
+  .dashboard-sidebar,
+  .admin-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1300;
+    box-sizing: border-box;
+    width: min(320px, 86vw);
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    max-height: none;
+    margin: 0;
+    padding-top: 3.4rem;
+    border: none;
+    border-radius: 0 1.5rem 1.5rem 0;
+    background: #ffffff;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    transform: translateX(-108%);
+    visibility: hidden;
+    transition: transform 0.28s ease, visibility 0s linear 0.28s;
+  }
+
+  body.nav-open .dashboard-sidebar,
+  body.nav-open .admin-sidebar {
+    transform: none;
+    visibility: visible;
+    transition: transform 0.28s ease, visibility 0s;
+  }
+
+  .dashboard-sidebar .mobile-nav-close,
+  .admin-sidebar .mobile-nav-close {
+    display: inline-flex;
+    position: absolute;
+    top: 0.65rem;
+    right: 0.65rem;
+    z-index: 2;
+  }
+
+  /* The per-page mobile rules turned the nav into a 2/3-column grid of tall
+     tiles; inside a drawer it goes back to a plain vertical list. */
+  .dashboard-sidebar .sidebar-nav,
+  .admin-sidebar .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .dashboard-sidebar .sidebar-link,
+  .dashboard-sidebar .sidebar-action {
+    min-height: 48px;
+  }
+
+  .dashboard-sidebar .sidebar-profile {
+    min-height: 0;
+    padding: 1rem 0.9rem;
+  }
+
+  .admin-sidebar .sidebar-footer {
+    margin-top: 1.25rem;
+  }
+
+  .dashboard-layout {
+    padding-top: 0;
+  }
+
+  .dashboard-page {
+    padding-top: 1rem;
+  }
+
+  .admin-shell {
+    padding-top: 0;
+  }
+
+  .admin-workspace {
+    padding: 1rem 1rem 2rem;
+  }
+
+  .workspace-header h2 {
+    font-size: clamp(1.6rem, 5vw, 2.2rem);
+  }
+
+  body.nav-open {
+    overflow: hidden;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Parking booth collapses at 1220px (its own grid breakpoint).
+   ------------------------------------------------------------------------- */
+@media (max-width: 1220px) {
+  .booth-shell > .mobile-topbar {
+    display: flex;
+  }
+
+  .booth-shell > .mobile-nav-backdrop {
+    display: block;
+  }
+
+  .booth-shell {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .booth-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1300;
+    box-sizing: border-box;
+    width: min(320px, 86vw);
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    margin: 0;
+    padding-top: 3.4rem;
+    border: none;
+    border-radius: 0 1.5rem 1.5rem 0;
+    background: #ffffff;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    transform: translateX(-108%);
+    visibility: hidden;
+    transition: transform 0.28s ease, visibility 0s linear 0.28s;
+  }
+
+  body.nav-open .booth-sidebar {
+    transform: none;
+    visibility: visible;
+    transition: transform 0.28s ease, visibility 0s;
+  }
+
+  .booth-sidebar .mobile-nav-close {
+    display: inline-flex;
+    position: absolute;
+    top: 0.65rem;
+    right: 0.65rem;
+    z-index: 2;
+  }
+
+  /* Desktop pins Logout to the bottom with an 80vh top block; that is what
+     left a screen of empty space on phones. */
+  .booth-sidebar-top {
+    height: auto;
+  }
+
+  .booth-sidebar-bottom {
+    margin-top: 1.25rem;
+  }
+
+  .booth-sidebar .booth-nav {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .booth-workspace {
+    padding-top: 1rem;
+  }
+
+  body.nav-open {
+    overflow: hidden;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Tables: scroll inside the card, never widen the page.
+   ------------------------------------------------------------------------- */
+.table-shell,
+.chart-table {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* The disclosure tables under the dashboard charts are three narrow columns;
+   they never needed the 1080px floor the main tables use. */
+.chart-table .compact-table {
+  width: 100%;
+  min-width: 0;
+}
+
+/* The demand/floor analytics pair keeps two columns below the 1100px rule
+   that stacks the other charts, and a grid item's automatic minimum width
+   let the chart tables widen the whole page on phones. */
+.analytics-grid > * {
+  min-width: 0;
+}
+
+@media (max-width: 820px) {
+  .analytics-grid,
+  .analytics-grid-wide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Phones: stop focus-zoom, give fingers something to hit.
+   ------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+
+  .table-action-btn,
+  .toggle-btn,
+  .icon-btn,
+  .keypad-secondary {
+    min-height: 40px;
+  }
+}
+
+@media (pointer: coarse) {
+  .sidebar-link,
+  .booth-nav-button,
+  .action-btn,
+  .primary-btn,
+  .secondary-btn,
+  .logout-btn {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-sidebar,
+  .admin-sidebar,
+  .booth-sidebar,
+  .mobile-nav-backdrop {
+    transition: none;
+  }
+}

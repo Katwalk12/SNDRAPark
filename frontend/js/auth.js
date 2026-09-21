@@ -432,7 +432,11 @@ function buildAuthPayload(form) {
       plateNumber: (payload.plateNumber || "").trim().toUpperCase(),
       vehicleBrand: payload.vehicleBrand?.trim() || "",
       vehicleModel: payload.vehicleModel?.trim() || "",
-      vehicleColor: payload.vehicleColor?.trim() || ""
+      vehicleColor: payload.vehicleColor?.trim() || "",
+      // Human verification. The bait is forwarded too, so a headless browser
+      // that fills every input on the page trips the same wire a raw post does.
+      humanCheckAnswer: (payload.humanCheckAnswer || "").trim(),
+      extra_notes_hp: payload.extra_notes_hp || ""
     };
   }
 
@@ -759,6 +763,10 @@ document.addEventListener("submit", async (event) => {
     console.error("Authentication request failed.", error);
     setFormStatus(form, error.message || "Authentication request failed.", "error");
 
+    // A refusal may have spent the verification question, so whatever is
+    // listening gets a chance to fetch a fresh one.
+    form.dispatchEvent(new CustomEvent("sndra:auth-failed", { bubbles: false }));
+
     if (submitButton) {
       submitButton.disabled = false;
     }
@@ -769,3 +777,84 @@ document.addEventListener("submit", async (event) => {
 // may be left, and it must reach that verdict with exactly the rules the submit
 // handler applies - a second copy would drift.
 window.SndraAuthForms = { validateField, validateForm, clearFieldError };
+
+
+/* --- Human verification ---------------------------------------------------
+   The question is generated per visitor by backend/auth/human-check.php and
+   its answer is held server-side, so nothing on this page can be read to
+   solve it. A wrong answer spends one of three tries and then the server
+   requires a new question, which is why this refreshes on failure. */
+
+const HUMAN_CHECK_API = typeof window.getSndraBackendUrl === "function"
+  ? window.getSndraBackendUrl("/backend/auth/human-check.php")
+  : `${window.location.origin}/backend/auth/human-check.php`;
+
+async function loadHumanCheckQuestion() {
+  const questionNode = document.getElementById("human-check-question");
+
+  if (!questionNode) {
+    return;
+  }
+
+  questionNode.textContent = "loading question...";
+
+  try {
+    const response = await fetch(HUMAN_CHECK_API, {
+      method: "GET",
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+      // The session cookie carries the answer, so a cached question would be
+      // answered once and replayed.
+      cache: "no-store"
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || result?.success === false) {
+      throw new Error(result?.message || "Could not load a verification question.");
+    }
+
+    questionNode.textContent = result?.data?.question || "";
+  } catch (error) {
+    // Say so rather than leaving "loading..." on screen forever; the server
+    // refuses the sign-up without an answer either way.
+    questionNode.textContent = "could not load a question - please refresh the page";
+  }
+}
+
+function initHumanCheck() {
+  const block = document.getElementById("human-check-block");
+
+  if (!block) {
+    return;
+  }
+
+  loadHumanCheckQuestion();
+
+  document.getElementById("human-check-refresh")?.addEventListener("click", () => {
+    const answerField = document.getElementById("human-check-answer");
+
+    if (answerField) {
+      answerField.value = "";
+    }
+
+    loadHumanCheckQuestion();
+  });
+
+  // A refused sign-up may have spent the challenge, so the form asks for a
+  // fresh one instead of leaving a question the server will no longer accept.
+  document.getElementById("signup-form")?.addEventListener("sndra:auth-failed", () => {
+    loadHumanCheckQuestion();
+    const answerField = document.getElementById("human-check-answer");
+
+    if (answerField) {
+      answerField.value = "";
+    }
+  });
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initHumanCheck);
+} else {
+  initHumanCheck();
+}

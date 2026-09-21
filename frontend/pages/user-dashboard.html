@@ -47,11 +47,18 @@
   <link rel="stylesheet" href="../css/user-dashboard.css?v=20260901-nav2">
   <link rel="stylesheet" href="../css/components.css?v=20260824-ds1">
   <link rel="stylesheet" href="../css/user-dashboard.refine.css?v=20260830-attrib1">
+  <link rel="stylesheet" href="../css/responsive.css?v=20260912-resp1">
 </head>
 <body>
   <div class="dashboard-shell">
     <div class="dashboard-layout">
-      <aside class="dashboard-sidebar" aria-label="Dashboard sidebar">
+      <header class="mobile-topbar">
+        <img class="mobile-topbar__logo" src="../../assets/images/brand-mark.png" alt="">
+        <p class="mobile-topbar__title"><small>Member</small><span>SNDRA Park</span></p>
+        <button class="mobile-nav-toggle" type="button" data-mobile-nav-toggle data-mobile-nav-breakpoint="1080" aria-controls="dashboard-sidebar" aria-expanded="false" aria-label="Open menu"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
+      </header>
+      <aside class="dashboard-sidebar" id="dashboard-sidebar" data-mobile-nav-drawer aria-label="Dashboard sidebar">
+        <button class="mobile-nav-close" type="button" data-mobile-nav-close aria-label="Close menu"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
         <div class="sidebar-profile sidebar-profile-text-only" id="dashboard-profile-card">
           <div class="profile-copy">
             <p class="profile-eyebrow">Member Access</p>
@@ -103,6 +110,7 @@
           </button>
         </nav>
       </aside>
+      <div class="mobile-nav-backdrop" data-mobile-nav-close></div>
 
       <main class="dashboard-page">
         <div class="page-utility-bar" aria-hidden="false">
@@ -190,6 +198,15 @@
                     </div>
                     <button class="monitor-nav-button" id="monitor-next-page" type="button" aria-label="Show next parking slots"><i class="bi bi-arrow-right" aria-hidden="true"></i></button>
                   </div>
+
+                  <!-- Shown only when this floor has sensors that have stopped
+                       reporting. A quiet rig means availability falls back to
+                       booking data, and a driver deserves to know that a bay
+                       shown as free might still have a car in it. -->
+                  <p class="sensor-offline-banner" id="sensor-offline-banner" role="status" hidden>
+                    <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                    <span id="sensor-offline-banner-text"></span>
+                  </p>
 
                   <div class="monitor-viewport parking-lot-viewport">
                     <div class="monitor-grid-overlay"></div>
@@ -629,11 +646,13 @@
   </div>
 
   <script src="../../assets/js/runtime-config.js?v=20260830-attrib1"></script>
+  <script src="../../assets/js/csrf.js?v=20260917-csrf1"></script>
   <script src="../../assets/js/system-settings.js?v=20260829-title1"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <script src="../../assets/js/notifications.js?v=20260331-6"></script>
   <script src="../../assets/js/session-guard.js"></script>
   <script src="../js/user-dashboard.js?v=20260901-nav1"></script>
+  <script src="../js/mobile-nav.js?v=20260912-resp1"></script>
 </body>
 </html>

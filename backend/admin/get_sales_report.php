@@ -389,7 +389,5 @@ try {
     ]);
 } catch (Throwable $exception) {
     admin_log('get-sales-report-failed', ['error' => $exception->getMessage()]);
-    admin_error('Failed to load the sales report.', 500, [
-        'details' => $exception->getMessage()
-    ]);
+    admin_error('Failed to load the sales report.', 500, admin_debug_details($exception));
 }

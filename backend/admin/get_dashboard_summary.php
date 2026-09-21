@@ -229,7 +229,5 @@ try {
     ]);
 } catch (Throwable $exception) {
     admin_log('get-dashboard-summary-failed', ['error' => $exception->getMessage()]);
-    admin_error('Failed to load dashboard summary.', 500, [
-        'details' => $exception->getMessage()
-    ]);
+    admin_error('Failed to load dashboard summary.', 500, admin_debug_details($exception));
 }

@@ -122,8 +122,8 @@ try {
     ]);
 
     admin_error(
-        $exception->getMessage() ?: 'Failed to delete floor.',
+        admin_safe_error_message($exception, $status, 'Failed to delete floor.'),
         $status,
-        $status >= 500 ? ['details' => $exception->getMessage()] : []
+        admin_debug_details($exception)
     );
 }

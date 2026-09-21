@@ -93,7 +93,5 @@ try {
     admin_log('get-reservations-failed', [
         'error' => $exception->getMessage()
     ]);
-    admin_error('Failed to load reservations.', 500, [
-        'details' => $exception->getMessage()
-    ]);
+    admin_error('Failed to load reservations.', 500, admin_debug_details($exception));
 }

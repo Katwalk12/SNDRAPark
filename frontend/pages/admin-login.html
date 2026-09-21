@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="../css/design-system.css?v=20260824-ds1">
   <link rel="stylesheet" href="../css/admin-login.css?v=20260901-minimal2">
   <link rel="stylesheet" href="../css/auth.refine.css?v=20260824-ds1">
+  <link rel="stylesheet" href="../css/responsive.css?v=20260912-resp1">
 </head>
 <body>
   <main class="staff-auth-shell">
@@ -46,16 +47,17 @@
             <input id="admin-password" name="password" class="auth-input" type="password" autocomplete="current-password">
           </div>
 
-          <button class="primary-btn" type="submit">Sign in</button>
+          <!-- Tripwire. Not type="hidden": scripted clients skip those, and
+               the point is to be found by something that walks the form.
+               Hidden from sight, from the tab order, and from assistive
+               technology, so no person can put anything in it -- anything that
+               arrives filled came from a script. See backend/admin/security-trap.php. -->
+          <div class="trap-field" aria-hidden="true">
+            <label for="admin-notes-hp">Leave this field empty</label>
+            <input id="admin-notes-hp" name="admin_notes_hp" type="text" tabindex="-1" autocomplete="off">
+          </div>
 
-          <!-- Appears only after the server asks for the emailed second factor. -->
-          <section class="two-factor-step" id="admin-2fa-step" hidden>
-            <div class="field-group">
-              <label for="admin-2fa-code">6-digit code</label>
-              <input class="auth-input code-input" id="admin-2fa-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
-            </div>
-            <button class="primary-btn" id="admin-2fa-submit" type="button">Verify and sign in</button>
-          </section>
+          <button class="primary-btn" type="submit">Sign in</button>
 
           <p class="form-status" id="admin-login-status" aria-live="polite"></p>
         </form>
@@ -64,6 +66,32 @@
       </div>
     </section>
   </main>
+
+  <!-- Raised only after the server accepts the password and asks for the
+       emailed code. The backdrop blurs the form behind it so the half-finished
+       sign-in is visibly on hold rather than still waiting for input. -->
+  <div class="two-factor-modal" id="admin-2fa-modal" hidden>
+    <div class="two-factor-modal__backdrop" data-2fa-dismiss></div>
+
+    <section class="two-factor-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="admin-2fa-title">
+      <button class="two-factor-modal__close" id="admin-2fa-cancel" type="button" aria-label="Cancel sign-in">&times;</button>
+
+      <p class="section-kicker">Two-step verification</p>
+      <h2 id="admin-2fa-title">Enter your 6-digit code</h2>
+      <p class="two-factor-modal__hint" id="admin-2fa-hint">We emailed a code to your administrator address.</p>
+
+      <div class="field-group">
+        <label for="admin-2fa-code">6-digit code</label>
+        <input class="auth-input code-input" id="admin-2fa-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+      </div>
+
+      <button class="primary-btn" id="admin-2fa-submit" type="button">Verify and sign in</button>
+
+      <!-- The login form's own status line is behind the blur, so the dialog
+           carries its own. -->
+      <p class="form-status" id="admin-2fa-status" aria-live="polite"></p>
+    </section>
+  </div>
 
   <script src="../../assets/js/runtime-config.js?v=20260830-attrib1"></script>
   <script src="../../assets/js/system-settings.js?v=20260829-title1"></script>
