@@ -39,7 +39,7 @@
   box-sizing: border-box;
   padding: 0.6rem 1rem;
   padding-top: max(0.6rem, env(safe-area-inset-top));
-  background: rgba(255, 255, 255, 0.94);
+  background: color-mix(in srgb, var(--ds-surface) 94%, transparent);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
@@ -51,7 +51,7 @@
   height: 2.3rem;
   border-radius: 0.75rem;
   object-fit: contain;
-  background: #111111;
+  background: var(--ds-brand);
   padding: 0.25rem;
   box-sizing: border-box;
 }
@@ -63,7 +63,7 @@
   font-size: 0.95rem;
   font-weight: 700;
   line-height: 1.2;
-  color: #111111;
+  color: var(--ds-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -75,7 +75,7 @@
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--ds-text-faint);
 }
 
 .mobile-nav-toggle,
@@ -88,8 +88,8 @@
   padding: 0;
   border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 0.9rem;
-  background: #ffffff;
-  color: #111111;
+  background: var(--ds-surface);
+  color: var(--ds-text);
   font-size: 1.15rem;
   line-height: 1;
   cursor: pointer;
@@ -102,7 +102,7 @@
 
 .mobile-nav-toggle:active,
 .mobile-nav-close:active {
-  background: var(--ds-ink-100);
+  background: var(--ds-surface-muted);
 }
 
 .mobile-nav-backdrop {
@@ -151,7 +151,7 @@ body.nav-open .mobile-nav-backdrop {
     padding-top: 3.4rem;
     border: none;
     border-radius: 0 1.5rem 1.5rem 0;
-    background: #ffffff;
+    background: var(--ds-surface);
     box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
@@ -260,7 +260,7 @@ body.nav-open .mobile-nav-backdrop {
     padding-top: 3.4rem;
     border: none;
     border-radius: 0 1.5rem 1.5rem 0;
-    background: #ffffff;
+    background: var(--ds-surface);
     box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;

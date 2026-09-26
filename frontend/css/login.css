@@ -42,8 +42,8 @@
 }
 
 .google-btn:hover {
-  border-color: var(--ds-ink-400);
-  background: var(--ds-ink-50);
+  border-color: var(--ds-border-strong);
+  background: var(--ds-bg);
 }
 
 .google-icon {

@@ -1,11 +1,11 @@
 :root {
   /* Page-local names kept so the rest of this sheet needs no rewrite; every
      one now resolves to the shared ramp in design-system.css. */
-  --bg-main: var(--ds-ink-200);
-  --bg-panel: var(--ds-white);
-  --bg-soft: var(--ds-ink-100);
-  --border-soft: var(--ds-ink-200);
-  --border-strong: var(--ds-ink-300);
+  --bg-main: var(--ds-bg);
+  --bg-panel: var(--ds-surface);
+  --bg-soft: var(--ds-surface-muted);
+  --border-soft: var(--ds-border);
+  --border-strong: var(--ds-border-strong);
   --text-main: var(--ds-text);
   --text-muted: var(--ds-text-muted);
   --text-faint: var(--ds-text-faint);
@@ -408,7 +408,7 @@ a {
   border: 1px solid var(--border-soft);
   border-radius: 0.95rem;
   color: var(--text-main);
-  background: #FFFFFF;
+  background: var(--ds-surface);
   transition: all 0.2s ease;
 }
 
@@ -420,7 +420,7 @@ a {
 .field-group select option,
 .toolbar-form select option {
   color: var(--text-main);
-  background: #FFFFFF;
+  background: var(--ds-surface);
 }
 
 .field-group input[readonly] {
@@ -434,7 +434,7 @@ a {
 
 .slot-editor-select-danger option {
   color: var(--danger);
-  background: #FFFFFF;
+  background: var(--ds-surface);
 }
 
 .field-group textarea {
@@ -467,7 +467,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 .primary-btn {
   background: var(--success);
-  color: #FFFFFF;
+  color: var(--ds-text-on-dark);
   border: none;
   box-shadow: 0 4px 12px rgba(76, 209, 214, 0.2);
 }
@@ -476,7 +476,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .table-action-btn,
 .toggle-btn,
 .icon-btn {
-  background: #FFFFFF;
+  background: var(--ds-surface);
   border-color: var(--border-strong);
 }
 
@@ -1149,13 +1149,13 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 .floor-browser-card.is-selected,
 .slot-browser-card.is-selected {
-  border-color: rgba(255, 255, 255, 0.24);
+  border-color: color-mix(in srgb, var(--ds-surface) 24%, transparent);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 18px 32px rgba(0, 0, 0, 0.32);
 }
 
 .slot-browser-card:hover,
 .floor-browser-card:hover {
-  border-color: rgba(255, 255, 255, 0.16);
+  border-color: color-mix(in srgb, var(--ds-surface) 16%, transparent);
 }
 
 .slot-browser-card-main:hover {

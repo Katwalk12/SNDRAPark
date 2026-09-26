@@ -60,7 +60,7 @@
 .auth-aside {
   position: relative;
   overflow: hidden;
-  background-color: var(--ds-ink-950);
+  background-color: var(--ds-brand);
   color: var(--ds-white);
 }
 
@@ -240,7 +240,7 @@
 .field-label {
   font-size: var(--ds-text-sm);
   font-weight: 500;
-  color: var(--ds-ink-700);
+  color: var(--ds-text);
 }
 
 .field-optional {
@@ -307,7 +307,7 @@
 .password-toggle:hover,
 .field-icon:hover {
   color: var(--ds-text);
-  background: var(--ds-ink-100);
+  background: var(--ds-surface-muted);
 }
 
 .password-toggle svg,
@@ -418,7 +418,7 @@
   margin: 0;
   padding: var(--ds-space-3);
   border-radius: var(--ds-radius-sm);
-  background: var(--ds-ink-100);
+  background: var(--ds-surface-muted);
   font-size: var(--ds-text-sm);
   color: var(--ds-text-muted);
 }

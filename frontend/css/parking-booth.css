@@ -1,9 +1,9 @@
 :root {
-  --bg-dark: var(--ds-ink-200);
-  --bg-panel: var(--ds-white);
-  --bg-soft: var(--ds-ink-100);
-  --border-soft: var(--ds-ink-200);
-  --border-strong: var(--ds-ink-300);
+  --bg-dark: var(--ds-bg);
+  --bg-panel: var(--ds-surface);
+  --bg-soft: var(--ds-surface-muted);
+  --border-soft: var(--ds-border);
+  --border-strong: var(--ds-border-strong);
   --text-main: var(--ds-text);
   --text-muted: var(--ds-text-muted);
   --text-faint: var(--ds-text-faint);
@@ -336,21 +336,30 @@ button {
   font-size: 0.9rem;
 }
 
+/* Every field on the booth console uses this class -- barcode, plate, floor,
+   slot, discount and tender. It kept the styling from when the console was a
+   dark panel: white text on a 3%-white fill. Against today's light panel that
+   is white on white, so a teller could not read what they had typed. Now on
+   the surface tokens, which means it also follows the theme. */
 .scanner-input {
   width: 100%;
   padding: 1rem 1.05rem;
   border: 1px solid var(--border-strong);
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.03);
-  color: #ffffff;
+  background: var(--ds-surface);
+  color: var(--ds-text);
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
+.scanner-input::placeholder {
+  color: var(--ds-text-disabled);
+}
+
 .scanner-input:focus {
-  border-color: rgba(255, 255, 255, 0.38);
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--ds-accent);
+  box-shadow: var(--ds-focus-ring);
+  background: var(--ds-surface);
 }
 
 .primary-btn,

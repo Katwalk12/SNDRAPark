@@ -128,7 +128,7 @@
 }
 
 .ghost-btn:hover {
-  border-color: var(--ds-ink-400);
+  border-color: var(--ds-border-strong);
   color: var(--ds-text);
 }
 
@@ -212,7 +212,7 @@
 .meter-segment {
   height: 4px;
   border-radius: var(--ds-radius-full);
-  background: var(--ds-ink-200);
+  background: var(--ds-surface-sunken);
   transform-origin: left center;
   transition: background-color var(--ds-transition), transform var(--ds-transition);
 }
@@ -344,7 +344,7 @@
 
 .plate-number {
   padding: var(--ds-space-2) var(--ds-space-4);
-  color: var(--ds-ink-950);
+  color: var(--ds-text);
   font-size: var(--ds-text-lg);
   font-weight: 700;
   letter-spacing: 0.12em;

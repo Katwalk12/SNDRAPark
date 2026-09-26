@@ -96,12 +96,12 @@
   border-radius: var(--ds-radius-md);
   font-size: var(--ds-text-md);
   font-weight: 500;
-  color: var(--ds-ink-700);
+  color: var(--ds-text);
   text-decoration: none;
 }
 
 .sidebar-link:hover {
-  background: var(--ds-ink-100);
+  background: var(--ds-surface-muted);
   color: var(--ds-text);
 }
 
@@ -121,7 +121,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--ds-ink-500);
+  color: var(--ds-text-faint);
 }
 
 .sidebar-profile {
@@ -319,7 +319,7 @@
   border: 1px solid #FDE68A !important;
   border-left: 3px solid var(--ds-warning) !important;
   background: var(--ds-warning-soft) !important;
-  color: var(--ds-ink-800) !important;
+  color: var(--ds-text) !important;
   box-shadow: none !important;
 }
 
@@ -411,7 +411,7 @@
 }
 
 .modal-form .field-group input[readonly] {
-  background: var(--ds-ink-50) !important;
+  background: var(--ds-bg) !important;
   color: var(--ds-text-muted) !important;
 }
 
@@ -443,8 +443,8 @@
 .slot-card .slot-meta { color: var(--ds-text-muted); font-size: var(--ds-text-2xs); }
 
 .slot-card .slot-status {
-  color: color-mix(in srgb, var(--tone, var(--ds-ink-700)) 78%, black);
-  background: color-mix(in srgb, var(--tone, var(--ds-ink-200)) 16%, var(--ds-white));
+  color: color-mix(in srgb, var(--tone, var(--ds-text)) 78%, black);
+  background: color-mix(in srgb, var(--tone, var(--ds-surface-sunken)) 16%, var(--ds-white));
   border-radius: var(--ds-radius-full);
   padding: 0.2rem 0.55rem;
 }
@@ -852,6 +852,6 @@
 }
 
 .footer-attribution strong {
-  color: var(--ds-text, #111111);
+  color: var(--ds-text, var(--ds-text));
   font-weight: 600;
 }

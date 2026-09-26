@@ -1,10 +1,10 @@
 :root {
-  --page-bg: var(--ds-ink-200);
-  --panel-bg: rgba(255, 255, 255, 0.92);
+  --page-bg: var(--ds-bg);
+  --panel-bg: color-mix(in srgb, var(--ds-surface) 92%, transparent);
   --ink: var(--ds-text);
   --muted: var(--ds-text-muted);
-  --line: rgba(17, 17, 17, 0.1);
-  --line-strong: rgba(17, 17, 17, 0.18);
+  --line: var(--ds-border);
+  --line-strong: var(--ds-border-strong);
   --danger: var(--ds-danger);
   --success: var(--ds-success);
   --shadow: 0 28px 80px rgba(17, 17, 17, 0.16);
@@ -102,7 +102,7 @@ button {
   padding: 0.65rem 0.9rem;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: #FFFFFF;
+  background: var(--ds-surface);
   color: var(--muted);
   font-size: 0.86rem;
   transition: transform 160ms ease, border-color 160ms ease, color 160ms ease;
@@ -175,7 +175,7 @@ button {
   place-items: center;
   border: 1px solid var(--line);
   border-radius: 18px;
-  background: #FFFFFF;
+  background: var(--ds-surface);
   color: var(--ink);
   font-size: 1.35rem;
   font-weight: 800;
@@ -185,8 +185,8 @@ button {
 
 .pin-display span.is-filled {
   border-color: rgba(17, 17, 17, 0.28);
-  background: #111111;
-  color: #FFFFFF;
+  background: var(--ds-brand);
+  color: var(--ds-text-invert);
   transform: translateY(-1px);
 }
 
@@ -206,7 +206,7 @@ button {
 }
 
 .pin-keypad button {
-  background: #FFFFFF;
+  background: var(--ds-surface);
   color: var(--ink);
   font-size: 1.15rem;
   font-weight: 800;
@@ -233,8 +233,8 @@ button {
 
 .primary-btn {
   width: 100%;
-  background: #111111;
-  color: #FFFFFF;
+  background: var(--ds-brand);
+  color: var(--ds-text-invert);
   font-weight: 800;
   box-shadow: 0 18px 38px rgba(17, 17, 17, 0.2);
 }
@@ -242,7 +242,7 @@ button {
 .primary-btn:hover,
 .primary-btn:focus-visible {
   transform: translateY(-1px);
-  background: #0B1220;
+  background: var(--ds-brand-hover);
   outline: none;
 }
 

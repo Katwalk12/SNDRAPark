@@ -1,9 +1,9 @@
 :root {
-  --panel-bg: var(--ds-ink-100);
-  --bg-main: var(--ds-ink-100);
-  --bg-sidebar: var(--ds-white);
-  --bg-card: var(--ds-white);
-  --panel-fade: rgba(244, 244, 244, 0.9);
+  --panel-bg: var(--ds-surface-muted);
+  --bg-main: var(--ds-bg);
+  --bg-sidebar: var(--ds-surface);
+  --bg-card: var(--ds-surface);
+  --panel-fade: color-mix(in srgb, var(--ds-bg) 90%, transparent);
   --text-color: var(--ds-text);
   --muted-text: var(--ds-text-muted);
   --border-color: var(--ds-border-strong);
@@ -31,7 +31,7 @@ body {
   margin: 0;
   min-height: 100vh;
   font-family: "Montserrat", "Segoe UI", sans-serif;
-  background: #FAFAFA;
+  background: var(--ds-bg);
   color: var(--text-color);
 }
 
@@ -192,7 +192,7 @@ button {
   place-items: center;
   border: none;
   background: var(--accent);
-  color: #FFFFFF;
+  color: var(--ds-text-on-dark);
   box-shadow: 0 8px 24px rgba(77, 208, 209, 0.3);
   font-family: "Montserrat", "Segoe UI", sans-serif;
   font-size: 1.7rem;
@@ -510,7 +510,7 @@ button {
 
 .section-utility-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: color-mix(in srgb, var(--ds-surface) 22%, transparent);
   background-color: rgba(255, 255, 255, 0.06);
 }
 
@@ -595,7 +595,7 @@ button {
   padding: 1.1rem 0.9rem;
   border: 1px solid var(--border-soft);
   border-radius: 1.35rem;
-  background: #FFFFFF;
+  background: var(--ds-surface);
   color: var(--text-color);
   cursor: pointer;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.03);
@@ -604,7 +604,7 @@ button {
 
 .floor-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.28);
+  border-color: color-mix(in srgb, var(--ds-surface) 28%, transparent);
 }
 
 .floor-card.is-selected {
@@ -638,7 +638,7 @@ button {
   padding: 0.58rem 0.9rem;
   border: 1px solid var(--soft-border);
   border-radius: 999px;
-  background: #FFFFFF;
+  background: var(--ds-surface);
   color: var(--muted-text);
 }
 
@@ -691,7 +691,7 @@ button {
 .summary-sheet {
   border: 1px solid var(--border-soft);
   border-radius: 1.7rem;
-  background: #FFFFFF;
+  background: var(--ds-surface);
   box-shadow: var(--shadow-soft);
 }
 
@@ -709,7 +709,7 @@ button {
   width: 54px;
   height: 6px;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.04));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ds-surface) 24%, transparent), rgba(255, 255, 255, 0.04));
   opacity: 0.9;
 }
 
@@ -841,7 +841,7 @@ button {
   padding: 1.15rem;
   border: 1px solid var(--border-soft);
   border-radius: 1.55rem;
-  background: #FFFFFF;
+  background: var(--ds-surface);
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.03),
     inset 0 0 34px rgba(255, 255, 255, 0.03),
@@ -887,7 +887,7 @@ button {
   min-height: 84px;
   padding: 0.85rem 0.7rem;
   border-radius: 1.1rem;
-  background: #FFFFFF;
+  background: var(--ds-surface);
 }
 
 .floor-grid.floor-grid-inline.monitor-floor-grid .floor-card strong {
@@ -930,7 +930,7 @@ button {
   position: absolute;
   width: 22px;
   height: 22px;
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: color-mix(in srgb, var(--ds-surface) 20%, transparent);
   border-style: solid;
 }
 
@@ -1023,7 +1023,7 @@ button {
 
 .monitor-nav-button:hover:not(:disabled) {
   transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.24);
+  border-color: color-mix(in srgb, var(--ds-surface) 24%, transparent);
   background-color: rgba(255, 255, 255, 0.07);
 }
 
@@ -1161,7 +1161,7 @@ button {
   padding: 0.28rem 0.7rem;
   border: 1px solid var(--soft-border);
   border-radius: 999px;
-  background: #FFFFFF;
+  background: var(--ds-surface);
   color: var(--text-color);
   font-size: 0.68rem;
   letter-spacing: 0.14em;
@@ -1243,7 +1243,7 @@ button {
   left: 0;
   right: 0;
   height: 2px;
-  background: rgba(255, 255, 255, 0.16);
+  background: color-mix(in srgb, var(--ds-surface) 16%, transparent);
 }
 
 .parking-row-track::before {
@@ -1263,7 +1263,7 @@ button {
   padding: 1rem 0.8rem 0.75rem;
   border-radius: 1.2rem 1.2rem 0.85rem 0.85rem;
   border: 1px solid var(--soft-border);
-  background: #FFFFFF;
+  background: var(--ds-surface);
   min-height: 138px;
   text-align: left;
   color: var(--text-color);
@@ -1420,7 +1420,7 @@ button {
   height: 14px;
   margin-top: 0.45rem;
   border-radius: 999px;
-  background: #FFFFFF;
+  background: var(--ds-surface);
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.06);
 }
 
@@ -1640,7 +1640,7 @@ button {
 .action-btn-primary {
   border-color: transparent;
   background: var(--accent);
-  color: #ffffff;
+  color: var(--ds-text-on-dark);
   box-shadow: 0 8px 24px rgba(77, 208, 209, 0.3);
 }
 
@@ -1691,21 +1691,21 @@ button {
   margin-bottom: 1.2rem;
   padding: 1rem;
   border-radius: 1.3rem;
-  background: rgba(255, 255, 255, 0.98);
-  color: #111111;
+  background: color-mix(in srgb, var(--ds-surface) 98%, transparent);
+  color: var(--ds-text);
 }
 
 #barcode-canvas {
   width: 100%;
   height: auto;
-  background: #ffffff;
+  background: var(--ds-surface);
 }
 
 .barcode-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: #ffffff;
+  background: var(--ds-surface);
   padding: 20px;
 }
 
@@ -1967,7 +1967,7 @@ button {
 .control-panel-card {
   border: none;
   border-radius: 1.5rem;
-  background: #FFFFFF;
+  background: var(--ds-surface);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
 }
 
@@ -2124,9 +2124,9 @@ button {
   right: 1.25rem;
   z-index: 1;
   width: auto;
-  color: #222222;
-  background: #FFFFFF;
-  border: 1px solid #D4D4D4;
+  color: var(--ds-text);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border-strong);
   border-radius: 0.5rem;
   padding: 0.45rem 0.8rem;
   font-size: 0.75rem;
@@ -2213,27 +2213,27 @@ button {
 }
 
 .reservation-status-pill.is-pending {
-  background: #555555;
-  color: #FFFFFF;
+  background: var(--ds-text-muted);
+  color: var(--ds-surface);
   border: none;
 }
 
 .reservation-status-pill.is-active {
   background: #D97706;
-  color: #FFFFFF;
+  color: var(--ds-text-on-dark);
   border: none;
 }
 
 .reservation-status-pill.is-success {
   background: #10B981;
-  color: #FFFFFF;
+  color: var(--ds-text-on-dark);
   border: none;
 }
 
 .reservation-status-pill.is-expired,
 .reservation-status-pill.is-cancelled {
-  background: #555555;
-  color: #FFFFFF;
+  background: var(--ds-text-muted);
+  color: var(--ds-surface);
   border: none;
 }
 
@@ -2935,7 +2935,7 @@ button {
 }
 
 .text-white {
-  color: #ffffff;
+  color: var(--ds-text-on-dark);
 }
 
 .text-pearl\/70 {
@@ -3095,7 +3095,7 @@ button {
   padding: clamp(1rem, 2vw, 1.35rem);
   border: 1px solid var(--border-color);
   border-radius: 1.2rem;
-  background: #F4F4F4;
+  background: var(--ds-surface-muted);
   box-shadow: 0 16px 36px rgba(17, 17, 17, 0.06);
 }
 
@@ -3124,7 +3124,7 @@ button {
   padding: 1rem;
   border: 1px solid var(--border-color);
   border-radius: 1rem;
-  background: #FFFFFF;
+  background: var(--ds-surface);
   box-shadow: 0 12px 26px rgba(17, 17, 17, 0.06);
 }
 
@@ -3136,7 +3136,7 @@ button {
 }
 
 .vehicle-card-top strong {
-  color: #111111;
+  color: var(--ds-text);
   font-size: 1.15rem;
   line-height: 1.2;
   word-break: break-word;
@@ -3148,8 +3148,8 @@ button {
   gap: 0.4rem;
   padding: 0.42rem 0.7rem;
   border-radius: 999px;
-  background: #E7E7E7;
-  color: #111111;
+  background: var(--ds-surface-sunken);
+  color: var(--ds-text);
   font-size: 0.74rem;
   font-weight: 700;
 }
@@ -3164,12 +3164,12 @@ button {
   min-width: 0;
   padding: 0.75rem;
   border-radius: 0.8rem;
-  background: #FAFAFA;
+  background: var(--ds-bg);
 }
 
 .vehicle-detail-grid span {
   display: block;
-  color: #555555;
+  color: var(--ds-text-muted);
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -3179,7 +3179,7 @@ button {
 .vehicle-detail-grid strong {
   display: block;
   margin-top: 0.25rem;
-  color: #111111;
+  color: var(--ds-text);
   font-size: 0.86rem;
   overflow-wrap: anywhere;
 }
@@ -3477,7 +3477,7 @@ body {
   width: 54px;
   height: 4px;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(211, 176, 95, 0.18), rgba(255, 255, 255, 0.24));
+  background: linear-gradient(90deg, rgba(211, 176, 95, 0.18), color-mix(in srgb, var(--ds-surface) 24%, transparent));
 }
 
 .sidebar-nav {
@@ -3500,7 +3500,7 @@ body {
   width: 2.35rem;
   height: 2.35rem;
   border-radius: 1rem;
-  background: #FFFFFF;
+  background: var(--ds-surface);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
@@ -3696,7 +3696,7 @@ body {
   top: 13px;
   bottom: 13px;
   width: 2px;
-  background: rgba(255, 255, 255, 0.22);
+  background: color-mix(in srgb, var(--ds-surface) 22%, transparent);
 }
 
 .slot-card::before {
@@ -3755,7 +3755,7 @@ body {
 }
 
 .slot-card.available {
-  background: #FFFFFF;
+  background: var(--ds-surface);
 }
 
 .slot-card.available .slot-car-icon {
@@ -3763,7 +3763,7 @@ body {
 }
 
 .slot-card.reserved {
-  background: #FFFFFF;
+  background: var(--ds-surface);
 }
 
 .slot-card.reserved .slot-car-icon {
@@ -3771,7 +3771,7 @@ body {
 }
 
 .slot-card.occupied {
-  background: #FFFFFF;
+  background: var(--ds-surface);
 }
 
 .slot-card.occupied .slot-car-icon {
@@ -3779,7 +3779,7 @@ body {
 }
 
 .slot-card.inactive {
-  background: #FFFFFF;
+  background: var(--ds-surface);
 }
 
 .slot-card.inactive .slot-car-icon {
@@ -4059,7 +4059,7 @@ body {
   place-items: center;
   border-radius: 1rem;
   background: #4DD0D1;
-  color: #FFFFFF;
+  color: var(--ds-text-on-dark);
   font-size: 1.15rem;
   flex-shrink: 0;
 }
