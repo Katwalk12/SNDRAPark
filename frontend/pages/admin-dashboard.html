@@ -2,6 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <!-- Applies a stored theme choice before the first paint. Without this a
+       dark-mode visitor sees one white frame on every navigation. Absent or
+       unreadable storage falls through to the prefers-color-scheme media
+       query in design-system.css, which is the intended default. -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("sndrapark-theme");
+        if (t === "dark" || t === "light") {
+          document.documentElement.setAttribute("data-theme", t);
+        }
+      } catch (e) {}
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SNDRA Park | Admin Dashboard</title>
   <link rel="icon" type="image/png" href="../../assets/images/favicon.png">
@@ -23,11 +37,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-  <link rel="stylesheet" href="../css/design-system.css?v=20260926-palette1">
-  <link rel="stylesheet" href="../css/admin-dashboard.css?v=20260926-palette1">
-  <link rel="stylesheet" href="../css/components.css?v=20260926-palette1">
-  <link rel="stylesheet" href="../css/admin-dashboard.refine.css?v=20260926-palette1">
-  <link rel="stylesheet" href="../css/responsive.css?v=20260926-palette1">
+  <link rel="stylesheet" href="../css/design-system.css?v=20260926-theme1">
+  <link rel="stylesheet" href="../css/admin-dashboard.css?v=20260926-theme1">
+  <link rel="stylesheet" href="../css/components.css?v=20260926-theme1">
+  <link rel="stylesheet" href="../css/admin-dashboard.refine.css?v=20260926-theme1">
+  <link rel="stylesheet" href="../css/responsive.css?v=20260926-theme1">
 </head>
 <body>
   <main class="admin-shell">
@@ -1409,6 +1423,7 @@
   <script src="../../assets/js/system-settings.js?v=20260829-title1"></script>
   <script src="../js/admin-dashboard.js?v=20260901-ops1"></script>
   <script src="../js/mobile-nav.js?v=20260912-resp1"></script>
+  <script src="../../assets/js/theme.js?v=20260926-theme1"></script>
 </body>
 </html>
 

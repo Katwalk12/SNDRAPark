@@ -85,7 +85,7 @@
   letter-spacing: var(--ds-tracking-caps);
   text-transform: uppercase;
   color: var(--ds-text-faint);
-  background: var(--ds-ink-50);
+  background: var(--ds-bg);
   border-bottom: 1px solid var(--ds-border);
   white-space: nowrap;
 }
@@ -93,11 +93,11 @@
 .booth-table td {
   padding: var(--ds-space-3);
   border-bottom: 1px solid var(--ds-border);
-  color: var(--ds-ink-700);
+  color: var(--ds-text);
   vertical-align: middle;
 }
 
-.booth-table tbody tr:hover { background: var(--ds-ink-50); }
+.booth-table tbody tr:hover { background: var(--ds-surface-muted); }
 
 .booth-table td:first-child { font-variant-numeric: tabular-nums; }
 
@@ -119,7 +119,7 @@
   font-weight: 600;
   line-height: 1.4;
   background: var(--ds-neutral-soft);
-  color: var(--ds-ink-700);
+  color: var(--ds-text);
 }
 
 .status-pill.success, .table-status.available { background: var(--ds-success-soft); color: var(--ds-success); }
@@ -145,12 +145,12 @@
   border-radius: var(--ds-radius-md);
   font-size: var(--ds-text-md);
   font-weight: 500;
-  color: var(--ds-ink-700);
+  color: var(--ds-text);
   background: transparent;
   box-shadow: none;
 }
 
-.booth-nav-button:hover { background: var(--ds-ink-100); color: var(--ds-text); }
+.booth-nav-button:hover { background: var(--ds-surface-muted); color: var(--ds-text); }
 
 .booth-nav-button.active {
   background: var(--ds-brand);

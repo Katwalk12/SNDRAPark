@@ -19,10 +19,10 @@
   height: 3rem;
   display: inline-grid;
   place-items: center;
-  border: 1px solid #D4D4D4;
+  border: 1px solid var(--ds-border-strong);
   border-radius: 999px;
-  background: #FFFFFF;
-  color: #222222;
+  background: var(--ds-surface);
+  color: var(--ds-text);
   cursor: pointer;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
   transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
@@ -52,7 +52,7 @@
   border: 2px solid rgba(10, 10, 10, 0.95);
   border-radius: 999px;
   background: #e84855;
-  color: #ffffff;
+  color: var(--ds-text-on-dark);
   font-size: 0.68rem;
   font-weight: 700;
   line-height: 1;
@@ -70,9 +70,9 @@
   width: min(380px, calc(100vw - 2rem));
   max-height: min(70vh, 480px);
   overflow: hidden;
-  border: 1px solid #D4D4D4;
+  border: 1px solid var(--ds-border-strong);
   border-radius: 1.35rem;
-  background: #FFFFFF;
+  background: var(--ds-surface);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.06);
   font-family: 'Inter', sans-serif !important;
 }
@@ -83,7 +83,7 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem 1rem 0.9rem;
-  border-bottom: 1px solid #E7E7E7;
+  border-bottom: 1px solid var(--ds-border);
 }
 
 .notification-dropdown-header h3 {
@@ -94,7 +94,7 @@
 .notification-dropdown-kicker,
 .notification-item-time,
 .notification-dropdown-meta {
-  color: #777777;
+  color: var(--ds-text-faint);
   font-size: 0.72rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -127,9 +127,9 @@
   gap: 0.45rem;
   width: 100%;
   padding: 0.95rem 1rem;
-  border: 1px solid #E7E7E7;
+  border: 1px solid var(--ds-border);
   border-radius: 1.1rem;
-  background: #FFFFFF;
+  background: var(--ds-surface);
   text-align: left;
   color: inherit;
   cursor: pointer;
@@ -139,7 +139,7 @@
 
 .notification-item:hover {
   transform: translateY(-1px);
-  border-color: #D4D4D4;
+  border-color: var(--ds-border-strong);
 }
 
 .notification-item:focus-visible {
@@ -164,12 +164,12 @@
   margin: 0;
   font-size: 0.98rem;
   font-weight: 700;
-  color: #222222;
+  color: var(--ds-text);
 }
 
 .notification-item-message {
   margin: 0;
-  color: #777777;
+  color: var(--ds-text-faint);
   line-height: 1.68;
 }
 
@@ -197,9 +197,9 @@
 
 .notification-empty {
   padding: 1rem;
-  border: 1px dashed #D4D4D4;
+  border: 1px dashed var(--ds-border-strong);
   border-radius: 1rem;
-  color: #777777;
+  color: var(--ds-text-faint);
   text-align: center;
   line-height: 1.65;
 }
@@ -226,9 +226,9 @@
   overflow: hidden;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  border: 1px solid #D4D4D4;
+  border: 1px solid var(--ds-border-strong);
   border-radius: 1.45rem;
-  background: #FFFFFF;
+  background: var(--ds-surface);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.12);
   animation: notificationModalEnter 0.18s ease;
 }
@@ -255,18 +255,18 @@
 }
 
 .notification-modal-header {
-  border-bottom: 1px solid #E7E7E7;
+  border-bottom: 1px solid var(--ds-border);
 }
 
 .notification-modal-footer {
-  border-top: 1px solid #E7E7E7;
+  border-top: 1px solid var(--ds-border);
   justify-content: flex-end;
 }
 
 .notification-modal-kicker,
 .notification-modal-meta,
 .notification-detail-label {
-  color: #777777;
+  color: var(--ds-text-faint);
   font-size: 0.72rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -275,15 +275,15 @@
 .notification-modal-title {
   margin: 0.28rem 0 0;
   font-size: 1.25rem;
-  color: #222222;
+  color: var(--ds-text);
 }
 
 .notification-modal-close,
 .notification-modal-action {
-  border: 1px solid #D4D4D4;
+  border: 1px solid var(--ds-border-strong);
   border-radius: 999px;
-  background: #FFFFFF;
-  color: #222222;
+  background: var(--ds-surface);
+  color: var(--ds-text);
   cursor: pointer;
   transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
 }
@@ -331,9 +331,9 @@
 
 .notification-detail-card {
   padding: 0.95rem 1rem;
-  border: 1px solid #E7E7E7;
+  border: 1px solid var(--ds-border);
   border-radius: 1rem;
-  background: #FFFFFF;
+  background: var(--ds-surface);
 }
 
 .notification-detail-card strong,
@@ -343,7 +343,7 @@
 }
 
 .notification-detail-card p {
-  color: #555555;
+  color: var(--ds-text-muted);
   line-height: 1.75;
   white-space: pre-wrap;
 }

@@ -107,7 +107,7 @@ header.sticky,
 .booth-sidebar,
 .admin-sidebar {
   border: 1px solid var(--ds-border);
-  background: rgba(253, 253, 253, 0.86);
+  background: color-mix(in srgb, var(--ds-surface) 86%, transparent);
   box-shadow: var(--ds-shadow-sm);
   backdrop-filter: blur(22px);
 }
@@ -166,7 +166,7 @@ header.sticky {
 .table-action-btn:hover,
 .nav-link:hover,
 .nav-link-outline:hover {
-  background: #F4F4F4;
+  background: var(--ds-surface-muted);
   border-color: var(--ds-border-strong);
 }
 
@@ -207,8 +207,8 @@ header.sticky {
   flex: 0 0 2.35rem;
   border: 1px solid rgba(17, 17, 17, 0.08);
   border-radius: 1rem;
-  background: #FFFFFF;
-  color: #111111;
+  background: var(--ds-surface);
+  color: var(--ds-text);
   overflow: visible;
 }
 
@@ -238,9 +238,9 @@ header.sticky {
 :focus,
 :focus-visible,
 .active) {
-  background: #111111;
-  color: #FFFFFF;
-  border-color: #111111;
+  background: var(--ds-brand);
+  color: var(--ds-text-invert);
+  border-color: var(--ds-brand);
 }
 
 .dashboard-sidebar .sidebar-link:not(.logout-link):is(:hover,
@@ -267,7 +267,7 @@ header.sticky {
 :focus,
 :focus-visible,
 .active) i {
-  color: #FFFFFF;
+  color: var(--ds-text-invert);
   stroke: currentColor;
 }
 
@@ -276,7 +276,7 @@ header.sticky {
 :focus-visible,
 .active,
 .is-active) .sidebar-icon {
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: color-mix(in srgb, var(--ds-surface) 20%, transparent);
   background: rgba(255, 255, 255, 0.14);
 }
 
@@ -290,7 +290,7 @@ header.sticky {
 
 .dashboard-sidebar .logout-link .sidebar-icon {
   border-color: rgba(185, 28, 28, 0.16);
-  background: rgba(254, 242, 242, 0.95);
+  background: color-mix(in srgb, var(--ds-surface) 95%, transparent);
   color: #B91C1C;
 }
 
@@ -430,7 +430,7 @@ header.sticky {
   padding: clamp(1rem, 2.5vw, 1.35rem);
   border: 1px solid var(--ds-border);
   border-radius: 20px;
-  background: rgba(253, 253, 253, 0.82);
+  background: color-mix(in srgb, var(--ds-surface) 82%, transparent);
   box-shadow: var(--ds-shadow-sm);
   backdrop-filter: blur(18px);
 }
@@ -461,7 +461,7 @@ header.sticky {
   place-items: center;
   border-radius: 16px;
   border: 1px solid var(--slot-border, var(--ds-border));
-  background: var(--slot-bg, #FFFFFF);
+  background: var(--slot-bg, var(--ds-surface));
   color: var(--slot-color, var(--ds-text));
   font-size: 0.78rem;
   font-weight: 800;
@@ -605,7 +605,7 @@ header.sticky {
 .payment-controls section,
 .log-group-header {
   border: 1px solid var(--ds-border);
-  background: rgba(255, 255, 255, 0.66);
+  background: color-mix(in srgb, var(--ds-surface) 66%, transparent);
   box-shadow: var(--ds-shadow-xs);
 }
 
@@ -624,7 +624,7 @@ textarea,
   min-height: 46px;
   border: 1px solid var(--ds-border);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.74);
+  background: color-mix(in srgb, var(--ds-surface) 74%, transparent);
   color: var(--ds-text);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88);
 }
@@ -673,7 +673,7 @@ textarea:focus,
 
 .admin-table tbody tr:hover,
 .booth-table tbody tr:hover {
-  background: rgba(249, 250, 251, 0.9);
+  background: color-mix(in srgb, var(--ds-bg) 90%, transparent);
 }
 
 .status-pill,
@@ -715,7 +715,7 @@ textarea:focus,
   padding: 1.05rem;
   border: 1px solid var(--ds-border);
   border-radius: 18px;
-  background: rgba(253, 253, 253, 0.82);
+  background: color-mix(in srgb, var(--ds-surface) 82%, transparent);
   box-shadow: var(--ds-shadow-sm);
 }
 
@@ -738,7 +738,7 @@ textarea:focus,
   height: 12px;
   overflow: hidden;
   border-radius: 999px;
-  background: #F4F4F4;
+  background: var(--ds-surface-muted);
   box-shadow: var(--ds-shadow-xs);
 }
 
@@ -747,7 +747,7 @@ textarea:focus,
   width: var(--bar-value, 50%);
   height: 100%;
   border-radius: inherit;
-  background: var(--bar-color, #111111);
+  background: var(--bar-color, var(--ds-brand));
 }
 
 .soft-monitor-list {
@@ -763,7 +763,7 @@ textarea:focus,
   gap: 0.8rem;
   padding: 0.78rem 0.85rem;
   border-radius: 14px;
-  background: rgba(245, 245, 245, 0.72);
+  background: color-mix(in srgb, var(--ds-bg) 72%, transparent);
   color: var(--ds-text-muted);
 }
 
@@ -796,7 +796,7 @@ textarea:focus,
 .notification-dropdown {
   border: 1px solid var(--ds-border);
   border-radius: 18px;
-  background: rgba(253, 253, 253, 0.96);
+  background: color-mix(in srgb, var(--ds-surface) 96%, transparent);
   color: var(--ds-text);
   box-shadow: var(--ds-shadow-md);
 }

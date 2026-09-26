@@ -36,10 +36,14 @@
   --ds-ink-50:  #FAFAFA;
   --ds-white:   #FFFFFF;
 
-  /* --- Semantic surfaces -------------------------------------------------- */
+  /* --- Semantic surfaces ---------------------------------------------------
+     Everything below this line is what page stylesheets should reference.
+     The ink ramp above is the palette; these are the roles. Only the roles
+     are redefined for dark mode, so a sheet that uses them themes itself. */
   --ds-bg:            var(--ds-ink-50);
   --ds-surface:       var(--ds-white);
   --ds-surface-muted: var(--ds-ink-100);
+  --ds-surface-sunken: var(--ds-ink-200);  /* wells, tracks, inset rows */
   --ds-border:        var(--ds-ink-200);
   --ds-border-strong: var(--ds-ink-300);
 
@@ -51,7 +55,16 @@
   --ds-text-muted:  var(--ds-ink-600);
   --ds-text-faint:  var(--ds-ink-500);  /* large or secondary text only */
   --ds-text-disabled: var(--ds-ink-400);  /* never body copy: 2.85:1 */
-  --ds-text-invert: var(--ds-white);
+
+  /* Two different jobs that both happen to be white in light mode, and stop
+     being the same thing the moment there is a dark mode:
+       --ds-text-invert  text on the BRAND fill. The brand fill goes light in
+                         dark mode, so this has to go dark with it.
+       --ds-text-on-dark text on something that is dark in BOTH themes -- a
+                         photo overlay, the hero panel, a status pill in a
+                         saturated colour. This stays white always. */
+  --ds-text-invert:  var(--ds-white);
+  --ds-text-on-dark: #FFFFFF;
 
   /* --- Brand + status ------------------------------------------------------
      The supplied palette is achromatic, so the brand is ink and the chrome
@@ -146,6 +159,120 @@
 
   /* --- Focus: one visible ring everywhere, for keyboard navigation -------- */
   --ds-focus-ring: 0 0 0 3px rgba(13, 148, 136, 0.35);
+
+  color-scheme: light;
+}
+
+/* ==========================================================================
+   Dark theme
+   Only the semantic roles are redefined. The ink ramp is not inverted --
+   inverting it would turn every `background: var(--ds-ink-900)` button into a
+   white block with white text. Roles flip; the palette stays put.
+
+   Resolution order, and why it is written this way:
+     1. the @media block themes anyone whose OS is dark and who has not
+        chosen, and is skipped entirely for :root[data-theme="light"]
+     2. [data-theme="dark"] themes an explicit choice, on any OS
+   Both carry identical declarations. They are not merged into one selector
+   list because a browser that does not understand :not() with an attribute
+   would drop the whole rule.
+
+   Contrast on the dark background #111111, measured:
+     text #F4F4F4 17.17:1   muted #999999 6.63:1   faint #777777 4.22:1
+   The supplied greys carry the same roles here as in light mode, one step
+   further apart: #555555 fails on dark (2.53:1) exactly as #999999 fails on
+   white, so it is the disabled step and never body copy.
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --ds-bg:             var(--ds-ink-900);
+    --ds-surface:        #1A1A1A;
+    --ds-surface-muted:  var(--ds-ink-800);
+    --ds-surface-sunken: var(--ds-ink-950);
+    --ds-border:         var(--ds-ink-700);
+    --ds-border-strong:  var(--ds-ink-600);
+
+    --ds-text:          var(--ds-ink-100);
+    --ds-text-muted:    var(--ds-ink-400);
+    --ds-text-faint:    var(--ds-ink-500);
+    --ds-text-disabled: var(--ds-ink-600);
+    --ds-text-invert:   var(--ds-ink-900);
+
+    --ds-brand:       var(--ds-ink-100);
+    --ds-brand-hover: var(--ds-white);
+    --ds-accent:      #2DD4BF;
+    --ds-accent-soft: #134E4A;
+
+    /* Lightened deliberately. The light-mode tones are far too dark to read
+       on #111111 -- danger #B91C1C measures 2.92:1 there, below every floor.
+       The soft tints become dark tints for the same reason. */
+    --ds-success:      #34D399;
+    --ds-success-soft: #04322A;
+    --ds-warning:      #FBBF24;
+    --ds-warning-soft: #3B2606;
+    --ds-danger:       #F87171;
+    --ds-danger-soft:  #3F1414;
+    --ds-neutral-soft: var(--ds-ink-800);
+
+    --status-available:   #4ADE80;
+    --status-reserved:    #FACC15;
+    --status-occupied:    #F87171;
+    --status-unavailable: var(--ds-ink-500);
+
+    /* Shadows do almost nothing on a dark surface, so elevation is carried by
+       a lighter surface plus a deeper shadow rather than by the shadow alone. */
+    --ds-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --ds-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.6), 0 1px 2px rgba(0, 0, 0, 0.4);
+    --ds-shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.65), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+    --ds-shadow-lg: 0 12px 16px -4px rgba(0, 0, 0, 0.7), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+
+    --ds-focus-ring: 0 0 0 3px rgba(45, 212, 191, 0.45);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --ds-bg:             var(--ds-ink-900);
+  --ds-surface:        #1A1A1A;
+  --ds-surface-muted:  var(--ds-ink-800);
+  --ds-surface-sunken: var(--ds-ink-950);
+  --ds-border:         var(--ds-ink-700);
+  --ds-border-strong:  var(--ds-ink-600);
+
+  --ds-text:          var(--ds-ink-100);
+  --ds-text-muted:    var(--ds-ink-400);
+  --ds-text-faint:    var(--ds-ink-500);
+  --ds-text-disabled: var(--ds-ink-600);
+  --ds-text-invert:   var(--ds-ink-900);
+
+  --ds-brand:       var(--ds-ink-100);
+  --ds-brand-hover: var(--ds-white);
+  --ds-accent:      #2DD4BF;
+  --ds-accent-soft: #134E4A;
+
+  --ds-success:      #34D399;
+  --ds-success-soft: #04322A;
+  --ds-warning:      #FBBF24;
+  --ds-warning-soft: #3B2606;
+  --ds-danger:       #F87171;
+  --ds-danger-soft:  #3F1414;
+  --ds-neutral-soft: var(--ds-ink-800);
+
+  --status-available:   #4ADE80;
+  --status-reserved:    #FACC15;
+  --status-occupied:    #F87171;
+  --status-unavailable: var(--ds-ink-500);
+
+  --ds-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --ds-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.6), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --ds-shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.65), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --ds-shadow-lg: 0 12px 16px -4px rgba(0, 0, 0, 0.7), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+
+  --ds-focus-ring: 0 0 0 3px rgba(45, 212, 191, 0.45);
 }
 
 /* ==========================================================================
@@ -247,7 +374,7 @@ summary,
   line-height: 1.4;
   white-space: nowrap;
   background: var(--ds-neutral-soft);
-  color: var(--ds-ink-700);
+  color: var(--ds-text);
 }
 
 .ds-badge--success { background: var(--ds-success-soft); color: var(--ds-success); }
@@ -284,7 +411,7 @@ summary,
 }
 .ds-btn--secondary:hover {
   background: var(--ds-surface-muted);
-  border-color: var(--ds-ink-400);
+  border-color: var(--ds-border-strong);
 }
 
 .ds-btn:active { transform: translateY(1px); }
@@ -318,12 +445,12 @@ summary,
 .ds-table td {
   padding: var(--ds-space-3) var(--ds-space-4);
   border-bottom: 1px solid var(--ds-border);
-  color: var(--ds-ink-700);
+  color: var(--ds-text);
   vertical-align: middle;
 }
 
 .ds-table tbody tr { transition: background-color var(--ds-transition); }
-.ds-table tbody tr:hover { background: var(--ds-ink-50); }
+.ds-table tbody tr:hover { background: var(--ds-surface-muted); }
 
 /* Wide tables scroll inside their own container rather than pushing the page */
 .ds-table-scroll {
@@ -341,4 +468,59 @@ summary,
   text-align: center;
   color: var(--ds-text-muted);
   font-size: var(--ds-text-md);
+}
+
+/* ==========================================================================
+   Theme toggle
+   theme.js appends this to <body> unless the page already hosts an element
+   with [data-theme-toggle]. Bottom-right rather than top-right: the driver
+   and booth consoles already put a notification bell in the top corner.
+   ========================================================================== */
+
+.ds-theme-toggle {
+  position: fixed;
+  right: var(--ds-space-4);
+  bottom: var(--ds-space-4);
+  z-index: 1200;
+  width: 2.75rem;
+  height: 2.75rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--ds-border-strong);
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-surface);
+  color: var(--ds-text-muted);
+  box-shadow: var(--ds-shadow-md);
+  cursor: pointer;
+  padding: 0;
+}
+
+.ds-theme-toggle:hover {
+  color: var(--ds-text);
+  border-color: var(--ds-text-faint);
+  transform: translateY(-1px);
+}
+
+.ds-theme-toggle:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--ds-shadow-md), var(--ds-focus-ring);
+}
+
+@media print {
+  .ds-theme-toggle { display: none; }
+}
+
+/* The app ships a lot of photography and flat-art logos that were cut for a
+   white page. Dimming them slightly stops them glaring out of a dark one;
+   the originals are untouched, so light mode is unaffected. */
+:root[data-theme="dark"] img:not([src*=".svg"]),
+:root[data-theme="dark"] .hero-image {
+  filter: brightness(0.88) contrast(1.02);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) img:not([src*=".svg"]),
+  :root:not([data-theme="light"]) .hero-image {
+    filter: brightness(0.88) contrast(1.02);
+  }
 }
