@@ -53,7 +53,7 @@
               width var(--ds-duration) var(--ds-ease);
 }
 
-.step-bar.is-done { background: var(--ds-ink-400); }
+.step-bar.is-done { background: var(--ds-text-faint); }
 
 .step-bar.is-current {
   width: 2.5rem;
@@ -288,7 +288,7 @@
   left: 0.3125rem;
   width: 0.1875rem;
   height: 0.375rem;
-  border: solid var(--ds-white);
+  border: solid var(--ds-text-invert);
   border-width: 0 1.5px 1.5px 0;
   transform: rotate(45deg);
 }
@@ -328,7 +328,7 @@
   overflow: hidden;
   border: 2px solid var(--ds-text);
   border-radius: var(--ds-radius-sm);
-  background: var(--ds-white);
+  background: var(--ds-surface);
 }
 
 .plate-region {
@@ -336,7 +336,7 @@
   align-items: center;
   padding-inline: var(--ds-space-2);
   background: var(--ds-text);
-  color: var(--ds-white);
+  color: var(--ds-text-invert);
   font-size: var(--ds-text-2xs);
   font-weight: 700;
   letter-spacing: var(--ds-tracking-caps);
@@ -352,7 +352,7 @@
   white-space: nowrap;
 }
 
-.plate-number.is-placeholder { color: var(--ds-ink-300); }
+.plate-number.is-placeholder { color: var(--ds-text-disabled); }
 
 /* --- Terms ---------------------------------------------------------------- */
 
@@ -390,7 +390,7 @@
   left: 0.375rem;
   width: 0.25rem;
   height: 0.5rem;
-  border: solid var(--ds-white);
+  border: solid var(--ds-text-invert);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
   animation: signup-tick var(--ds-duration) var(--ds-ease);

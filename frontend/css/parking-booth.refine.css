@@ -97,7 +97,7 @@
   vertical-align: middle;
 }
 
-.booth-table tbody tr:hover { background: var(--ds-ink-50); }
+.booth-table tbody tr:hover { background: var(--ds-surface-muted); }
 
 .booth-table td:first-child { font-variant-numeric: tabular-nums; }
 
@@ -150,7 +150,7 @@
   box-shadow: none;
 }
 
-.booth-nav-button:hover { background: var(--ds-ink-100); color: var(--ds-text); }
+.booth-nav-button:hover { background: var(--ds-surface-muted); color: var(--ds-text); }
 
 .booth-nav-button.active {
   background: var(--ds-brand);

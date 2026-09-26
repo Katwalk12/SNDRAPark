@@ -374,7 +374,7 @@ summary,
   line-height: 1.4;
   white-space: nowrap;
   background: var(--ds-neutral-soft);
-  color: var(--ds-ink-700);
+  color: var(--ds-text);
 }
 
 .ds-badge--success { background: var(--ds-success-soft); color: var(--ds-success); }
@@ -411,7 +411,7 @@ summary,
 }
 .ds-btn--secondary:hover {
   background: var(--ds-surface-muted);
-  border-color: var(--ds-ink-400);
+  border-color: var(--ds-border-strong);
 }
 
 .ds-btn:active { transform: translateY(1px); }
@@ -445,12 +445,12 @@ summary,
 .ds-table td {
   padding: var(--ds-space-3) var(--ds-space-4);
   border-bottom: 1px solid var(--ds-border);
-  color: var(--ds-ink-700);
+  color: var(--ds-text);
   vertical-align: middle;
 }
 
 .ds-table tbody tr { transition: background-color var(--ds-transition); }
-.ds-table tbody tr:hover { background: var(--ds-ink-50); }
+.ds-table tbody tr:hover { background: var(--ds-surface-muted); }
 
 /* Wide tables scroll inside their own container rather than pushing the page */
 .ds-table-scroll {

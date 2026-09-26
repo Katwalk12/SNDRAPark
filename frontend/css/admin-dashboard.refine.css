@@ -94,7 +94,7 @@
   vertical-align: middle;
 }
 
-.admin-table tbody tr:hover { background: var(--ds-ink-50); }
+.admin-table tbody tr:hover { background: var(--ds-surface-muted); }
 
 /* Long identifiers (barcodes, emails) get their own break behaviour so they
    don't force the status column narrow enough to hyphenate. */
