@@ -493,7 +493,7 @@
   border: 0;
   padding: 0;
   background: none;
-  color: var(--ds-primary, #2a78d6);
+  color: var(--ds-accent);  /* was var(--ds-primary, #2a78d6): --ds-primary is not defined anywhere, so this always rendered the off-system blue fallback */
   font: inherit;
   font-size: var(--ds-text-sm);
   font-weight: 600;

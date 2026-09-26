@@ -1,13 +1,13 @@
 :root {
-  --page-bg: #E5E4E3;
+  --page-bg: var(--ds-ink-200);
   --panel-bg: rgba(255, 255, 255, 0.92);
-  --ink: #111827;
-  --muted: #5F6673;
-  --line: rgba(17, 24, 39, 0.1);
-  --line-strong: rgba(17, 24, 39, 0.18);
-  --danger: #B91C1C;
-  --success: #0F766E;
-  --shadow: 0 28px 80px rgba(17, 24, 39, 0.16);
+  --ink: var(--ds-text);
+  --muted: var(--ds-text-muted);
+  --line: rgba(17, 17, 17, 0.1);
+  --line-strong: rgba(17, 17, 17, 0.18);
+  --danger: var(--ds-danger);
+  --success: var(--ds-success);
+  --shadow: 0 28px 80px rgba(17, 17, 17, 0.16);
 }
 
 * {
@@ -25,7 +25,7 @@ body {
   color: var(--ink);
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0) 44%),
-    linear-gradient(145deg, #F6F6F5 0%, #E5E4E3 52%, #D9DBDE 100%);
+    linear-gradient(145deg, #FAFAFA 0%, #E7E7E7 52%, #D4D4D4 100%);
 }
 
 body::before {
@@ -34,8 +34,8 @@ body::before {
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(90deg, rgba(17, 24, 39, 0.04) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(17, 24, 39, 0.04) 1px, transparent 1px);
+    linear-gradient(90deg, rgba(17, 17, 17, 0.04) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(17, 17, 17, 0.04) 1px, transparent 1px);
   background-size: 58px 58px;
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent 76%);
 }
@@ -184,8 +184,8 @@ button {
 }
 
 .pin-display span.is-filled {
-  border-color: rgba(17, 24, 39, 0.28);
-  background: #111827;
+  border-color: rgba(17, 17, 17, 0.28);
+  background: #111111;
   color: #FFFFFF;
   transform: translateY(-1px);
 }
@@ -216,7 +216,7 @@ button {
 .pin-keypad button:focus-visible {
   transform: translateY(-1px);
   border-color: var(--line-strong);
-  box-shadow: 0 10px 22px rgba(17, 24, 39, 0.08);
+  box-shadow: 0 10px 22px rgba(17, 17, 17, 0.08);
   outline: none;
 }
 
@@ -233,10 +233,10 @@ button {
 
 .primary-btn {
   width: 100%;
-  background: #111827;
+  background: #111111;
   color: #FFFFFF;
   font-weight: 800;
-  box-shadow: 0 18px 38px rgba(17, 24, 39, 0.2);
+  box-shadow: 0 18px 38px rgba(17, 17, 17, 0.2);
 }
 
 .primary-btn:hover,

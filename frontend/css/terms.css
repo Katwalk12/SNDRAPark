@@ -1,7 +1,7 @@
 :root {
   --panel-bg: rgba(7, 7, 7, 0.64);
   --panel-fade: rgba(3, 3, 3, 0.9);
-  --text-color: #f8f8f8;
+  --text-color: #F4F4F4;
   --muted-text: rgba(255, 255, 255, 0.7);
   --border-color: rgba(255, 255, 255, 0.18);
   --soft-border: rgba(255, 255, 255, 0.1);
@@ -19,7 +19,7 @@ body {
   background:
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.08), transparent 26%),
     radial-gradient(circle at bottom right, rgba(255, 255, 255, 0.03), transparent 22%),
-    linear-gradient(135deg, #050505 0%, #020202 100%);
+    linear-gradient(135deg, #0A0A0A 0%, #020202 100%);
   color: var(--text-color);
 }
 

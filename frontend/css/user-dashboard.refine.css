@@ -572,7 +572,7 @@
 }
 
 .parking-lot-frame .monitor-stat strong {
-  font-size: var(--ds-text-base);
+  font-size: var(--ds-text-md);  /* --ds-text-base is not a token in the ramp; this declaration was invalid */
   line-height: 1.1;
 }
 
@@ -852,6 +852,6 @@
 }
 
 .footer-attribution strong {
-  color: var(--ds-text, #111827);
+  color: var(--ds-text, #111111);
   font-weight: 600;
 }

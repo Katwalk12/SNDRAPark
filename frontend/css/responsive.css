@@ -51,7 +51,7 @@
   height: 2.3rem;
   border-radius: 0.75rem;
   object-fit: contain;
-  background: #0f172a;
+  background: #111111;
   padding: 0.25rem;
   box-sizing: border-box;
 }
@@ -63,7 +63,7 @@
   font-size: 0.95rem;
   font-weight: 700;
   line-height: 1.2;
-  color: #0f172a;
+  color: #111111;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -89,7 +89,7 @@
   border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 0.9rem;
   background: #ffffff;
-  color: #0f172a;
+  color: #111111;
   font-size: 1.15rem;
   line-height: 1;
   cursor: pointer;
@@ -102,7 +102,7 @@
 
 .mobile-nav-toggle:active,
 .mobile-nav-close:active {
-  background: #f1f5f9;
+  background: var(--ds-ink-100);
 }
 
 .mobile-nav-backdrop {

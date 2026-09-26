@@ -36,8 +36,8 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(17, 24, 39, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(17, 24, 39, 0.025) 1px, transparent 1px);
+    linear-gradient(rgba(17, 17, 17, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(17, 17, 17, 0.025) 1px, transparent 1px);
   background-size: 42px 42px;
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.52), transparent 78%);
 }
@@ -166,7 +166,7 @@ header.sticky {
 .table-action-btn:hover,
 .nav-link:hover,
 .nav-link-outline:hover {
-  background: #F5F5F5;
+  background: #F4F4F4;
   border-color: var(--ds-border-strong);
 }
 
@@ -205,10 +205,10 @@ header.sticky {
   width: 2.35rem;
   height: 2.35rem;
   flex: 0 0 2.35rem;
-  border: 1px solid rgba(17, 24, 39, 0.08);
+  border: 1px solid rgba(17, 17, 17, 0.08);
   border-radius: 1rem;
   background: #FFFFFF;
-  color: #111827;
+  color: #111111;
   overflow: visible;
 }
 
@@ -238,9 +238,9 @@ header.sticky {
 :focus,
 :focus-visible,
 .active) {
-  background: #111827;
+  background: #111111;
   color: #FFFFFF;
-  border-color: #111827;
+  border-color: #111111;
 }
 
 .dashboard-sidebar .sidebar-link:not(.logout-link):is(:hover,
@@ -296,7 +296,7 @@ header.sticky {
 
 .dashboard-sidebar .sidebar-link:focus-visible,
 .booth-nav-button:not(.booth-nav-button-danger):focus-visible {
-  outline: 2px solid rgba(17, 24, 39, 0.32);
+  outline: 2px solid rgba(17, 17, 17, 0.32);
   outline-offset: 3px;
 }
 
@@ -489,7 +489,7 @@ header.sticky {
 .soft-preview-slot.unavailable {
   --slot-bg: rgba(55, 65, 81, 0.1);
   --slot-border: rgba(55, 65, 81, 0.22);
-  --slot-color: #374151;
+  --slot-color: #333333;
 }
 
 .soft-preview-legend,
@@ -652,8 +652,8 @@ textarea:focus,
 .field-group.floating-field input:focus,
 .field-group.floating-field select:focus,
 .field-group.floating-field textarea:focus {
-  border-color: rgba(17, 24, 39, 0.34);
-  box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.07);
+  border-color: rgba(17, 17, 17, 0.34);
+  box-shadow: 0 0 0 4px rgba(17, 17, 17, 0.07);
   outline: none;
 }
 
@@ -738,7 +738,7 @@ textarea:focus,
   height: 12px;
   overflow: hidden;
   border-radius: 999px;
-  background: #F5F5F5;
+  background: #F4F4F4;
   box-shadow: var(--ds-shadow-xs);
 }
 
@@ -747,7 +747,7 @@ textarea:focus,
   width: var(--bar-value, 50%);
   height: 100%;
   border-radius: inherit;
-  background: var(--bar-color, #111827);
+  background: var(--bar-color, #111111);
 }
 
 .soft-monitor-list {

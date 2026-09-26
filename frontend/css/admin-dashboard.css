@@ -1,17 +1,22 @@
 :root {
-  --bg-main: #E5E4E3;
-  --bg-panel: #FCFCFC;
-  --bg-soft: #F1F1F1;
-  --border-soft: #E0E0E0;
-  --border-strong: #CFCFCF;
-  --text-main: #222121;
-  --text-muted: #4A4A4A;
-  --text-faint: #6B7280;
-  --shadow-soft: 0 10px 25px rgba(0, 0, 0, 0.05), 0 4px 10px rgba(0, 0, 0, 0.03);
-  --success: #4CD1D6;
-  --warning: #F59E0B;
-  --danger: #4A4A4A;
-  --ready: #3B82F6;
+  /* Page-local names kept so the rest of this sheet needs no rewrite; every
+     one now resolves to the shared ramp in design-system.css. */
+  --bg-main: var(--ds-ink-200);
+  --bg-panel: var(--ds-white);
+  --bg-soft: var(--ds-ink-100);
+  --border-soft: var(--ds-ink-200);
+  --border-strong: var(--ds-ink-300);
+  --text-main: var(--ds-text);
+  --text-muted: var(--ds-text-muted);
+  --text-faint: var(--ds-text-faint);
+  --shadow-soft: var(--ds-shadow-md);
+  /* These were #4CD1D6 (cyan) and #555555 (grey). Both are used as text
+     colour: the cyan sat at 1.9:1 on white and the "danger" grey said
+     nothing was wrong at all. Now the real status tones. */
+  --success: var(--ds-success);
+  --warning: var(--ds-warning);
+  --danger: var(--ds-danger);
+  --ready: var(--ds-accent);
 }
 
 * {

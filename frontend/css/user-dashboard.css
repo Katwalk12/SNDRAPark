@@ -1,19 +1,21 @@
 :root {
-  --panel-bg: #F3F4F6;
-  --bg-main: #F3F4F6;
-  --bg-sidebar: #FFFFFF;
-  --bg-card: #FFFFFF;
-  --panel-fade: rgba(243, 244, 246, 0.9);
-  --text-color: #2A2A2A;
-  --muted-text: #6B7280;
-  --border-color: #D1D5DB;
-  --soft-border: #E5E7EB;
+  --panel-bg: var(--ds-ink-100);
+  --bg-main: var(--ds-ink-100);
+  --bg-sidebar: var(--ds-white);
+  --bg-card: var(--ds-white);
+  --panel-fade: rgba(244, 244, 244, 0.9);
+  --text-color: var(--ds-text);
+  --muted-text: var(--ds-text-muted);
+  --border-color: var(--ds-border-strong);
+  --soft-border: var(--ds-border);
   --shadow-color: rgba(0, 0, 0, 0.05);
-  --accent: #0D9488;
-  --available: #10B981;
-  --reserved: #F59E0B;
-  --occupied: #EF4444;
-  --inactive: #9CA3AF;
+  --accent: var(--ds-accent);
+  /* The driver's slot map. Colour is the meaning here, so these stay
+     chromatic and match --status-* in design-system.css. */
+  --available: var(--status-available);
+  --reserved: var(--status-reserved);
+  --occupied: var(--status-occupied);
+  --inactive: var(--status-unavailable);
   --shell-width: min(1240px, calc(100% - 1.5rem));
 }
 
@@ -29,7 +31,7 @@ body {
   margin: 0;
   min-height: 100vh;
   font-family: "Montserrat", "Segoe UI", sans-serif;
-  background: #F9FAFB;
+  background: #FAFAFA;
   color: var(--text-color);
 }
 
@@ -2122,9 +2124,9 @@ button {
   right: 1.25rem;
   z-index: 1;
   width: auto;
-  color: #222121;
-  background: #FCFCFC;
-  border: 1px solid #D1D5DB;
+  color: #222222;
+  background: #FFFFFF;
+  border: 1px solid #D4D4D4;
   border-radius: 0.5rem;
   padding: 0.45rem 0.8rem;
   font-size: 0.75rem;
@@ -2211,7 +2213,7 @@ button {
 }
 
 .reservation-status-pill.is-pending {
-  background: #4B5563;
+  background: #555555;
   color: #FFFFFF;
   border: none;
 }
@@ -2230,7 +2232,7 @@ button {
 
 .reservation-status-pill.is-expired,
 .reservation-status-pill.is-cancelled {
-  background: #4B5563;
+  background: #555555;
   color: #FFFFFF;
   border: none;
 }
@@ -3093,8 +3095,8 @@ button {
   padding: clamp(1rem, 2vw, 1.35rem);
   border: 1px solid var(--border-color);
   border-radius: 1.2rem;
-  background: #F3F4F6;
-  box-shadow: 0 16px 36px rgba(17, 24, 39, 0.06);
+  background: #F4F4F4;
+  box-shadow: 0 16px 36px rgba(17, 17, 17, 0.06);
 }
 
 .my-vehicles-header {
@@ -3123,7 +3125,7 @@ button {
   border: 1px solid var(--border-color);
   border-radius: 1rem;
   background: #FFFFFF;
-  box-shadow: 0 12px 26px rgba(17, 24, 39, 0.06);
+  box-shadow: 0 12px 26px rgba(17, 17, 17, 0.06);
 }
 
 .vehicle-card-top {
@@ -3134,7 +3136,7 @@ button {
 }
 
 .vehicle-card-top strong {
-  color: #111827;
+  color: #111111;
   font-size: 1.15rem;
   line-height: 1.2;
   word-break: break-word;
@@ -3146,8 +3148,8 @@ button {
   gap: 0.4rem;
   padding: 0.42rem 0.7rem;
   border-radius: 999px;
-  background: #E5E7EB;
-  color: #111827;
+  background: #E7E7E7;
+  color: #111111;
   font-size: 0.74rem;
   font-weight: 700;
 }
@@ -3162,12 +3164,12 @@ button {
   min-width: 0;
   padding: 0.75rem;
   border-radius: 0.8rem;
-  background: #F9FAFB;
+  background: #FAFAFA;
 }
 
 .vehicle-detail-grid span {
   display: block;
-  color: #4B5563;
+  color: #555555;
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -3177,7 +3179,7 @@ button {
 .vehicle-detail-grid strong {
   display: block;
   margin-top: 0.25rem;
-  color: #111827;
+  color: #111111;
   font-size: 0.86rem;
   overflow-wrap: anywhere;
 }
@@ -4062,7 +4064,7 @@ body {
   flex-shrink: 0;
 }
 
-/* Was #ffffff and #f8f8f8 text on a #FAFCFC background — the footer copy and
+/* Was #ffffff and #F4F4F4 text on a #FFFFFF background — the footer copy and
    links were effectively invisible. */
 .site-footer,
 .contact-footer {
