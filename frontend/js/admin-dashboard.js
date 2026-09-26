@@ -507,7 +507,7 @@ function renderOutcomeDonut(statusMix) {
 
   if (!total) {
     group.append(svgEl("circle", {
-      cx: 90, cy: 90, r: DONUT_RADIUS, fill: "none", stroke: "#E5E7EB", "stroke-width": 22
+      cx: 90, cy: 90, r: DONUT_RADIUS, fill: "none", stroke: "#E7E7E7", "stroke-width": 22
     }));
     const empty = document.createElement("li");
     empty.className = "legend-name";

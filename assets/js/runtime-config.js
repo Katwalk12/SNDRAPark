@@ -160,11 +160,11 @@
 
     const message = document.createElement("p");
     message.textContent = ATTRIBUTION_NOTICE;
-    message.style.cssText = "margin:0 0 1rem;font-size:1rem;line-height:1.6;color:#E5E7EB";
+    message.style.cssText = "margin:0 0 1rem;font-size:1rem;line-height:1.6;color:#E7E7E7";
 
     const hint = document.createElement("p");
     hint.textContent = "Restore the \u201cDeveloped by Programiz\u201d credit in the footer to continue.";
-    hint.style.cssText = "margin:0;font-size:0.85rem;color:#9CA3AF";
+    hint.style.cssText = "margin:0;font-size:0.85rem;color:#999999";
 
     box.append(heading, message, hint);
     overlay.append(box);

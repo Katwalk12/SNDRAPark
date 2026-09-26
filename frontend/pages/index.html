@@ -27,11 +27,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-  <link rel="stylesheet" href="../css/design-system.css?v=20260824-ds1">
-  <link rel="stylesheet" href="../../assets/css/tailwind.css">
-  <link rel="stylesheet" href="../css/index.css?v=20260901-reveal1">
-  <link rel="stylesheet" href="../css/components.css?v=20260824-ds1">
-  <link rel="stylesheet" href="../css/index.refine.css?v=20260824-ds1">
+  <link rel="stylesheet" href="../css/design-system.css?v=20260926-palette1">
+  <link rel="stylesheet" href="../../assets/css/tailwind.css?v=20260926-palette1">
+  <link rel="stylesheet" href="../css/index.css?v=20260926-palette1">
+  <link rel="stylesheet" href="../css/components.css?v=20260926-palette1">
+  <link rel="stylesheet" href="../css/index.refine.css?v=20260926-palette1">
 </head>
 <body>
   <div class="app-shell">
@@ -132,10 +132,10 @@
             <h2>Soft, readable slot states at a glance.</h2>
             <p class="section-copy">The reservation views use the same clear status colors across user, booth, and admin screens so every role reads parking movement consistently.</p>
             <div class="soft-preview-legend" aria-label="Parking status legend">
-              <span><i style="--tone:#22C55E"></i>Available</span>
-              <span><i style="--tone:#EAB308"></i>Reserved</span>
-              <span><i style="--tone:#EF4444"></i>Occupied</span>
-              <span><i style="--tone:#374151"></i>Unavailable</span>
+              <span><i style="--tone:var(--status-available)"></i>Available</span>
+              <span><i style="--tone:var(--status-reserved)"></i>Reserved</span>
+              <span><i style="--tone:var(--status-occupied)"></i>Occupied</span>
+              <span><i style="--tone:var(--status-unavailable)"></i>Unavailable</span>
             </div>
           </div>
           <div class="soft-slot-preview-grid" aria-hidden="true">
