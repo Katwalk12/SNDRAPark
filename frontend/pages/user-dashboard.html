@@ -60,7 +60,7 @@
   <link rel="stylesheet" href="../../assets/css/notifications.css?v=20260926-theme1">
   <link rel="stylesheet" href="../css/user-dashboard.css?v=20260926-theme1">
   <link rel="stylesheet" href="../css/components.css?v=20260926-theme1">
-  <link rel="stylesheet" href="../css/user-dashboard.refine.css?v=20261005-tutorial1">
+  <link rel="stylesheet" href="../css/user-dashboard.refine.css?v=20261005-tour1">
   <link rel="stylesheet" href="../css/responsive.css?v=20260926-theme1">
   <link rel="stylesheet" href="../css/aurora.css?v=20261005-aurora1">
 </head>
@@ -661,42 +661,30 @@
     </div>
   </div>
 
-  <!-- First-run tutorial. Opens only when the signed-in account has no
-       tutorial_completed_at, and from the Replay button under Support. -->
-  <div class="modal-backdrop tutorial-backdrop" id="tutorial-modal" aria-hidden="true">
-    <div class="modal-card tutorial-card" role="dialog" aria-modal="true"
-         aria-labelledby="tutorial-title" aria-describedby="tutorial-copy">
-      <div class="modal-header">
-        <div>
-          <p class="section-kicker" id="tutorial-kicker">Getting started</p>
-          <h2 class="section-title" id="tutorial-title">Welcome to SNDRA Park</h2>
-        </div>
-        <button class="modal-close" type="button" data-tutorial-skip
-                aria-label="Skip the tutorial">&times;</button>
-      </div>
-
-      <div class="tutorial-body">
-        <div class="tutorial-figure" id="tutorial-figure" aria-hidden="true">
-          <i class="bi bi-hand-thumbs-up"></i>
-        </div>
-        <p class="tutorial-copy" id="tutorial-copy">
-          This dashboard reserves a parking bay before you drive over.
-          It takes about a minute to walk through.
-        </p>
-      </div>
-
-      <ol class="tutorial-steps" id="tutorial-steps" aria-label="Tutorial progress"></ol>
-
-      <div class="modal-actions tutorial-actions">
-        <button class="action-btn action-btn-ghost" type="button" data-tutorial-skip>
+  <!-- First-run guided tour. Opens only when the signed-in account has no
+       tutorial_completed_at, and from the Replay button under Support.
+       The spotlight is positioned over whichever element each step is about,
+       so the page itself is the illustration. -->
+  <div class="tour" id="tutorial-tour" hidden>
+    <div class="tour-spotlight" id="tour-spotlight" aria-hidden="true"></div>
+    <div class="tour-pop" id="tour-pop" role="dialog" aria-modal="true"
+         aria-labelledby="tour-title" aria-describedby="tour-copy">
+      <button class="tour-close" type="button" data-tour-skip
+              aria-label="Skip the tour">&times;</button>
+      <p class="section-kicker" id="tour-kicker">Getting started</p>
+      <h2 class="tour-title" id="tour-title">Welcome to SNDRA Park</h2>
+      <p class="tour-copy" id="tour-copy"></p>
+      <ol class="tour-steps" id="tour-steps" aria-label="Tour progress"></ol>
+      <div class="tour-actions">
+        <button class="action-btn action-btn-ghost" type="button" data-tour-skip>
           <span>Skip</span>
         </button>
-        <div class="tutorial-actions-right">
-          <button class="action-btn action-btn-secondary" type="button" id="tutorial-back">
+        <div class="tour-actions-right">
+          <button class="action-btn action-btn-secondary" type="button" id="tour-back">
             <i class="bi bi-arrow-left-circle" aria-hidden="true"></i><span>Back</span>
           </button>
-          <button class="action-btn action-btn-primary" type="button" id="tutorial-next">
-            <span id="tutorial-next-label">Next</span>
+          <button class="action-btn action-btn-primary" type="button" id="tour-next">
+            <span id="tour-next-label">Next</span>
             <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
           </button>
         </div>
@@ -711,7 +699,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <script src="../../assets/js/notifications.js?v=20260331-6"></script>
   <script src="../../assets/js/session-guard.js"></script>
-  <script src="../../assets/js/dashboard-tutorial.js?v=20261005-tutorial1"></script>
+  <script src="../../assets/js/dashboard-tutorial.js?v=20261005-tour1"></script>
   <script src="../js/user-dashboard.js?v=20260901-nav1"></script>
   <script src="../js/mobile-nav.js?v=20260912-resp1"></script>
   <script src="../../assets/js/theme.js?v=20260926-theme1"></script>

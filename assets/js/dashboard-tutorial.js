@@ -1,4 +1,8 @@
-/* First-run tutorial for the driver dashboard.
+/* First-run guided tour for the driver dashboard.
+ *
+ * An introduction, then a step for each thing a new driver has to find, with
+ * the page itself as the illustration: each step dims the dashboard and
+ * spotlights the real control it is talking about.
  *
  * Opens once, for an account that has never finished it, and from the Replay
  * button under Support. Whether someone has seen it is a property of the
@@ -7,8 +11,7 @@
  * localStorage would have re-run the whole thing on their phone.
  *
  * Skipping counts as finishing. Someone who closes it has made a decision,
- * and asking again at every sign-in is how a welcome mat becomes nagging --
- * the Replay button is there for anyone who wants it back.
+ * and asking again at every sign-in is how a welcome mat becomes nagging.
  *
  * Listens for sndra:session-ready rather than importing anything from
  * user-dashboard.js, so neither file has to know how the other works.
@@ -30,115 +33,207 @@
     return window.location.origin + root + path;
   }
 
-  /* Written against what the dashboard actually does. The warning rule in the
-     last step is the one drivers get caught by, so it is stated in full
-     rather than softened. */
+  /* A step with no `target` is a plain centred card -- the introduction and
+     the closing rule are about the service, not about a control on screen.
+     `optional` steps are dropped when their element is not on the page: the
+     bay step has nothing to point at on a full floor, and pointing at empty
+     space would be worse than skipping it. */
   var STEPS = [
     {
       kicker: "Getting started",
       title: "Welcome to SNDRA Park",
-      icon: "bi-hand-thumbs-up",
-      copy: "Reserve a parking bay before you drive over, then show your pass at the booth. This takes about a minute."
+      copy: "Reserve a parking bay before you drive over, then show your pass at the booth. Here is the whole thing in about a minute."
     },
     {
-      kicker: "Step 1 of 5",
+      target: "#floor-grid",
+      kicker: "Step 1",
       title: "Pick a floor",
-      icon: "bi-building",
-      copy: "The floor tabs show how many bays are open on each level right now. The count updates by itself every few seconds, so you are never choosing from a stale list."
+      copy: "Each floor shows how many bays are open on it right now. The counts refresh by themselves, so you are never choosing from a stale list."
     },
     {
-      kicker: "Step 2 of 5",
+      target: ".monitor-stats",
+      kicker: "Step 2",
+      title: "Read the live counts",
+      copy: "Open, held, and already parked for the floor you picked. Saved bookings is your own count, so you can see at a glance whether you already hold a bay."
+    },
+    {
+      target: "#slots-grid .slot-card.available",
+      optional: true,
+      kicker: "Step 3",
       title: "Choose a bay",
-      icon: "bi-grid-3x3-gap",
-      copy: "Green bays are free to book. Amber is already reserved, red is occupied, and grey is out of service. Tap any green bay to open the booking form."
+      copy: "A green bay is free to book. Tap one and the booking form opens with that bay already filled in."
     },
     {
-      kicker: "Step 3 of 5",
-      title: "Set your arrival time",
-      icon: "bi-clock",
-      copy: "Tell us when you expect to arrive and confirm. The bay is then held for you, and your booking appears under History."
+      target: ".monitor-legend",
+      kicker: "Step 4",
+      title: "What the colours mean",
+      copy: "Green is free, amber is already reserved, red has a car in it, and grey is out of service. Only green bays can be booked."
     },
     {
-      kicker: "Step 4 of 5",
-      title: "Show your pass at the booth",
-      icon: "bi-upc-scan",
-      copy: "Every booking comes with a barcode pass. The teller scans it on the way in and again on the way out, and settles the fee at the booth."
+      target: '.sidebar-link[data-target="park-reserved"]',
+      kicker: "Step 5",
+      title: "Find your pass",
+      copy: "Every booking lands in History with a barcode pass. The booth teller scans it on the way in and again on the way out, and the fee is settled there."
     },
     {
-      kicker: "Step 5 of 5",
+      kicker: "One rule to know",
       title: "Arrive on time",
-      icon: "bi-exclamation-triangle",
       copy: "If you do not arrive in time the bay is released and you get a warning. After 3 warnings the next one locks your account until a letter of appeal is approved."
     }
   ];
 
-  var modal = null;
-  var stepIndex = 0;
-  var lastFocused = null;
+  var GUTTER = 16;      /* keeps the card off the viewport edge */
+  var PAD = 8;          /* breathing room around the spotlit element */
+
+  var root = null;
+  var spotlight = null;
+  var pop = null;
   var els = {};
+  var order = [];       /* indexes into STEPS, after dropping missing optionals */
+  var cursor = 0;
+  var lastFocused = null;
+  var tickTimer = null;
+  var marked = false;
 
   function byId(id) { return document.getElementById(id); }
+  function reduceMotion() {
+    return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
 
-  function cacheElements() {
-    modal = byId("tutorial-modal");
-    if (!modal) { return false; }
+  function cache() {
+    root = byId("tutorial-tour");
+    if (!root) { return false; }
+    spotlight = byId("tour-spotlight");
+    pop = byId("tour-pop");
     els = {
-      kicker: byId("tutorial-kicker"),
-      title: byId("tutorial-title"),
-      copy: byId("tutorial-copy"),
-      figure: byId("tutorial-figure"),
-      steps: byId("tutorial-steps"),
-      back: byId("tutorial-back"),
-      next: byId("tutorial-next"),
-      nextLabel: byId("tutorial-next-label"),
-      card: modal.querySelector(".tutorial-card")
+      kicker: byId("tour-kicker"),
+      title: byId("tour-title"),
+      copy: byId("tour-copy"),
+      steps: byId("tour-steps"),
+      back: byId("tour-back"),
+      next: byId("tour-next"),
+      nextLabel: byId("tour-next-label")
     };
     return true;
   }
 
-  function buildStepPips() {
+  function step() { return STEPS[order[cursor]]; }
+
+  /* Resolved fresh every time rather than cached: the slot grid is re-rendered
+     by the dashboard's three-second poll, so a node captured when the step
+     opened is detached a moment later and its rect reads as zero. */
+  function targetEl() {
+    var s = step();
+    if (!s || !s.target) { return null; }
+    return document.querySelector(s.target);
+  }
+
+  function buildOrder() {
+    order = [];
+    STEPS.forEach(function (s, i) {
+      if (s.optional && !document.querySelector(s.target)) { return; }
+      order.push(i);
+    });
+  }
+
+  function buildPips() {
     if (!els.steps) { return; }
     els.steps.innerHTML = "";
-    STEPS.forEach(function (step, i) {
+    order.forEach(function (_, i) {
       var li = document.createElement("li");
-      li.setAttribute("aria-label", "Step " + (i + 1) + " of " + STEPS.length);
+      li.setAttribute("aria-label", "Step " + (i + 1) + " of " + order.length);
       els.steps.appendChild(li);
     });
   }
 
-  function render() {
-    var step = STEPS[stepIndex];
-    if (!step) { return; }
+  function place() {
+    if (!root || root.hidden) { return; }
+    var el = targetEl();
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
 
-    if (els.kicker) { els.kicker.textContent = step.kicker; }
-    if (els.title) { els.title.textContent = step.title; }
-    if (els.copy) { els.copy.textContent = step.copy; }
-    if (els.figure) { els.figure.innerHTML = '<i class="bi ' + step.icon + '"></i>'; }
-
-    var isLast = stepIndex === STEPS.length - 1;
-    if (els.nextLabel) { els.nextLabel.textContent = isLast ? "Got it" : "Next"; }
-    if (els.back) {
-      els.back.disabled = stepIndex === 0;
-      /* Hidden from the tab order rather than only greyed out, so a keyboard
-         user is not stopped on a control that does nothing. */
-      els.back.setAttribute("aria-disabled", stepIndex === 0 ? "true" : "false");
+    if (!el) {
+      /* No target: collapse the spotlight so its ring shadow simply fills the
+         screen, and centre the card. */
+      spotlight.style.width = "0px";
+      spotlight.style.height = "0px";
+      spotlight.style.left = vw / 2 + "px";
+      spotlight.style.top = vh / 2 + "px";
+      spotlight.style.borderRadius = "0";
+      pop.style.left = Math.round((vw - pop.offsetWidth) / 2) + "px";
+      pop.style.top = Math.round((vh - pop.offsetHeight) / 2) + "px";
+      return;
     }
 
+    var r = el.getBoundingClientRect();
+    spotlight.style.left = Math.round(r.left - PAD) + "px";
+    spotlight.style.top = Math.round(r.top - PAD) + "px";
+    spotlight.style.width = Math.round(r.width + PAD * 2) + "px";
+    spotlight.style.height = Math.round(r.height + PAD * 2) + "px";
+    spotlight.style.borderRadius = "12px";
+
+    var pw = pop.offsetWidth;
+    var ph = pop.offsetHeight;
+    var below = r.bottom + PAD + 12;
+    var above = r.top - PAD - 12 - ph;
+
+    /* Prefer underneath, flip above when there is no room, and if neither
+       fits (a tall target on a short screen) pin it to the bottom gutter
+       rather than letting it run off. */
+    var top;
+    if (below + ph <= vh - GUTTER) { top = below; }
+    else if (above >= GUTTER) { top = above; }
+    else { top = Math.max(GUTTER, vh - ph - GUTTER); }
+
+    var left = r.left + r.width / 2 - pw / 2;
+    left = Math.max(GUTTER, Math.min(left, vw - pw - GUTTER));
+
+    pop.style.left = Math.round(left) + "px";
+    pop.style.top = Math.round(top) + "px";
+  }
+
+  function render() {
+    var s = step();
+    if (!s) { return; }
+
+    if (els.kicker) { els.kicker.textContent = s.kicker; }
+    if (els.title) { els.title.textContent = s.title; }
+    if (els.copy) { els.copy.textContent = s.copy; }
+
+    var isLast = cursor === order.length - 1;
+    if (els.nextLabel) { els.nextLabel.textContent = isLast ? "Got it" : "Next"; }
+    if (els.back) {
+      els.back.disabled = cursor === 0;
+      els.back.setAttribute("aria-disabled", cursor === 0 ? "true" : "false");
+    }
     if (els.steps) {
       Array.prototype.forEach.call(els.steps.children, function (li, i) {
-        li.classList.toggle("is-done", i < stepIndex);
-        if (i === stepIndex) { li.setAttribute("aria-current", "step"); }
+        li.classList.toggle("is-done", i < cursor);
+        if (i === cursor) { li.setAttribute("aria-current", "step"); }
         else { li.removeAttribute("aria-current"); }
       });
     }
+
+    var el = targetEl();
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({
+        block: "center",
+        inline: "nearest",
+        behavior: reduceMotion() ? "auto" : "smooth"
+      });
+    }
+
+    /* Two passes: once now so nothing flashes in the wrong place, once after
+       the smooth scroll has settled. */
+    place();
+    window.setTimeout(place, reduceMotion() ? 0 : 320);
   }
 
   function focusables() {
-    if (!els.card) { return []; }
-    var found = els.card.querySelectorAll(
+    if (!pop) { return []; }
+    return Array.prototype.slice.call(pop.querySelectorAll(
       'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    return Array.prototype.slice.call(found);
+    ));
   }
 
   function onKeydown(event) {
@@ -147,15 +242,16 @@
       close({ markComplete: true });
       return;
     }
+    if (event.key === "ArrowRight") { event.preventDefault(); go(1); return; }
+    if (event.key === "ArrowLeft") { event.preventDefault(); go(-1); return; }
     if (event.key !== "Tab") { return; }
 
-    /* The dialog is modal, so Tab must not walk out of it into the dashboard
-       behind. */
+    /* The tour is modal, so Tab must not walk out of it into the dashboard
+       underneath. */
     var list = focusables();
     if (!list.length) { return; }
     var first = list[0];
     var last = list[list.length - 1];
-
     if (event.shiftKey && document.activeElement === first) {
       event.preventDefault();
       last.focus();
@@ -165,36 +261,48 @@
     }
   }
 
-  function open(startIndex) {
-    if (!modal) { return; }
-    lastFocused = document.activeElement;
-    stepIndex = typeof startIndex === "number" ? startIndex : 0;
+  function go(delta) {
+    var next = cursor + delta;
+    if (next < 0) { return; }
+    if (next >= order.length) { close({ markComplete: true }); return; }
+    cursor = next;
     render();
-    modal.classList.add("is-open");
-    modal.setAttribute("aria-hidden", "false");
+  }
+
+  function open(startAt) {
+    if (!root) { return; }
+    lastFocused = document.activeElement;
+    buildOrder();
+    buildPips();
+    cursor = typeof startAt === "number" ? startAt : 0;
+    root.hidden = false;
     document.body.classList.add("modal-open");
+    render();
     document.addEventListener("keydown", onKeydown, true);
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    /* The dashboard re-renders on a poll, which can move a spotlit element
+       without firing scroll or resize. */
+    tickTimer = window.setInterval(place, 500);
     if (els.next) { els.next.focus(); }
   }
 
   function close(options) {
-    if (!modal) { return; }
-    modal.classList.remove("is-open");
-    modal.setAttribute("aria-hidden", "true");
+    if (!root) { return; }
+    root.hidden = true;
     document.body.classList.remove("modal-open");
     document.removeEventListener("keydown", onKeydown, true);
+    window.removeEventListener("resize", place);
+    window.removeEventListener("scroll", place, true);
+    if (tickTimer) { window.clearInterval(tickTimer); tickTimer = null; }
 
     if (options && options.markComplete) { markComplete(); }
 
-    /* Put focus back where it came from, so a replay does not dump a keyboard
-       user at the top of the page. */
     if (lastFocused && typeof lastFocused.focus === "function") {
       lastFocused.focus();
     }
     lastFocused = null;
   }
-
-  var marked = false;
 
   function markComplete() {
     /* Once per page. The server guards on IS NULL anyway, so a second call
@@ -209,51 +317,53 @@
       credentials: "same-origin",
       body: "{}"
     }).catch(function () {
-      /* A failed save is not worth interrupting anyone over. The tutorial
-         simply opens again next time, which is the safe direction to fail. */
+      /* A failed save is not worth interrupting anyone over. The tour simply
+         opens again next time, which is the safe direction to fail. */
       marked = false;
     });
   }
 
   function bind() {
     Array.prototype.forEach.call(
-      modal.querySelectorAll("[data-tutorial-skip]"),
+      root.querySelectorAll("[data-tour-skip]"),
       function (btn) {
         btn.addEventListener("click", function () { close({ markComplete: true }); });
       }
     );
+    if (els.back) { els.back.addEventListener("click", function () { go(-1); }); }
+    if (els.next) { els.next.addEventListener("click", function () { go(1); }); }
 
-    if (els.back) {
-      els.back.addEventListener("click", function () {
-        if (stepIndex > 0) { stepIndex -= 1; render(); }
-      });
-    }
-
-    if (els.next) {
-      els.next.addEventListener("click", function () {
-        if (stepIndex < STEPS.length - 1) { stepIndex += 1; render(); }
-        else { close({ markComplete: true }); }
-      });
-    }
-
-    /* Clicking the backdrop closes, clicking the card does not. */
-    modal.addEventListener("click", function (event) {
-      if (event.target === modal) { close({ markComplete: true }); }
-    });
+    /* Clicking the dimmed page does nothing on purpose. Mid-tour it is far
+       more likely to be a misjudged click than a decision to leave, and Skip
+       and Escape are both right there. */
+    root.addEventListener("click", function (event) { event.stopPropagation(); });
 
     var replay = byId("replay-tutorial-btn");
-    if (replay) {
-      replay.addEventListener("click", function () { open(0); });
-    }
+    if (replay) { replay.addEventListener("click", function () { open(0); }); }
+  }
+
+  /* sndra:session-ready fires as soon as the session is known, which is well
+     before the floors and slots have been fetched and drawn. Opening then
+     would spotlight an empty grid and drop the bay step as a missing optional,
+     so wait for the first slot to exist. The timeout is the backstop: if the
+     grid never fills -- a floor with no bays, a failed request -- the tour
+     still runs, just without the step that has nothing to point at. */
+  function whenPopulated(selector, timeoutMs, done) {
+    var started = Date.now();
+    (function poll() {
+      if (document.querySelector(selector) || Date.now() - started > timeoutMs) {
+        done();
+        return;
+      }
+      window.setTimeout(poll, 150);
+    })();
   }
 
   function start(user) {
-    if (!cacheElements()) { return; }
-    buildStepPips();
+    if (!cache()) { return; }
     bind();
-
-    var done = user && user.tutorial_completed_at;
-    if (!done) { open(0); }
+    if (user && user.tutorial_completed_at) { return; }
+    whenPopulated("#slots-grid .slot-card", 6000, function () { open(0); });
   }
 
   window.addEventListener("sndra:session-ready", function (event) {

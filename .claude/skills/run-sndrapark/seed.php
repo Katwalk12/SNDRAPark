@@ -38,8 +38,13 @@ const BOOTH_PIN   = '2468';
 $st = $db->prepare('SELECT id FROM users WHERE email = ?');
 $st->execute([USER_EMAIL]);
 if ($id = $st->fetchColumn()) {
+    // tutorial_completed_at matters to the driver here, not to the app: the
+    // first-run tour covers the dashboard and swallows pointer events, so a
+    // freshly registered smoke account would block every `click` in a flow.
+    // COALESCE keeps the original timestamp when there already is one.
     $db->prepare('UPDATE users SET password_hash = ?, account_status = "active",
-                  failed_login_attempts = 0, login_locked_until = NULL WHERE id = ?')
+                  failed_login_attempts = 0, login_locked_until = NULL,
+                  tutorial_completed_at = COALESCE(tutorial_completed_at, NOW()) WHERE id = ?')
        ->execute([password_hash(USER_PASS, PASSWORD_DEFAULT), $id]);
     echo "member  : ok (id {$id})\n";
 } else {

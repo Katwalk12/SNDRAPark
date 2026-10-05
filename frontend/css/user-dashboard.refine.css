@@ -860,82 +860,125 @@
   color: var(--ds-text, var(--ds-text));
   font-weight: 600;
 }
-
 /* ==========================================================================
-   First-run tutorial
-   Reuses .modal-backdrop / .modal-card so it inherits the dialog behaviour,
-   the glass surface and both themes. Only the inside of the card is new.
+   First-run guided tour
+   A dimming ring over the element each step is about, plus a card anchored
+   next to it. Positions are set from JS; everything here is appearance.
    ========================================================================== */
 
-.tutorial-card {
-  max-width: 34rem;
-  width: min(34rem, calc(100vw - 2rem));
+.tour[hidden] {
+  display: none;
 }
 
-.tutorial-body {
-  display: grid;
-  gap: var(--ds-space-4);
-  justify-items: center;
-  padding: var(--ds-space-2) 0 var(--ds-space-4);
-  text-align: center;
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
 }
 
-.tutorial-figure {
+/* The dim is one enormous ring shadow rather than four panels around a hole.
+   One element, one paint, and the cut-out follows the spotlight's own border
+   radius for free. */
+.tour-spotlight {
+  position: fixed;
+  box-shadow: 0 0 0 9999px var(--tour-scrim, rgba(10, 10, 10, 0.62));
+  border-radius: 12px;
+  pointer-events: none;
+  transition: all var(--ds-duration-slow) var(--ds-ease);
+}
+
+.tour-pop {
+  position: fixed;
+  z-index: 1;
+  width: min(23rem, calc(100vw - 2rem));
+  padding: var(--ds-space-5);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-xl);
+  /* Solid, not the page's glass surface: this card sits over a dimmed
+     dashboard and has to stay readable against whatever is behind it. */
+  background: var(--ds-surface-solid);
+  box-shadow: var(--ds-shadow-lg);
+  transition: left var(--ds-duration-slow) var(--ds-ease),
+              top var(--ds-duration-slow) var(--ds-ease);
+}
+
+.tour-close {
+  position: absolute;
+  top: var(--ds-space-3);
+  right: var(--ds-space-3);
+  width: 1.75rem;
+  height: 1.75rem;
   display: grid;
   place-items: center;
-  width: 4.5rem;
-  height: 4.5rem;
+  border: 0;
   border-radius: var(--ds-radius-full);
-  background: var(--ds-surface-muted);
-  color: var(--ds-text);
-  font-size: 1.9rem;
+  background: transparent;
+  color: var(--ds-text-faint);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
 }
 
-.tutorial-copy {
-  margin: 0;
-  max-width: 30rem;
+.tour-close:hover {
+  background: var(--ds-surface-muted);
+  color: var(--ds-text);
+}
+
+.tour-title {
+  margin: var(--ds-space-1) 0 var(--ds-space-2);
+  color: var(--ds-text);
+  font-size: var(--ds-text-xl);
+  line-height: var(--ds-leading-tight);
+}
+
+.tour-copy {
+  margin: 0 0 var(--ds-space-4);
   color: var(--ds-text-muted);
-  font-size: var(--ds-text-lg);
+  font-size: var(--ds-text-md);
   line-height: var(--ds-leading-loose);
 }
 
 /* The step row doubles as the progress indicator, so it is a list rather than
    a strip of divs: a screen reader announces "step 3 of 6" from the markup
    instead of from a label that has to be kept in sync by hand. */
-.tutorial-steps {
+.tour-steps {
   display: flex;
-  justify-content: center;
   gap: var(--ds-space-2);
   margin: 0 0 var(--ds-space-4);
   padding: 0;
   list-style: none;
 }
 
-.tutorial-steps li {
-  width: 1.9rem;
+.tour-steps li {
+  flex: 1;
   height: 0.25rem;
   border-radius: var(--ds-radius-full);
   background: var(--ds-border-strong);
   transition: background-color var(--ds-transition);
 }
 
-.tutorial-steps li[aria-current="step"] {
-  background: var(--ds-brand);
-}
-
-.tutorial-steps li.is-done {
+.tour-steps li.is-done {
   background: var(--ds-text-faint);
 }
 
-.tutorial-actions {
-  justify-content: space-between;
+.tour-steps li[aria-current="step"] {
+  background: var(--ds-brand);
+}
+
+.tour-actions {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--ds-space-3);
 }
 
-.tutorial-actions-right {
+.tour-actions-right {
   display: flex;
   gap: var(--ds-space-2);
+}
+
+.tour-actions .action-btn {
+  padding-inline: var(--ds-space-3);
 }
 
 /* Skip is a real choice, not a dead end, but it should not compete with Next. */
@@ -954,17 +997,21 @@
   margin-top: var(--ds-space-3);
 }
 
+/* A spotlight that glides across the page is the whole point of the effect,
+   and also exactly what prefers-reduced-motion asks us not to do. No rule is
+   needed here: design-system.css already forces transition-duration to
+   0.01ms !important on everything under that media query, which this card and
+   ring inherit. The smooth scroll that moves the page between steps is not
+   CSS, so dashboard-tutorial.js checks the same media query itself and falls
+   back to an instant jump. */
+
 @media (max-width: 540px) {
-  .tutorial-actions {
+  .tour-actions {
     flex-direction: column-reverse;
     align-items: stretch;
   }
 
-  .tutorial-actions-right {
-    justify-content: stretch;
-  }
-
-  .tutorial-actions-right .action-btn {
+  .tour-actions-right .action-btn {
     flex: 1;
     justify-content: center;
   }
