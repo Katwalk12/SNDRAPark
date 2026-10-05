@@ -108,6 +108,28 @@ class UserController
         ]);
     }
 
+    /**
+     * Record that the driver has been through the dashboard tutorial.
+     *
+     * Deliberately takes no input. The only thing it can do is set one
+     * timestamp for whoever is signed in, so there is nothing to validate and
+     * nothing a caller could ask for that it should refuse.
+     */
+    public function completeTutorial()
+    {
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+
+        if ($userId <= 0) {
+            ResponseHelper::error('Unauthorized: User session required.', 401);
+        }
+
+        $this->userModel->markTutorialComplete($userId);
+
+        ResponseHelper::success('Tutorial marked as completed.', [
+            'tutorialCompleted' => true
+        ]);
+    }
+
     public function getVehicles()
     {
         $userId = (int) ($_SESSION['user_id'] ?? 0);

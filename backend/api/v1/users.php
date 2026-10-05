@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../middleware/AuthMiddleware.php';
 require_once __DIR__ . '/../../middleware/ErrorMiddleware.php';
 require_once __DIR__ . '/../../utils/RequestHelper.php';
 require_once __DIR__ . '/../../utils/ResponseHelper.php';
+require_once __DIR__ . '/../../utils/CsrfGuard.php';
 
 ErrorMiddleware::setupGlobalErrorHandling();
 
@@ -23,6 +24,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 try {
     AuthMiddleware::authorizeRequest();
+
+    // This file is its own entry point, so it never passed through the guard in
+    // api/v1/index.php -- every state-changing action here (update, vehicles,
+    // and now tutorial) was reachable with session cookies alone. The only
+    // caller is the driver dashboard, which loads assets/js/csrf.js and so has
+    // been sending the token on these requests all along.
+    CsrfGuard::requireValidToken();
 
     $action = RequestHelper::query('action', 'default');
     $handler = resolveApiAction('users', $_SERVER['REQUEST_METHOD'], $action);

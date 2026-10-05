@@ -395,7 +395,12 @@
    sit on an opaque surface. */
 
 .modal-card {
-  background: var(--ds-surface) !important;
+  /* --ds-surface-solid, not --ds-surface: aurora.css makes the surface token
+     translucent on this page so its gradient shows through the panels, and a
+     dialog is the one place that must not follow. This rule already existed
+     to keep a form dialog off a translucent panel -- it just has to name the
+     solid token now that the page has an opinion about the other one. */
+  background: var(--ds-surface-solid) !important;
   border: 1px solid var(--ds-border) !important;
   border-radius: var(--ds-radius-xl) !important;
   box-shadow: var(--ds-shadow-lg) !important;
@@ -422,7 +427,7 @@
 }
 
 .modal-backdrop {
-  background: rgba(11, 15, 25, 0.45) !important;
+  background: rgba(10, 10, 10, 0.45) !important;
   backdrop-filter: blur(2px);
 }
 
@@ -854,4 +859,113 @@
 .footer-attribution strong {
   color: var(--ds-text, var(--ds-text));
   font-weight: 600;
+}
+
+/* ==========================================================================
+   First-run tutorial
+   Reuses .modal-backdrop / .modal-card so it inherits the dialog behaviour,
+   the glass surface and both themes. Only the inside of the card is new.
+   ========================================================================== */
+
+.tutorial-card {
+  max-width: 34rem;
+  width: min(34rem, calc(100vw - 2rem));
+}
+
+.tutorial-body {
+  display: grid;
+  gap: var(--ds-space-4);
+  justify-items: center;
+  padding: var(--ds-space-2) 0 var(--ds-space-4);
+  text-align: center;
+}
+
+.tutorial-figure {
+  display: grid;
+  place-items: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-surface-muted);
+  color: var(--ds-text);
+  font-size: 1.9rem;
+}
+
+.tutorial-copy {
+  margin: 0;
+  max-width: 30rem;
+  color: var(--ds-text-muted);
+  font-size: var(--ds-text-lg);
+  line-height: var(--ds-leading-loose);
+}
+
+/* The step row doubles as the progress indicator, so it is a list rather than
+   a strip of divs: a screen reader announces "step 3 of 6" from the markup
+   instead of from a label that has to be kept in sync by hand. */
+.tutorial-steps {
+  display: flex;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  margin: 0 0 var(--ds-space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.tutorial-steps li {
+  width: 1.9rem;
+  height: 0.25rem;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-border-strong);
+  transition: background-color var(--ds-transition);
+}
+
+.tutorial-steps li[aria-current="step"] {
+  background: var(--ds-brand);
+}
+
+.tutorial-steps li.is-done {
+  background: var(--ds-text-faint);
+}
+
+.tutorial-actions {
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--ds-space-3);
+}
+
+.tutorial-actions-right {
+  display: flex;
+  gap: var(--ds-space-2);
+}
+
+/* Skip is a real choice, not a dead end, but it should not compete with Next. */
+.action-btn-ghost {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ds-text-muted);
+}
+
+.action-btn-ghost:hover {
+  background: var(--ds-surface-muted);
+  color: var(--ds-text);
+}
+
+.support-card-action {
+  margin-top: var(--ds-space-3);
+}
+
+@media (max-width: 540px) {
+  .tutorial-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .tutorial-actions-right {
+    justify-content: stretch;
+  }
+
+  .tutorial-actions-right .action-btn {
+    flex: 1;
+    justify-content: center;
+  }
 }

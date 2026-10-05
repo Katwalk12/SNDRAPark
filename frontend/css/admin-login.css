@@ -168,7 +168,7 @@ input {
   inset: 0;
   /* The colour alone is the fallback: without backdrop-filter the form behind
      is dimmed rather than blurred, which still reads as "not your turn". */
-  background: rgba(11, 15, 25, 0.55);
+  background: rgba(10, 10, 10, 0.55);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }

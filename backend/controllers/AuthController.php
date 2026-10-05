@@ -416,7 +416,9 @@ class AuthController
             'vehicle_model'  => $user['vehicle_model'] ?? null,
             'vehicle_color'  => $user['vehicle_color'] ?? null,
             'role'           => $user['role'] ?? 'user',
-            'created_at'     => $user['created_at'] ?? null
+            'created_at'     => $user['created_at'] ?? null,
+            // NULL here is what opens the dashboard tutorial on first visit.
+            'tutorial_completed_at' => $user['tutorial_completed_at'] ?? null
         ];
     }
 

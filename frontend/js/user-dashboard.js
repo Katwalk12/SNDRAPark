@@ -271,6 +271,13 @@ async function initializeUserDashboard() {
   }
 
   currentUser = session.user || {};
+
+  // dashboard-tutorial.js listens for this rather than reaching into this
+  // module, so the first-run walkthrough stays a separate file.
+  window.dispatchEvent(new CustomEvent("sndra:session-ready", {
+    detail: { user: currentUser }
+  }));
+
   clearLegacySharedUserStorage();
   currentProfile = await loadUserProfile(buildDefaultProfile(currentUser));
   await refreshVehiclesState({ silent: true }).catch(() => {
@@ -1947,7 +1954,8 @@ function bindFeedbackFormEvents() {
 }
 
 function syncBodyModalState() {
-  const hasOpenModal = [reservationModal, summaryModal, clearLogModal, cancelReservationModal, vehicleModal].some((modal) => {
+  const tutorialModal = document.getElementById("tutorial-modal");
+  const hasOpenModal = [reservationModal, summaryModal, clearLogModal, cancelReservationModal, vehicleModal, tutorialModal].some((modal) => {
     return modal?.classList.contains("is-open");
   });
 
