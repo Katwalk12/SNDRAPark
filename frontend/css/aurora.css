@@ -153,3 +153,76 @@ body.ds-aurora::after {
     display: none;
   }
 }
+
+/* ==========================================================================
+   Glass surfaces
+   With a colour field behind them, opaque white panels read as holes punched
+   in it. Making the surface token itself translucent turns every panel on
+   these two pages to glass at once -- cards, the sticky header, the sidebar,
+   tiles, tables -- without hunting down each rule, and it follows the theme
+   because it is derived from the solid token rather than hardcoded.
+
+   Nested panels compound, which is wanted: a tile inside a card lands around
+   80% and still separates from its parent.
+   ========================================================================== */
+
+body.ds-aurora {
+  --ds-surface: color-mix(in srgb, var(--ds-surface-solid) 58%, transparent);
+  --ds-surface-muted: color-mix(in srgb, var(--ds-surface-muted-solid) 50%, transparent);
+}
+
+/* The header is sticky and the page scrolls underneath it, so at 58% the
+   content would read straight through the nav. This is the one place the blur
+   is doing real work rather than decoration. */
+body.ds-aurora .site-header,
+body.ds-aurora .page-utility-bar {
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+
+/* Overlays opt back out. A modal sits over page text and a dropdown over a
+   table, so both need something solid behind their own text -- translucency
+   there is not a style, it is two layers of words on top of each other. */
+body.ds-aurora .modal-card,
+body.ds-aurora .modal-panel,
+body.ds-aurora .notification-dropdown,
+body.ds-aurora .notification-panel,
+body.ds-aurora select,
+body.ds-aurora option {
+  background: var(--ds-surface-solid);
+}
+
+/* Glass needs its edge back: at 58% the shadow that used to separate a card
+   from the page barely registers, and the border is what keeps the panel a
+   panel. */
+body.ds-aurora .dashboard-card,
+body.ds-aurora .panel-card,
+body.ds-aurora .soft-card,
+body.ds-aurora .landing-card,
+body.ds-aurora .dashboard-sidebar {
+  border: 1px solid color-mix(in srgb, var(--ds-surface-solid) 70%, transparent);
+}
+
+/* --- One contrast repair the glass makes necessary -------------------------
+   --ds-text-faint is #777777, already the lowest step that carries text at
+   4.48:1 on white. Measured against the strongest violet showing through a
+   58% panel it drops to 2.81:1, under the 3.0 floor even for large text.
+
+   Raising the panel opacity to 70% would fix it and undo the transparency
+   this file exists to provide, so the text moves instead: #666666 measures
+   3.60:1 on that same surface, with headroom for the hue cycle to keep
+   moving. Light mode only -- in dark mode the tint runs the other way and
+   #777777 already measures 3.59:1, where #666666 would be worse. */
+body.ds-aurora {
+  --ds-text-faint: #666666;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) body.ds-aurora {
+    --ds-text-faint: var(--ds-ink-500);
+  }
+}
+
+:root[data-theme="dark"] body.ds-aurora {
+  --ds-text-faint: var(--ds-ink-500);
+}
