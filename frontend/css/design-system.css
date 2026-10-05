@@ -41,8 +41,17 @@
      The ink ramp above is the palette; these are the roles. Only the roles
      are redefined for dark mode, so a sheet that uses them themes itself. */
   --ds-bg:            var(--ds-ink-50);
-  --ds-surface:       var(--ds-white);
-  --ds-surface-muted: var(--ds-ink-100);
+
+  /* --ds-surface is what panels paint with, and a page is free to make it
+     translucent -- aurora.css does, so its gradient shows through the cards.
+     --ds-surface-solid is the same colour with the transparency never applied,
+     for the things that must stay opaque whatever is behind them: a modal over
+     page text, a dropdown over a table. Anything that only ever sits on the
+     page background should use --ds-surface and let the page decide. */
+  --ds-surface-solid:       var(--ds-white);
+  --ds-surface-muted-solid: var(--ds-ink-100);
+  --ds-surface:       var(--ds-surface-solid);
+  --ds-surface-muted: var(--ds-surface-muted-solid);
   --ds-surface-sunken: var(--ds-ink-200);  /* wells, tracks, inset rows */
   --ds-border:        var(--ds-ink-200);
   --ds-border-strong: var(--ds-ink-300);
@@ -189,8 +198,10 @@
     color-scheme: dark;
 
     --ds-bg:             var(--ds-ink-900);
-    --ds-surface:        #1A1A1A;
-    --ds-surface-muted:  var(--ds-ink-800);
+    --ds-surface-solid:       #1A1A1A;
+    --ds-surface:        var(--ds-surface-solid);
+    --ds-surface-muted-solid: var(--ds-ink-800);
+    --ds-surface-muted:  var(--ds-surface-muted-solid);
     --ds-surface-sunken: var(--ds-ink-950);
     --ds-border:         var(--ds-ink-700);
     --ds-border-strong:  var(--ds-ink-600);
@@ -237,8 +248,10 @@
   color-scheme: dark;
 
   --ds-bg:             var(--ds-ink-900);
-  --ds-surface:        #1A1A1A;
-  --ds-surface-muted:  var(--ds-ink-800);
+  --ds-surface-solid:       #1A1A1A;
+  --ds-surface:        var(--ds-surface-solid);
+  --ds-surface-muted-solid: var(--ds-ink-800);
+  --ds-surface-muted:  var(--ds-surface-muted-solid);
   --ds-surface-sunken: var(--ds-ink-950);
   --ds-border:         var(--ds-ink-700);
   --ds-border-strong:  var(--ds-ink-600);

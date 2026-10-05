@@ -1,0 +1,228 @@
+/* ==========================================================================
+   Aurora background
+   An animated colour field for the landing page and the driver dashboard.
+   Opt in by putting `ds-aurora` on <body>; nothing else on the page changes.
+
+   Load AFTER design-system.css, so the theme tokens exist.
+
+   How it is built, and why this way:
+     Two fixed layers of soft radial blobs sit behind everything. They drift
+     with `transform` and shift hue with `filter`, which the compositor can do
+     on its own -- animating the gradient stops themselves would repaint a
+     full-screen layer every frame on a page that is already polling every
+     three seconds.
+
+     The two animations are deliberately kept to one property each. They run
+     on the same element, and if both touched `filter` the later one would
+     simply win: drift owns `transform`, hue owns `filter`.
+
+     The layers are inset past the viewport and heavily blurred, so no blob
+     edge can scroll into view as they move and scale.
+   ========================================================================== */
+
+:root {
+  /* Sampled from the supplied gradient: pale lavender through pink into a
+     vivid periwinkle. */
+  --aurora-1: #E4DFFF;
+  --aurora-2: #EEC7FE;
+  --aurora-3: #A785FD;
+  --aurora-4: #C9B8FF;
+  --aurora-strength: 0.9;
+  --aurora-blur: 42px;
+}
+
+/* Dark mode gets its own set rather than a dimmed copy: the light lavenders
+   turn to grey mush when darkened, and a bright field behind dark chrome is
+   what makes a dark theme glare. These are deep violets that read as colour
+   without lifting the page off its #111111 background. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --aurora-1: #1E1833;
+    --aurora-2: #33193F;
+    --aurora-3: #3B2673;
+    --aurora-4: #171428;
+    --aurora-strength: 0.85;
+  }
+}
+
+:root[data-theme="dark"] {
+  --aurora-1: #1E1833;
+  --aurora-2: #33193F;
+  --aurora-3: #3B2673;
+  --aurora-4: #171428;
+  --aurora-strength: 0.85;
+}
+
+/* The page background moves up to <html> so <body> can go transparent and let
+   the fixed layers below it show through. */
+html {
+  background: var(--ds-bg);
+}
+
+body.ds-aurora {
+  background: transparent;
+}
+
+body.ds-aurora::before,
+body.ds-aurora::after {
+  content: "";
+  position: fixed;
+  /* Past the viewport on every side: the layers scale and translate, and this
+     is what keeps their edges out of frame. */
+  inset: -25%;
+  z-index: -1;
+  pointer-events: none;
+  opacity: var(--aurora-strength);
+}
+
+body.ds-aurora::before {
+  /* The blobs sit on a full-bleed wash. Without it they fall off before they
+     meet and the middle of the page stays near-white, which reads as a faint
+     tint in the corners rather than as a colour field. */
+  background:
+    radial-gradient(42% 48% at 22% 26%, var(--aurora-1) 0%, transparent 70%),
+    radial-gradient(46% 52% at 80% 20%, var(--aurora-2) 0%, transparent 72%),
+    radial-gradient(52% 58% at 30% 84%, var(--aurora-3) 0%, transparent 74%),
+    radial-gradient(44% 50% at 84% 78%, var(--aurora-4) 0%, transparent 70%),
+    linear-gradient(135deg,
+      var(--aurora-4) 0%,
+      var(--aurora-1) 22%,
+      var(--aurora-2) 52%,
+      var(--aurora-4) 76%,
+      var(--aurora-3) 100%);
+  filter: blur(var(--aurora-blur)) saturate(115%);
+  animation:
+    aurora-drift 34s cubic-bezier(0.4, 0, 0.3, 1) infinite alternate,
+    aurora-hue 38s linear infinite;
+}
+
+/* A second, slower layer running the other way. One layer alone reads as a
+   picture sliding about; two at different speeds read as the colour itself
+   changing, which is the point. */
+body.ds-aurora::after {
+  background:
+    radial-gradient(44% 48% at 68% 36%, var(--aurora-3) 0%, transparent 60%),
+    radial-gradient(40% 44% at 14% 62%, var(--aurora-2) 0%, transparent 62%),
+    radial-gradient(46% 50% at 56% 92%, var(--aurora-1) 0%, transparent 64%);
+  filter: blur(var(--aurora-blur)) saturate(110%);
+  animation:
+    aurora-drift-alt 46s cubic-bezier(0.4, 0, 0.3, 1) infinite alternate,
+    aurora-hue-alt 54s linear infinite;
+  opacity: calc(var(--aurora-strength) * 0.65);
+}
+
+@keyframes aurora-drift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(-4%, 3%, 0) scale(1.12); }
+  100% { transform: translate3d(3%, -4%, 0) scale(1.05); }
+}
+
+@keyframes aurora-drift-alt {
+  0%   { transform: translate3d(0, 0, 0) scale(1.08) rotate(0deg); }
+  50%  { transform: translate3d(5%, -3%, 0) scale(1) rotate(-3deg); }
+  100% { transform: translate3d(-3%, 4%, 0) scale(1.1) rotate(2deg); }
+}
+
+/* The colour change itself. Kept to a narrow sweep -- a full rotation would
+   march the page through every hue including greens and yellows, which is no
+   longer the supplied palette. */
+@keyframes aurora-hue {
+  0%,
+  100% { filter: blur(var(--aurora-blur)) saturate(112%) hue-rotate(-18deg); }
+  50%  { filter: blur(var(--aurora-blur)) saturate(130%) hue-rotate(32deg); }
+}
+
+@keyframes aurora-hue-alt {
+  0%,
+  100% { filter: blur(var(--aurora-blur)) saturate(128%) hue-rotate(26deg); }
+  50%  { filter: blur(var(--aurora-blur)) saturate(110%) hue-rotate(-22deg); }
+}
+
+/* A large, slowly moving field in peripheral vision is exactly what this
+   setting is for. The colours stay; only the movement stops. */
+@media (prefers-reduced-motion: reduce) {
+  body.ds-aurora::before,
+  body.ds-aurora::after {
+    animation: none;
+  }
+}
+
+@media print {
+  body.ds-aurora::before,
+  body.ds-aurora::after {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   Glass surfaces
+   With a colour field behind them, opaque white panels read as holes punched
+   in it. Making the surface token itself translucent turns every panel on
+   these two pages to glass at once -- cards, the sticky header, the sidebar,
+   tiles, tables -- without hunting down each rule, and it follows the theme
+   because it is derived from the solid token rather than hardcoded.
+
+   Nested panels compound, which is wanted: a tile inside a card lands around
+   80% and still separates from its parent.
+   ========================================================================== */
+
+body.ds-aurora {
+  --ds-surface: color-mix(in srgb, var(--ds-surface-solid) 58%, transparent);
+  --ds-surface-muted: color-mix(in srgb, var(--ds-surface-muted-solid) 50%, transparent);
+}
+
+/* The header is sticky and the page scrolls underneath it, so at 58% the
+   content would read straight through the nav. This is the one place the blur
+   is doing real work rather than decoration. */
+body.ds-aurora .site-header,
+body.ds-aurora .page-utility-bar {
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+
+/* Overlays opt back out. A modal sits over page text and a dropdown over a
+   table, so both need something solid behind their own text -- translucency
+   there is not a style, it is two layers of words on top of each other. */
+body.ds-aurora .modal-card,
+body.ds-aurora .modal-panel,
+body.ds-aurora .notification-dropdown,
+body.ds-aurora .notification-panel,
+body.ds-aurora select,
+body.ds-aurora option {
+  background: var(--ds-surface-solid);
+}
+
+/* Glass needs its edge back: at 58% the shadow that used to separate a card
+   from the page barely registers, and the border is what keeps the panel a
+   panel. */
+body.ds-aurora .dashboard-card,
+body.ds-aurora .panel-card,
+body.ds-aurora .soft-card,
+body.ds-aurora .landing-card,
+body.ds-aurora .dashboard-sidebar {
+  border: 1px solid color-mix(in srgb, var(--ds-surface-solid) 70%, transparent);
+}
+
+/* --- One contrast repair the glass makes necessary -------------------------
+   --ds-text-faint is #777777, already the lowest step that carries text at
+   4.48:1 on white. Measured against the strongest violet showing through a
+   58% panel it drops to 2.81:1, under the 3.0 floor even for large text.
+
+   Raising the panel opacity to 70% would fix it and undo the transparency
+   this file exists to provide, so the text moves instead: #666666 measures
+   3.60:1 on that same surface, with headroom for the hue cycle to keep
+   moving. Light mode only -- in dark mode the tint runs the other way and
+   #777777 already measures 3.59:1, where #666666 would be worse. */
+body.ds-aurora {
+  --ds-text-faint: #666666;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) body.ds-aurora {
+    --ds-text-faint: var(--ds-ink-500);
+  }
+}
+
+:root[data-theme="dark"] body.ds-aurora {
+  --ds-text-faint: var(--ds-ink-500);
+}
