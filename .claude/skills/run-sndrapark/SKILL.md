@@ -194,6 +194,13 @@ point — **not** the site root (see Gotchas).
 - **A 401 on `backend/parking-booth/session.php` before login is normal.**
   `booth-login.html` probes the session on load while unauthenticated. After
   `loginbooth` the same endpoint returns 200.
+- **A brand-new member account opens the first-run tour, which eats clicks.**
+  It covers the dashboard and swallows pointer events, so `click
+  button.slot-card.available` times out with no obvious cause. `seed.php` sets
+  `users.tutorial_completed_at` on the smoke member for exactly this reason —
+  if you register a member by hand, do the same, or dismiss the tour first:
+  `evaljs document.querySelector('[data-tour-skip]').click()`.
+
 - **Booth login is PIN-only.** There is no username field; the backend
   `password_verify`s the submitted PIN against *every* active row in
   `booth_teller_accounts`. A duplicate PIN would authenticate as whichever

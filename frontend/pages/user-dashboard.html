@@ -60,7 +60,7 @@
   <link rel="stylesheet" href="../../assets/css/notifications.css?v=20260926-theme1">
   <link rel="stylesheet" href="../css/user-dashboard.css?v=20260926-theme1">
   <link rel="stylesheet" href="../css/components.css?v=20260926-theme1">
-  <link rel="stylesheet" href="../css/user-dashboard.refine.css?v=20260926-theme1">
+  <link rel="stylesheet" href="../css/user-dashboard.refine.css?v=20261005-tour1">
   <link rel="stylesheet" href="../css/responsive.css?v=20260926-theme1">
   <link rel="stylesheet" href="../css/aurora.css?v=20261005-aurora1">
 </head>
@@ -435,6 +435,7 @@
               <article class="developer-card support-card"><div class="support-icon"><i class="bi bi-envelope-paper-fill" aria-hidden="true"></i></div><h3>Email Support</h3><p data-system-setting="gmail_address">sndraparksupport@gmail.com</p></article>
               <article class="developer-card support-card"><div class="support-icon"><i class="bi bi-telephone-fill" aria-hidden="true"></i></div><h3>Phone Support</h3><p data-system-setting="contact_number">+63 917 555 0142</p></article>
               <article class="developer-card support-card"><div class="support-icon"><i class="bi bi-geo-alt-fill" aria-hidden="true"></i></div><h3>Location</h3><p>SM City Grand Central, Caloocan</p></article>
+              <article class="developer-card support-card"><div class="support-icon"><i class="bi bi-mortarboard-fill" aria-hidden="true"></i></div><h3>How booking works</h3><p>Run through the short walkthrough of reserving a bay again.</p><button class="action-btn action-btn-secondary support-card-action" type="button" id="replay-tutorial-btn"><i class="bi bi-play-circle" aria-hidden="true"></i><span>Replay tutorial</span></button></article>
             </div>
             <section class="contact-feedback-panel">
               <div class="feedback-card profile-form-panel">
@@ -660,6 +661,37 @@
     </div>
   </div>
 
+  <!-- First-run guided tour. Opens only when the signed-in account has no
+       tutorial_completed_at, and from the Replay button under Support.
+       The spotlight is positioned over whichever element each step is about,
+       so the page itself is the illustration. -->
+  <div class="tour" id="tutorial-tour" hidden>
+    <div class="tour-spotlight" id="tour-spotlight" aria-hidden="true"></div>
+    <div class="tour-pop" id="tour-pop" role="dialog" aria-modal="true"
+         aria-labelledby="tour-title" aria-describedby="tour-copy">
+      <button class="tour-close" type="button" data-tour-skip
+              aria-label="Skip the tour">&times;</button>
+      <p class="section-kicker" id="tour-kicker">Getting started</p>
+      <h2 class="tour-title" id="tour-title">Welcome to SNDRA Park</h2>
+      <p class="tour-copy" id="tour-copy"></p>
+      <ol class="tour-steps" id="tour-steps" aria-label="Tour progress"></ol>
+      <div class="tour-actions">
+        <button class="action-btn action-btn-ghost" type="button" data-tour-skip>
+          <span>Skip</span>
+        </button>
+        <div class="tour-actions-right">
+          <button class="action-btn action-btn-secondary" type="button" id="tour-back">
+            <i class="bi bi-arrow-left-circle" aria-hidden="true"></i><span>Back</span>
+          </button>
+          <button class="action-btn action-btn-primary" type="button" id="tour-next">
+            <span id="tour-next-label">Next</span>
+            <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="../../assets/js/runtime-config.js?v=20260830-attrib1"></script>
   <script src="../../assets/js/csrf.js?v=20260917-csrf1"></script>
   <script src="../../assets/js/system-settings.js?v=20260829-title1"></script>
@@ -667,6 +699,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <script src="../../assets/js/notifications.js?v=20260331-6"></script>
   <script src="../../assets/js/session-guard.js"></script>
+  <script src="../../assets/js/dashboard-tutorial.js?v=20261005-tour1"></script>
   <script src="../js/user-dashboard.js?v=20260901-nav1"></script>
   <script src="../js/mobile-nav.js?v=20260912-resp1"></script>
   <script src="../../assets/js/theme.js?v=20260926-theme1"></script>

@@ -12,7 +12,7 @@ class User
                     vehicle_type, plate_number, vehicle_brand, vehicle_model, vehicle_color,
                     warning_count, first_warning_at, account_locked_until, account_status,
                     failed_login_attempts, last_failed_login_at, login_locked_until, password_changed_at,
-                    created_at
+                    created_at, tutorial_completed_at
              FROM users
              WHERE id = ?
              LIMIT 1'
@@ -67,6 +67,28 @@ class User
     /**
      * Attach a Google account to an existing user so the next sign in matches by google_id.
      */
+    /**
+     * Mark the dashboard tutorial as finished for this driver.
+     *
+     * The IS NULL guard keeps the timestamp meaning "when they first finished
+     * it" rather than "when they last replayed it", and makes the call safe to
+     * repeat -- the dashboard fires it on every completion, including replays.
+     */
+    public function markTutorialComplete($id)
+    {
+        $connection = Database::connection();
+        $statement = $connection->prepare(
+            'UPDATE users
+             SET tutorial_completed_at = NOW()
+             WHERE id = ?
+               AND tutorial_completed_at IS NULL'
+        );
+        $statement->bind_param('i', $id);
+        $statement->execute();
+
+        return $statement->affected_rows >= 0;
+    }
+
     public function linkGoogleId($id, $googleId)
     {
         $connection = Database::connection();

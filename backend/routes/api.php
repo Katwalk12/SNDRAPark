@@ -21,6 +21,7 @@ function getApiRoutes()
             ],
             'POST' => [
                 'update' => 'updateProfile',
+                'tutorial' => 'completeTutorial',
                 'vehicles' => 'addVehicle'
             ],
             'PUT' => [
